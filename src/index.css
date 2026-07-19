@@ -1,0 +1,186 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap");
+@import "tailwindcss";
+:root {
+  --royal-blue: #0e07dd;
+  --royal-blue-dark: #261481;
+  --royal-blue-light: #5a7ae8;
+  --accent-red: #e63946;
+  --accent-red-dark: #c1121f;
+  --accent-red-light: #f28482;
+  --white: #ffffff;
+  --light-gray: #f8f9fa;
+  --medium-gray: #e9ecef;
+  --dark-gray: #343a40;
+  --success: #2ecc71;
+  --success-dark: #01923d;
+  --warning: #f39c12;
+  --danger: #e74c3c;
+  --info: #3498db;
+}
+
+/* Subtle dot-grid background — white but not flat */
+body {
+  background-color: #ffffff;
+  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-attachment: fixed;
+  font-family: "Roboto", sans-serif;
+}
+
+.bgColor {
+  background-color: #ffffff;
+  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-attachment: fixed;
+  font-family: "Roboto", sans-serif;
+}
+
+/* FLOATING BACKGROUND CIRCLES */
+
+@keyframes floatOne {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  50% {
+    transform: translate(-40px, 40px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+
+@keyframes floatTwo {
+  0% {
+    transform: translate(0px, 0px);
+  }
+  50% {
+    transform: translate(50px, -30px);
+  }
+  100% {
+    transform: translate(0px, 0px);
+  }
+}
+
+.animate-float-one {
+  animation: floatOne 12s ease-in-out infinite;
+}
+
+.animate-float-two {
+  animation: floatTwo 15s ease-in-out infinite;
+}
+
+/* .clip-shape {
+  clip-path: polygon(60% 0, 100% 0, 100% 100%, 20% 100%);
+} */
+
+/* 🔵 Animated Gradient */
+.animated-bg {
+  background: linear-gradient(-45deg, #1e3a8a, #1d4ed8, #1e40af, #172554);
+  background-size: 400% 400%;
+  animation: gradientMove 12s ease infinite;
+}
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* 🔴 Slanted Shape */
+.clip-shape {
+  clip-path: polygon(96% 0, 100% 0, 100% 100%, 20% 100%);
+}
+
+/* 💡 Glow Effect */
+.glow-edge {
+  background: linear-gradient(to right, rgba(255, 0, 0, 0.4), transparent);
+  filter: blur(30px);
+  opacity: 0.7;
+}
+
+.features-spin {
+  animation: spin 10s linear infinite;
+}
+
+/* ─── PRINT STYLES ───────────────────────────────────────────────────────────
+   Add this block to the bottom of your src/index.css
+   It hides all UI chrome and prints only the report card cleanly
+─────────────────────────────────────────────────────────────────────────────── */
+
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the report card */
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  /* Position the report card at top-left */
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* Hide UI elements that should never print */
+  .no-print,
+  header,
+  nav,
+  aside,
+  footer,
+  button,
+  [class*="sidebar"],
+  [class*="DashboardLayout"],
+  [class*="modal-overlay"] {
+    display: none !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 12mm 10mm;
+  }
+
+  /* Remove shadows and rounded corners for print */
+  .print-area * {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Preserve background colors (important for headers) */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  /* Table layout */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: avoid;
+  }
+
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Prevent page breaks inside the report */
+  .report-card {
+    page-break-inside: avoid;
+  }
+}

@@ -1,0 +1,447 @@
+// src/parent/settings/ParentSettings.jsx
+import React, { useState } from "react";
+import {
+  User,
+  Lock,
+  Bell,
+  Eye,
+  EyeOff,
+  Save,
+  CheckCircle2,
+  Shield,
+  LogOut,
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+
+const Field = ({ label, children }) => (
+  <div>
+    <label
+      className="block text-xs font-bold uppercase tracking-wider mb-1.5"
+      style={{ color: "#6b7280" }}
+    >
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+const Input = ({ type = "text", value, onChange, placeholder, disabled }) => (
+  <input
+    type={type}
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    disabled={disabled}
+    className="w-full px-3 py-2.5 text-sm border-2 rounded-xl outline-none transition"
+    style={{
+      borderColor: "var(--medium-gray)",
+      color: "var(--dark-gray)",
+      backgroundColor: disabled ? "#f9fafb" : "white",
+    }}
+    onFocus={(e) => {
+      if (!disabled) e.target.style.borderColor = "var(--royal-blue)";
+    }}
+    onBlur={(e) => (e.target.style.borderColor = "var(--medium-gray)")}
+  />
+);
+
+const Card = ({
+  icon: Icon,
+  title,
+  desc,
+  color = "var(--royal-blue)",
+  children,
+}) => (
+  <div
+    className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+    style={{ borderColor: "var(--medium-gray)" }}
+  >
+    <div
+      className="flex items-center gap-3 px-5 py-4 border-b"
+      style={{
+        borderColor: "var(--medium-gray)",
+        backgroundColor: "var(--light-gray)",
+      }}
+    >
+      <div
+        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: color + "18" }}
+      >
+        <Icon size={18} style={{ color }} />
+      </div>
+      <div>
+        <p className="font-black text-sm" style={{ color: "var(--dark-gray)" }}>
+          {title}
+        </p>
+        {desc && <p className="text-xs text-gray-400 mt-0.5">{desc}</p>}
+      </div>
+    </div>
+    <div className="p-5">{children}</div>
+  </div>
+);
+
+const Toggle = ({
+  label,
+  desc,
+  checked,
+  onChange,
+  color = "var(--royal-blue)",
+}) => (
+  <div
+    className="flex items-center justify-between py-3 border-b last:border-0"
+    style={{ borderColor: "var(--medium-gray)" }}
+  >
+    <div className="flex-1 min-w-0 mr-4">
+      <p
+        className="text-sm font-semibold"
+        style={{ color: "var(--dark-gray)" }}
+      >
+        {label}
+      </p>
+      {desc && <p className="text-xs text-gray-400 mt-0.5">{desc}</p>}
+    </div>
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors"
+      style={{ backgroundColor: checked ? color : "#d1d5db" }}
+    >
+      <span
+        className="inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+        style={{ transform: checked ? "translateX(20px)" : "translateX(0)" }}
+      />
+    </button>
+  </div>
+);
+
+export default function ParentSettings() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [toast, setToast] = useState(null);
+  const show = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const [contact, setContact] = useState({
+    phone: user?.phone || "",
+    address: user?.address || "",
+    email: user?.email || "",
+  });
+
+  const [pw, setPw] = useState({ current: "", newPw: "", confirm: "" });
+  const [showPw, setShowPw] = useState({
+    current: false,
+    newPw: false,
+    confirm: false,
+  });
+  const [pwErrors, setPwErrors] = useState({});
+
+  const [notif, setNotif] = useState({
+    resultsPublished: true,
+    reportCardReady: true,
+    attendanceAlert: true,
+    schoolAnnouncement: true,
+    emailNotifs: true,
+  });
+
+  const handleSaveContact = () =>
+    show("Contact information updated successfully");
+
+  const handleChangePassword = () => {
+    const e = {};
+    if (!pw.current.trim()) e.current = "Enter your current password";
+    if (!pw.newPw.trim()) e.newPw = "Enter a new password";
+    else if (pw.newPw.length < 6) e.newPw = "Minimum 6 characters";
+    if (pw.newPw !== pw.confirm) e.confirm = "Passwords do not match";
+    setPwErrors(e);
+    if (Object.keys(e).length) return;
+    show("Password changed successfully");
+    setPw({ current: "", newPw: "", confirm: "" });
+    setPwErrors({});
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  const displayName = user?.name || user?.email?.split("@")[0] || "Parent";
+
+  return (
+    <div className="space-y-6">
+      {toast && (
+        <div
+          className="fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl shadow-xl text-white text-sm font-semibold flex items-center gap-2"
+          style={{
+            backgroundColor:
+              toast.type === "error"
+                ? "var(--accent-red)"
+                : "var(--success-dark)",
+          }}
+        >
+          <CheckCircle2 size={14} /> {toast.msg}
+        </div>
+      )}
+
+      <div>
+        <h1
+          className="text-xl font-black"
+          style={{ color: "var(--dark-gray)" }}
+        >
+          Settings
+        </h1>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Manage your account and preferences
+        </p>
+      </div>
+
+      {/* Profile banner */}
+      <div
+        className="bg-white rounded-2xl border shadow-sm overflow-hidden"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
+        <div
+          className="h-20"
+          style={{ background: "linear-gradient(135deg,#4c1d95,#5b21b6)" }}
+        />
+        <div className="px-6 pb-5 -mt-8">
+          <div className="flex items-end gap-4 mb-3">
+            <div
+              className="w-16 h-16 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-white font-black text-xl"
+              style={{ backgroundColor: "#7c3aed" }}
+            >
+              {displayName.charAt(0).toUpperCase()}
+            </div>
+            <div className="pb-1">
+              <p
+                className="font-black text-base"
+                style={{ color: "var(--dark-gray)" }}
+              >
+                {displayName}
+              </p>
+              <p className="text-xs text-gray-400">{user?.email}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span
+              className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ backgroundColor: "#f5f3ff", color: "#7c3aed" }}
+            >
+              Parent Portal
+            </span>
+            <span
+              className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ backgroundColor: "#fff1f2", color: "var(--accent-red)" }}
+            >
+              AFSHTS
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact Information */}
+      <Card
+        icon={User}
+        title="Contact Information"
+        desc="Update your personal contact details"
+      >
+        <div className="space-y-4">
+          <Field label="Email Address">
+            <Input value={contact.email} disabled />
+            <p className="text-xs text-gray-400 mt-1">
+              Email can only be changed by the admin.
+            </p>
+          </Field>
+          <Field label="Phone Number">
+            <Input
+              value={contact.phone}
+              onChange={(e) =>
+                setContact({ ...contact, phone: e.target.value })
+              }
+              placeholder="e.g. 0244 123 456"
+            />
+          </Field>
+          <Field label="Home Address">
+            <Input
+              value={contact.address}
+              onChange={(e) =>
+                setContact({ ...contact, address: e.target.value })
+              }
+              placeholder="Your home address"
+            />
+          </Field>
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={handleSaveContact}
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl"
+              style={{ backgroundColor: "var(--royal-blue)" }}
+            >
+              <Save size={14} /> Save Changes
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Change Password */}
+      <Card
+        icon={Lock}
+        title="Change Password"
+        desc="Keep your account secure"
+        color="var(--accent-red)"
+      >
+        <div className="space-y-4">
+          {[
+            {
+              key: "current",
+              label: "Current Password",
+              placeholder: "Enter current password",
+            },
+            {
+              key: "newPw",
+              label: "New Password",
+              placeholder: "At least 6 characters",
+            },
+            {
+              key: "confirm",
+              label: "Confirm Password",
+              placeholder: "Re-enter new password",
+            },
+          ].map(({ key, label, placeholder }) => (
+            <Field key={key} label={label}>
+              <div className="relative">
+                <Input
+                  type={showPw[key] ? "text" : "password"}
+                  value={pw[key]}
+                  onChange={(e) => setPw({ ...pw, [key]: e.target.value })}
+                  placeholder={placeholder}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw({ ...showPw, [key]: !showPw[key] })}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPw[key] ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              {pwErrors[key] && (
+                <p
+                  className="text-xs mt-1"
+                  style={{ color: "var(--accent-red)" }}
+                >
+                  {pwErrors[key]}
+                </p>
+              )}
+            </Field>
+          ))}
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={handleChangePassword}
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl"
+              style={{ backgroundColor: "var(--accent-red)" }}
+            >
+              <Shield size={14} /> Update Password
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Notifications */}
+      <Card
+        icon={Bell}
+        title="Notifications"
+        desc="Choose what alerts you want to receive"
+        color="var(--success-dark)"
+      >
+        <Toggle
+          label="Results Published"
+          desc="Get notified when your child's results are published"
+          checked={notif.resultsPublished}
+          onChange={(v) => setNotif({ ...notif, resultsPublished: v })}
+          color="var(--success-dark)"
+        />
+        <Toggle
+          label="Report Card Ready"
+          desc="Get notified when your child's report card is available"
+          checked={notif.reportCardReady}
+          onChange={(v) => setNotif({ ...notif, reportCardReady: v })}
+          color="var(--success-dark)"
+        />
+        <Toggle
+          label="Attendance Alerts"
+          desc="Get warned when your child's attendance drops below 95%"
+          checked={notif.attendanceAlert}
+          onChange={(v) => setNotif({ ...notif, attendanceAlert: v })}
+          color="var(--success-dark)"
+        />
+        <Toggle
+          label="School Announcements"
+          desc="Receive important notices from the school administration"
+          checked={notif.schoolAnnouncement}
+          onChange={(v) => setNotif({ ...notif, schoolAnnouncement: v })}
+          color="var(--success-dark)"
+        />
+        <Toggle
+          label="Email Notifications"
+          desc="Receive the above notifications via email"
+          checked={notif.emailNotifs}
+          onChange={(v) => setNotif({ ...notif, emailNotifs: v })}
+          color="var(--success-dark)"
+        />
+        <div className="flex justify-end pt-3">
+          <button
+            type="button"
+            onClick={() => show("Notification preferences saved")}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl"
+            style={{ backgroundColor: "var(--success-dark)" }}
+          >
+            <Save size={14} /> Save Preferences
+          </button>
+        </div>
+      </Card>
+
+      {/* Sign Out */}
+      <div
+        className="bg-white rounded-2xl border shadow-sm p-5"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p
+              className="font-black text-sm"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Sign Out
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Sign out of your parent account on this device
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl border-2 transition"
+            style={{
+              borderColor: "var(--accent-red)",
+              color: "var(--accent-red)",
+              backgroundColor: "white",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--accent-red)";
+              e.currentTarget.style.color = "white";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "white";
+              e.currentTarget.style.color = "var(--accent-red)";
+            }}
+          >
+            <LogOut size={14} /> Sign Out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
