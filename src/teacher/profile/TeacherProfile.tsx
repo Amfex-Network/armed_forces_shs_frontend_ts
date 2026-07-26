@@ -1,5 +1,5 @@
 // src/teacher/profile/TeacherProfile.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Mail,
@@ -14,7 +14,16 @@ import {
   Calendar,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { TERM_INFO } from "../data/teacherData";
+import { authApi } from "../../api/auth";
+
+const TERM_INFO = {
+  academicYear: "2024/2025",
+  term: "Term 1",
+  weeksGone: 0,
+  weeksTotal: 14,
+  startDate: "—",
+  endDate: "—",
+};
 
 const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
   <div
@@ -40,7 +49,20 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
 );
 
 const TeacherProfile = () => {
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  const [full, setFull] = useState<any>(null);
+  useEffect(() => {
+    authApi
+      .me()
+      .then((r) => setFull(r.user))
+      .catch(() => {});
+  }, []);
+  const user = {
+    ...authUser,
+    ...(full || {}),
+    firstName: full?.firstname ?? authUser?.firstName,
+    lastName: full?.lastname ?? authUser?.lastName,
+  };
   const [editMode, setEditMode] = useState(false);
   const [contact, setContact] = useState({
     phone: user?.phone || "",

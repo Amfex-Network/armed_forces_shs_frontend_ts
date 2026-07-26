@@ -1,5 +1,5 @@
-// src/teacher/scores/TeacherScores.jsx
-import React, { useState, useMemo } from "react";
+// src/teacher/scores/TeacherScores.tsx
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Save,
   CheckCircle2,
@@ -9,7 +9,9 @@ import {
   Lock,
   Download,
 } from "lucide-react";
-import { getGradeFromTotal, TERM_INFO } from "../data/teacherData";
+import { classesApi, subjectsApi } from "../../api/domains";
+import { studentsApi } from "../../api/students";
+import { scoresApi } from "../../api/scores";
 
 // submission status per class: null | 'saved' | 'submitted' | 'approved' | 'rejected'
 const SUBMIT_STATUS = {
@@ -27,82 +29,20 @@ const SUBMIT_STATUS = {
   },
 };
 
-const MY_CLASSES = [
-  {
-    id: 1,
-    class: "Form 3 Science A",
-    subject: "Core Mathematics",
-    yearGroup: "form1",
-    students: 42,
-  },
-  {
-    id: 2,
-    class: "Form 2 Science A",
-    subject: "Core Mathematics",
-    yearGroup: "form1",
-    students: 40,
-  },
-  {
-    id: 3,
-    class: "Form 1 Science A",
-    subject: "Core Mathematics",
-    yearGroup: "form1",
-    students: 38,
-  },
-  {
-    id: 4,
-    class: "Form 3 Science B",
-    subject: "Core Mathematics",
-    yearGroup: "form3",
-    students: 41,
-  },
-  {
-    id: 5,
-    class: "Form 2 Arts A",
-    subject: "Core Mathematics",
-    yearGroup: "form1",
-    students: 35,
-  },
-  {
-    id: 6,
-    class: "Form 1 Business A",
-    subject: "Core Mathematics",
-    yearGroup: "form1",
-    students: 36,
-  },
-];
+const TERMS = ["Term 1", "Term 2", "Term 3"];
+const ACADEMIC_YEAR = "2024/2025";
 
-const NAMES = [
-  ["Kwabena", "Acheampong"],
-  ["Adwoa", "Mensah"],
-  ["Kofi", "Boateng"],
-  ["Ama", "Darkwah"],
-  ["Yaw", "Asante"],
-  ["Efua", "Osei"],
-  ["Nana", "Frimpong"],
-  ["Akosua", "Tawiah"],
-  ["Kwame", "Bonsu"],
-  ["Abena", "Annan"],
-  ["Esi", "Adjei"],
-  ["Fiifi", "Sarpong"],
-  ["Kojo", "Asare"],
-  ["Maame", "Owusu"],
-  ["Kweku", "Darko"],
-  ["Akua", "Acheampong"],
-  ["Nana Yaw", "Mensah"],
-  ["Esi", "Boateng"],
-  ["Kwabena", "Frimpong"],
-  ["Adwoa", "Bonsu"],
-];
-
-const generateStudents = (classId) =>
-  NAMES.map((n, i) => ({
-    id: classId * 100 + i,
-    studentId: `AFSHTS/2024/${String(classId * 20 + i + 1).padStart(3, "0")}`,
-    name: `${n[0]} ${n[1]}`,
-    ca: null,
-    exam: null,
-  }));
+const gradeFromTotal = (total) => {
+  if (total >= 80) return "A1";
+  if (total >= 70) return "B2";
+  if (total >= 65) return "B3";
+  if (total >= 60) return "C4";
+  if (total >= 55) return "C5";
+  if (total >= 50) return "C6";
+  if (total >= 45) return "D7";
+  if (total >= 40) return "E8";
+  return "F9";
+};
 
 const GRADE_COLORS = {
   A1: "text-green-700 bg-green-50",
@@ -112,26 +52,97 @@ const GRADE_COLORS = {
   C5: "text-orange-600 bg-orange-50",
   C6: "text-orange-700 bg-orange-50",
   D7: "text-red-500 bg-red-50",
+  E8: "text-red-600 bg-red-50",
   F9: "text-red-700 bg-red-50",
 };
 
 const TeacherScores = () => {
-  const [selectedClass, setSelectedClass] = useState(MY_CLASSES[0]);
-  const [students, setStudents] = useState(() =>
-    generateStudents(MY_CLASSES[0].id),
-  );
+  const [classes, setClasses] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState<any>(null);
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [term, setTerm] = useState("Term 1");
+  const [academicYear] = useState(ACADEMIC_YEAR);
+  const [students, setStudents] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [classStatus, setClassStatus] = useState({}); // classId -> status key
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [classStatus, setClassStatus] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
 
-  const currentStatus = classStatus[selectedClass.id] || null;
+  useEffect(() => {
+    (async () => {
+      try {
+        const [cls, subs] = await Promise.all([
+          classesApi.list(),
+          subjectsApi.list(),
+        ]);
+        setClasses(cls);
+        setSubjects(subs);
+        if (cls.length) setSelectedClass(cls[0]);
+        if (subs.length) setSelectedSubject(subs[0].name);
+      } catch {
+        /* ignore */
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedClass || !selectedSubject) {
+      setStudents([]);
+      return;
+    }
+    let active = true;
+    (async () => {
+      try {
+        const [studs, scores] = await Promise.all([
+          studentsApi.list(),
+          scoresApi.list({
+            subject: selectedSubject,
+            term,
+            academicYear,
+            formClass: selectedClass.name,
+          }),
+        ]);
+        if (!active) return;
+        const inClass = studs.filter((s) => s.formClass === selectedClass.name);
+        const scoreByStudent: Record<string, any> = {};
+        scores.forEach((sc) => {
+          const sid =
+            typeof sc.student === "object" ? sc.student._id : sc.student;
+          scoreByStudent[sid] = sc;
+        });
+        setStudents(
+          inClass.map((s) => {
+            const sc = scoreByStudent[s.id];
+            return {
+              id: s.id,
+              studentId: s.studentId,
+              name: `${s.firstName} ${s.lastName}`,
+              ca: sc ? sc.classScore : null,
+              exam: sc ? sc.examScore : null,
+              scoreId: sc ? sc.id : null,
+            };
+          }),
+        );
+      } catch {
+        if (active) setStudents([]);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [selectedClass, selectedSubject, term, academicYear]);
+
+  const currentStatus = selectedClass ? classStatus[selectedClass.id] : null;
   const isLocked =
     currentStatus === "submitted" || currentStatus === "approved";
 
   const handleClassChange = (cls) => {
     setSelectedClass(cls);
-    setStudents(generateStudents(cls.id));
     setSaved(false);
     setErrors({});
   };
@@ -160,29 +171,74 @@ const TeacherScores = () => {
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
-    if (validate()) {
+  const persistScores = async () => {
+    const toSave = students.filter((s) => s.ca !== null && s.exam !== null);
+    const results = await Promise.all(
+      toSave.map((s) =>
+        s.scoreId
+          ? scoresApi.update(s.scoreId, { classScore: s.ca, examScore: s.exam })
+          : scoresApi.create({
+              student: s.id,
+              subject: selectedSubject,
+              academicYear,
+              term,
+              formClass: selectedClass.name,
+              classScore: s.ca,
+              examScore: s.exam,
+            }),
+      ),
+    );
+    const byStudent: Record<string, any> = {};
+    results.forEach((r) => {
+      const sid = typeof r.student === "object" ? r.student._id : r.student;
+      byStudent[sid] = r;
+    });
+    setStudents((ss) =>
+      ss.map((s) =>
+        byStudent[s.id] ? { ...s, scoreId: byStudent[s.id].id } : s,
+      ),
+    );
+  };
+
+  const handleSave = async () => {
+    if (!validate() || !selectedClass || !selectedSubject) return;
+    try {
+      setSaving(true);
+      await persistScores();
       setSaved(true);
       setClassStatus((s) => ({ ...s, [selectedClass.id]: "saved" }));
       setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      alert(err?.message || "Failed to save scores");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleSubmit = () => {
-    if (!validate()) return;
+  const handleSubmit = async () => {
+    if (!validate() || !selectedClass) return;
     if (pending > 0) {
       alert(
         `Please enter scores for all ${pending} remaining student(s) before submitting.`,
       );
       return;
     }
-    setClassStatus((s) => ({ ...s, [selectedClass.id]: "submitted" }));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      setSaving(true);
+      await persistScores();
+      setClassStatus((s) => ({ ...s, [selectedClass.id]: "submitted" }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      alert(err?.message || "Failed to submit scores");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleRecall = () => {
-    setClassStatus((s) => ({ ...s, [selectedClass.id]: "saved" }));
+    if (selectedClass)
+      setClassStatus((s) => ({ ...s, [selectedClass.id]: "saved" }));
   };
 
   const filtered = useMemo(
@@ -215,7 +271,7 @@ const TeacherScores = () => {
             Score Entry
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {TERM_INFO.term} · {TERM_INFO.academicYear} · CA and Exam scores
+            {selectedSubject || "Select a subject"} · {term} · {academicYear}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -312,7 +368,13 @@ const TeacherScores = () => {
               }}
             >
               <Save size={15} />{" "}
-              {saved ? "Saved!" : hasErrors ? "Fix Errors" : "Save Draft"}
+              {saving
+                ? "Saving…"
+                : saved
+                  ? "Saved!"
+                  : hasErrors
+                    ? "Fix Errors"
+                    : "Save Draft"}
             </button>
           )}
           {!isLocked && (
@@ -345,7 +407,7 @@ const TeacherScores = () => {
             border: "1px solid #bbf7d0",
           }}
         >
-          <CheckCircle2 size={16} /> Scores saved for {selectedClass.class}
+          <CheckCircle2 size={16} /> Scores saved for {selectedClass?.name}
         </div>
       )}
 
@@ -354,14 +416,62 @@ const TeacherScores = () => {
         className="bg-white rounded-xl border shadow-sm p-4"
         style={{ borderColor: "var(--medium-gray)" }}
       >
+        <div className="flex flex-wrap gap-3 mb-4">
+          <div className="flex-1 min-w-[160px]">
+            <label
+              className="text-xs font-black uppercase tracking-widest block mb-1"
+              style={{ color: "var(--dark-gray)", opacity: 0.5 }}
+            >
+              Subject
+            </label>
+            <select
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-xl border-2 outline-none bg-white"
+              style={{ borderColor: "var(--medium-gray)" }}
+            >
+              <option value="">Select subject</option>
+              {subjects.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="min-w-[120px]">
+            <label
+              className="text-xs font-black uppercase tracking-widest block mb-1"
+              style={{ color: "var(--dark-gray)", opacity: 0.5 }}
+            >
+              Term
+            </label>
+            <select
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-xl border-2 outline-none bg-white"
+              style={{ borderColor: "var(--medium-gray)" }}
+            >
+              {TERMS.map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         <p
           className="text-xs font-black uppercase tracking-widest mb-3"
           style={{ color: "var(--dark-gray)", opacity: 0.5 }}
         >
           Select Class
         </p>
+        {classes.length === 0 && (
+          <p className="text-sm text-gray-400 py-4">
+            {loading
+              ? "Loading classes…"
+              : "No classes yet — an admin needs to create classes first."}
+          </p>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {MY_CLASSES.map((cls) => (
+          {classes.map((cls) => (
             <button
               key={cls.id}
               type="button"
@@ -369,25 +479,27 @@ const TeacherScores = () => {
               className="p-3 rounded-xl border-2 text-left text-xs transition-all"
               style={{
                 borderColor:
-                  selectedClass.id === cls.id
+                  selectedClass?.id === cls.id
                     ? "var(--royal-blue)"
                     : "var(--medium-gray)",
                 backgroundColor:
-                  selectedClass.id === cls.id ? "#eef2ff" : "white",
+                  selectedClass?.id === cls.id ? "#eef2ff" : "white",
               }}
             >
               <p
                 className="font-bold truncate"
                 style={{
                   color:
-                    selectedClass.id === cls.id
+                    selectedClass?.id === cls.id
                       ? "var(--royal-blue)"
                       : "var(--dark-gray)",
                 }}
               >
-                {cls.class}
+                {cls.name}
               </p>
-              <p className="text-gray-400 mt-0.5">{cls.students} students</p>
+              <p className="text-gray-400 mt-0.5">
+                {cls.enrolled ?? 0} students
+              </p>
               <span
                 className="inline-block mt-1 px-1 py-0.5 rounded text-xs font-bold"
                 style={{
@@ -475,7 +587,7 @@ const TeacherScores = () => {
             className="font-semibold text-sm"
             style={{ color: "var(--dark-gray)" }}
           >
-            {selectedClass.class} · {selectedClass.subject}
+            {selectedClass?.name} · {selectedSubject}
           </h3>
           <div className="relative">
             <Search
@@ -530,7 +642,7 @@ const TeacherScores = () => {
             >
               {filtered.map((s, i) => {
                 const total = getTotal(s);
-                const grade = total !== null ? getGradeFromTotal(total) : null;
+                const grade = total !== null ? gradeFromTotal(total) : null;
                 const caErr = errors[`${s.id}_ca`];
                 const exErr = errors[`${s.id}_exam`];
                 return (
@@ -687,7 +799,13 @@ const TeacherScores = () => {
             }}
           >
             <Save size={14} />{" "}
-            {saved ? "Saved!" : hasErrors ? "Fix Errors" : "Save Scores"}
+            {saving
+              ? "Saving…"
+              : saved
+                ? "Saved!"
+                : hasErrors
+                  ? "Fix Errors"
+                  : "Save Scores"}
           </button>
         </div>
       </div>

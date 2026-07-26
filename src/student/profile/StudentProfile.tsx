@@ -1,5 +1,5 @@
 // src/student/profile/StudentProfile.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Mail,
@@ -13,7 +13,9 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { TERM_INFO } from "../data/studentData";
+import { studentsApi } from "../../api/students";
+
+const ACADEMIC_YEAR = "2024/2025";
 
 const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
   <div
@@ -39,7 +41,15 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
 );
 
 const StudentProfile = () => {
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
+  const [student, setStudent] = useState<any>(null);
+  useEffect(() => {
+    studentsApi
+      .me()
+      .then(setStudent)
+      .catch(() => {});
+  }, []);
+  const user = { ...authUser, ...(student || {}) };
   const [editMode, setEditMode] = useState(false);
   const [contact, setContact] = useState({
     phone: user?.phone || "",
@@ -328,7 +338,7 @@ const StudentProfile = () => {
             <InfoRow
               icon={Calendar}
               label="Academic Year"
-              value={TERM_INFO.academicYear}
+              value={ACADEMIC_YEAR}
               color="var(--royal-blue)"
             />
           </div>

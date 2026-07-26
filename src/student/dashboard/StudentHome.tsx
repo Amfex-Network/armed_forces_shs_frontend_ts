@@ -1,5 +1,5 @@
 // src/student/dashboard/StudentHome.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
@@ -26,16 +26,33 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import {
-  TERM_INFO,
-  CURRENT_RESULTS,
-  PREVIOUS_RESULTS,
-  ATTENDANCE_SUMMARY,
-  STUDENT_NOTIFICATIONS,
-  getPerformanceBand,
-  getAttendanceColor,
-} from "../data/studentData";
+import { resultsApi } from "../../api/results";
 import { useAuth } from "../../context/AuthContext";
+
+const TERM_INFO = {
+  academicYear: "2024/2025",
+  term: "Term 1",
+  weeksGone: 0,
+  weeksTotal: 14,
+  startDate: "—",
+  endDate: "—",
+};
+
+const getPerformanceBand = (pct: number) =>
+  pct >= 75
+    ? { label: "Excellent", color: "var(--success-dark)" }
+    : pct >= 60
+      ? { label: "Very Good", color: "var(--royal-blue)" }
+      : pct >= 50
+        ? { label: "Good", color: "var(--warning)" }
+        : { label: "Needs Improvement", color: "var(--accent-red)" };
+
+const getAttendanceColor = (pct: number) =>
+  pct >= 95
+    ? "var(--success-dark)"
+    : pct >= 85
+      ? "var(--warning)"
+      : "var(--accent-red)";
 
 const NotifIcon = ({ type }) => {
   if (type === "warning")
@@ -87,20 +104,46 @@ const StudentHome = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const [result, setResult] = useState<any>(null);
+
+  useEffect(() => {
+    resultsApi
+      .get({ term: TERM_INFO.term, academicYear: TERM_INFO.academicYear })
+      .then(setResult)
+      .catch(() => setResult(null));
+  }, []);
+
+  const CURRENT_RESULTS = result || {
+    term: TERM_INFO.term,
+    academicYear: TERM_INFO.academicYear,
+    subjects: [],
+    position: 0,
+    outOf: 0,
+    aggregate: 0,
+  };
+  const ATTENDANCE_SUMMARY = result?.attendance || {
+    present: 0,
+    absent: 0,
+    late: 0,
+    totalDays: 0,
+  };
+  const PREVIOUS_RESULTS: any[] = [];
+  const STUDENT_NOTIFICATIONS: any[] = [];
+
   const totalScore = CURRENT_RESULTS.subjects.reduce(
     (s, sub) => s + sub.total,
     0,
   );
-  const maxScore = CURRENT_RESULTS.subjects.length * 100;
+  const maxScore = CURRENT_RESULTS.subjects.length * 100 || 1;
   const percentage = ((totalScore / maxScore) * 100).toFixed(1);
-  const totalPoints = CURRENT_RESULTS.subjects.reduce(
-    (s, sub) => s + sub.points,
-    0,
-  );
   const band = getPerformanceBand(parseFloat(percentage));
-  const attPct = Math.round(
-    (ATTENDANCE_SUMMARY.present / ATTENDANCE_SUMMARY.totalDays) * 100,
-  );
+  const attPct = ATTENDANCE_SUMMARY.totalDays
+    ? Math.round(
+        ((ATTENDANCE_SUMMARY.present + ATTENDANCE_SUMMARY.late) /
+          ATTENDANCE_SUMMARY.totalDays) *
+          100,
+      )
+    : 0;
   const attColor = getAttendanceColor(attPct);
   const termProgress = Math.round(
     (TERM_INFO.weeksGone / TERM_INFO.weeksTotal) * 100,

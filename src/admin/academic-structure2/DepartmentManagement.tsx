@@ -1,5 +1,5 @@
 // src/admin/academic-structure2/DepartmentManagement.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Plus,
   Edit3,
@@ -9,70 +9,8 @@ import {
   CheckCircle2,
   ChevronDown,
 } from "lucide-react";
-import { TEACHERS } from "../data/adminData";
-
-const INITIAL_DEPARTMENTS = [
-  {
-    id: 1,
-    name: "Mathematics",
-    code: "MTH",
-    color: "var(--royal-blue)",
-    bg: "#eef2ff",
-    hodId: 15,
-    subjects: ["Core Mathematics", "Elective Mathematics"],
-  },
-  {
-    id: 2,
-    name: "English",
-    code: "ENG",
-    color: "#7c3aed",
-    bg: "#f5f3ff",
-    hodId: 13,
-    subjects: ["English Language", "Literature in English"],
-  },
-  {
-    id: 3,
-    name: "Science",
-    code: "SCI",
-    color: "var(--accent-red)",
-    bg: "#fff1f2",
-    hodId: 3,
-    subjects: ["Integrated Science", "Physics", "Chemistry", "Biology"],
-  },
-  {
-    id: 4,
-    name: "Social Studies",
-    code: "SOC",
-    color: "#ca8a04",
-    bg: "#fefce8",
-    hodId: 5,
-    subjects: ["Social Studies", "History", "Geography", "Government"],
-  },
-  {
-    id: 5,
-    name: "Technical",
-    code: "TCH",
-    color: "var(--success-dark)",
-    bg: "#f0fdf4",
-    hodId: 4,
-    subjects: [
-      "Technical Drawing",
-      "ICT",
-      "Auto Mechanics",
-      "Welding & Fabrication",
-      "Electronics",
-    ],
-  },
-  {
-    id: 6,
-    name: "Business",
-    code: "BUS",
-    color: "#0369a1",
-    bg: "#f0f9ff",
-    hodId: 9,
-    subjects: ["Accounting", "Economics", "Business Management"],
-  },
-];
+import { departmentsApi } from "../../api/domains";
+import { usersApi } from "../../api/users";
 
 const EMPTY_DEPARTMENT = {
   name: "",
@@ -84,7 +22,9 @@ const EMPTY_DEPARTMENT = {
 };
 
 const DepartmentManagement = () => {
-  const [departments, setDepartments] = useState(INITIAL_DEPARTMENTS);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState(null);
   const [form, setForm] = useState({ ...EMPTY_DEPARTMENT });
@@ -96,6 +36,26 @@ const DepartmentManagement = () => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      const [deps, allUsers] = await Promise.all([
+        departmentsApi.list(),
+        usersApi.list(),
+      ]);
+      setDepartments(deps);
+      setTeachers(allUsers.filter((u) => u.role === "teacher"));
+    } catch (err) {
+      showToast(err?.message || "Failed to load departments", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const updateField = (key, value) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -114,38 +74,49 @@ const DepartmentManagement = () => {
       form.subjects.filter((item) => item !== subject),
     );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    if (editingDepartment) {
-      setDepartments((prev) =>
-        prev.map((department) =>
-          department.id === editingDepartment.id
-            ? { ...department, ...form }
-            : department,
-        ),
-      );
-      showToast(`${form.name} updated`);
-    } else {
-      setDepartments((prev) => [...prev, { ...form, id: Date.now() }]);
-      showToast(`${form.name} created`);
+    try {
+      if (editingDepartment) {
+        const saved = await departmentsApi.update(editingDepartment.id, form);
+        setDepartments((prev) =>
+          prev.map((department) =>
+            department.id === saved.id ? saved : department,
+          ),
+        );
+        showToast(`${saved.name} updated`);
+      } else {
+        const saved = await departmentsApi.create(form);
+        setDepartments((prev) => [...prev, saved]);
+        showToast(`${saved.name} created`);
+      }
+      setShowForm(false);
+      setEditingDepartment(null);
+      setForm({ ...EMPTY_DEPARTMENT });
+    } catch (err) {
+      showToast(err?.message || "Failed to save department", "error");
     }
-    setShowForm(false);
-    setEditingDepartment(null);
-    setForm({ ...EMPTY_DEPARTMENT });
   };
 
-  const handleDelete = (department) => {
-    setDepartments((prev) => prev.filter((item) => item.id !== department.id));
-    showToast(`${department.name} removed`, "error");
+  const handleDelete = async (department) => {
+    try {
+      await departmentsApi.remove(department.id);
+      setDepartments((prev) =>
+        prev.filter((item) => item.id !== department.id),
+      );
+      showToast(`${department.name} removed`, "error");
+    } catch (err) {
+      showToast(err?.message || "Failed to delete department", "error");
+    }
   };
 
   const getTeacher = (teacherId) =>
-    TEACHERS.find(
+    teachers.find(
       (teacher) =>
         teacher.id === teacherId || teacher.id === parseInt(teacherId),
     );
   const getDepartmentTeachers = (departmentName) =>
-    TEACHERS.filter((teacher) => teacher.department === departmentName);
+    teachers.filter((teacher) => teacher.department === departmentName);
 
   return (
     <div className="space-y-5">
@@ -227,7 +198,7 @@ const DepartmentManagement = () => {
             value: departments.length,
             color: "var(--royal-blue)",
           },
-          { label: "Teaching Staff", value: TEACHERS.length, color: "#7c3aed" },
+          { label: "Teaching Staff", value: teachers.length, color: "#7c3aed" },
           {
             label: "Total Subjects",
             value: departments.reduce(
@@ -239,7 +210,7 @@ const DepartmentManagement = () => {
           {
             label: "Avg Staff/Dept",
             value: Math.round(
-              TEACHERS.length / Math.max(departments.length, 1),
+              teachers.length / Math.max(departments.length, 1),
             ),
             color: "var(--warning)",
           },
@@ -259,6 +230,13 @@ const DepartmentManagement = () => {
 
       {/* Department cards */}
       <div className="space-y-3">
+        {departments.length === 0 && (
+          <div className="text-center py-12 text-sm text-gray-400">
+            {loading
+              ? "Loading departments…"
+              : "No departments yet — click Add Department to create one"}
+          </div>
+        )}
         {departments.map((department) => {
           const hod = getTeacher(department.hodId);
           const staff = getDepartmentTeachers(department.name);
@@ -527,13 +505,13 @@ const DepartmentManagement = () => {
                   style={{ borderColor: "var(--medium-gray)" }}
                 >
                   <option value="">-- Select HOD --</option>
-                  {TEACHERS.filter(
-                    (teacher) => teacher.status === "Active",
-                  ).map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.title} {teacher.firstName} {teacher.lastName}
-                    </option>
-                  ))}
+                  {teachers
+                    .filter((teacher) => teacher.status === "Active")
+                    .map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.title} {teacher.firstName} {teacher.lastName}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div>

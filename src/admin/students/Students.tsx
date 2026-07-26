@@ -1,5 +1,5 @@
 // src/admin/students/Students.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -30,12 +30,7 @@ import {
   Printer,
 } from "lucide-react";
 
-// ─── Data from central source ─────────────────────────────────────────────────
-import {
-  STUDENTS as INITIAL_STUDENTS,
-  PARENTS,
-  STUDENT_PARENT,
-} from "../data/adminData";
+import { studentsApi } from "../../api/students";
 
 const PROGRAMS = [
   "General Science",
@@ -69,15 +64,8 @@ const EMPTY = {
   enrollDate: "",
 };
 
-// Build parent name/phone lookup from PARENTS
-const getParentInfo = (parentId) => {
-  const p = PARENTS.find((p) => p.id === parentId);
-  return p
-    ? {
-        parentName: `${p.title} ${p.firstName} ${p.lastName}`,
-        parentPhone: p.phone,
-      }
-    : { parentName: "—", parentPhone: "—" };
+const getParentInfo = (_parentId) => {
+  return { parentName: "—", parentPhone: "—" };
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -388,12 +376,7 @@ const StudentFormModal = ({ student, onSave, onClose }) => {
                     (e.target.style.borderColor = "var(--medium-gray)")
                   }
                 >
-                  <option value="">-- Select Parent --</option>
-                  {PARENTS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title} {p.firstName} {p.lastName} · {p.phone}
-                    </option>
-                  ))}
+                  <option value="">-- No parent linked --</option>
                 </select>
               </div>
             </div>
@@ -676,7 +659,8 @@ const ProfileDrawer = ({ student, onEdit, onClose }) => {
 
 // ─── Main Students Component ──────────────────────────────────────────────────
 const Students = () => {
-  const [students, setStudents] = useState(INITIAL_STUDENTS);
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCourse, setFP] = useState("All");
   const [filterYearGroup, setFT] = useState("All");
@@ -695,6 +679,21 @@ const Students = () => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  const loadStudents = async () => {
+    try {
+      setLoading(true);
+      setStudents(await studentsApi.list());
+    } catch (err) {
+      showToast(err?.message || "Failed to load students", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStudents();
+  }, []);
 
   // ── Filtered list ──────────────────────────────────────────────────────────
   const filtered = useMemo(
@@ -717,55 +716,87 @@ const Students = () => {
   );
 
   // ── CRUD ───────────────────────────────────────────────────────────────────
-  const handleSave = (form) => {
-    if (form.id) {
-      setStudents((ss) => ss.map((s) => (s.id === form.id ? form : s)));
-      showToast(`${form.firstName} ${form.lastName} updated successfully`);
-    } else {
-      const newStudent = {
-        ...form,
-        id: Date.now(),
-        attendance: 0,
-        avgScore: 0,
-      };
-      setStudents((ss) => [newStudent, ...ss]);
-      showToast(`${form.firstName} ${form.lastName} registered successfully`);
+  const handleSave = async (form) => {
+    try {
+      if (form.id) {
+        const saved = await studentsApi.update(form.id, form);
+        setStudents((ss) => ss.map((s) => (s.id === saved.id ? saved : s)));
+        showToast(`${saved.firstName} ${saved.lastName} updated successfully`);
+      } else {
+        const saved = await studentsApi.create(form);
+        setStudents((ss) => [saved, ...ss]);
+        showToast(
+          `${saved.firstName} ${saved.lastName} registered successfully`,
+        );
+      }
+      setShowForm(false);
+      setEditStu(null);
+    } catch (err) {
+      showToast(err?.message || "Failed to save student", "error");
     }
-    setShowForm(false);
-    setEditStu(null);
   };
 
-  const handleDelete = () => {
-    setStudents((ss) => ss.filter((s) => s.id !== deleteStudent.id));
-    showToast(
-      `${deleteStudent.firstName} ${deleteStudent.lastName} removed`,
-      "error",
-    );
-    setDeleteStu(null);
-    setSelected((sel) => sel.filter((id) => id !== deleteStudent.id));
+  const handleDelete = async () => {
+    try {
+      await studentsApi.remove(deleteStudent.id);
+      setStudents((ss) => ss.filter((s) => s.id !== deleteStudent.id));
+      setSelected((sel) => sel.filter((id) => id !== deleteStudent.id));
+      showToast(
+        `${deleteStudent.firstName} ${deleteStudent.lastName} removed`,
+        "error",
+      );
+    } catch (err) {
+      showToast(err?.message || "Failed to delete student", "error");
+    } finally {
+      setDeleteStu(null);
+    }
   };
 
-  const handleBulkDelete = () => {
-    setStudents((ss) => ss.filter((s) => !selected.includes(s.id)));
-    showToast(`${selected.length} student(s) removed`, "error");
-    setSelected([]);
-    setShowBulk(false);
+  const handleBulkDelete = async () => {
+    try {
+      await Promise.all(selected.map((id) => studentsApi.remove(id)));
+      setStudents((ss) => ss.filter((s) => !selected.includes(s.id)));
+      showToast(`${selected.length} student(s) removed`, "error");
+      setSelected([]);
+    } catch (err) {
+      showToast(err?.message || "Failed to delete students", "error");
+    } finally {
+      setShowBulk(false);
+    }
   };
 
-  const handlePromote = () => {
+  const handlePromote = async () => {
     const yearMap = {
       "Form 1": "Form 2",
       "Form 2": "Form 3",
       "Form 3": "Form 3",
     };
-    setStudents((ss) =>
-      ss.map((s) =>
-        selected.includes(s.id) ? { ...s, year: yearMap[s.year] || s.year } : s,
-      ),
-    );
-    showToast(`${selected.length} student(s) promoted`);
-    setSelected([]);
-    setShowBulk(false);
+    try {
+      const toPromote = students.filter(
+        (s) =>
+          selected.includes(s.id) &&
+          yearMap[s.year] &&
+          yearMap[s.year] !== s.year,
+      );
+      await Promise.all(
+        toPromote.map((s) =>
+          studentsApi.update(s.id, { year: yearMap[s.year] }),
+        ),
+      );
+      setStudents((ss) =>
+        ss.map((s) =>
+          selected.includes(s.id)
+            ? { ...s, year: yearMap[s.year] || s.year }
+            : s,
+        ),
+      );
+      showToast(`${selected.length} student(s) promoted`);
+      setSelected([]);
+    } catch (err) {
+      showToast(err?.message || "Failed to promote students", "error");
+    } finally {
+      setShowBulk(false);
+    }
   };
 
   const handleSampleGuide = () => {
@@ -1206,7 +1237,11 @@ const Students = () => {
                       colSpan={10}
                       className="px-4 py-12 text-center text-gray-400"
                     >
-                      No students match your search
+                      {loading
+                        ? "Loading students…"
+                        : students.length === 0
+                          ? "No students yet — click Add Student to register one"
+                          : "No students match your search"}
                     </td>
                   </tr>
                 ) : (
@@ -1326,7 +1361,11 @@ const Students = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.length === 0 ? (
             <div className="col-span-full text-center py-12 text-gray-400">
-              No students match your search
+              {loading
+                ? "Loading students…"
+                : students.length === 0
+                  ? "No students yet — click Add Student to register one"
+                  : "No students match your search"}
             </div>
           ) : (
             filtered.map((s) => {

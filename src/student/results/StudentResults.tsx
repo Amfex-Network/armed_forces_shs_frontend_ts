@@ -1,5 +1,5 @@
 // src/student/results/StudentResults.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TrendingUp, Award, ChevronDown } from "lucide-react";
 import {
   BarChart,
@@ -20,14 +20,46 @@ import {
   Line,
   Legend,
 } from "recharts";
-import {
-  CURRENT_RESULTS,
-  PREVIOUS_RESULTS,
-  getGradeColor,
-  getGradeLabel,
-  getPerformanceBand,
-} from "../data/studentData";
+import { resultsApi } from "../../api/results";
+import { subjectsApi } from "../../api/domains";
 import { useAuth } from "../../context/AuthContext";
+
+const RESULT_TERM = "Term 1";
+const RESULT_YEAR = "2024/2025";
+
+const GRADE_COLOR: Record<string, string> = {
+  A1: "text-green-700 bg-green-50",
+  B2: "text-blue-700 bg-blue-50",
+  B3: "text-blue-600 bg-blue-50",
+  C4: "text-yellow-700 bg-yellow-50",
+  C5: "text-orange-600 bg-orange-50",
+  C6: "text-orange-700 bg-orange-50",
+  D7: "text-red-500 bg-red-50",
+  E8: "text-red-600 bg-red-50",
+  F9: "text-red-700 bg-red-50",
+};
+const GRADE_LABEL: Record<string, string> = {
+  A1: "Excellent",
+  B2: "Very Good",
+  B3: "Good",
+  C4: "Credit",
+  C5: "Credit",
+  C6: "Credit",
+  D7: "Pass",
+  E8: "Pass",
+  F9: "Fail",
+};
+const getGradeColor = (g: string) =>
+  GRADE_COLOR[g] || "text-gray-600 bg-gray-50";
+const getGradeLabel = (g: string) => GRADE_LABEL[g] || "";
+const getPerformanceBand = (pct: number) =>
+  pct >= 75
+    ? { label: "Excellent", color: "var(--success-dark)" }
+    : pct >= 60
+      ? { label: "Very Good", color: "var(--royal-blue)" }
+      : pct >= 50
+        ? { label: "Good", color: "var(--warning)" }
+        : { label: "Needs Improvement", color: "var(--accent-red)" };
 
 const GRADE_KEY = [
   { grade: "A1", range: "80–100", label: "Excellent" },
@@ -73,7 +105,6 @@ const BarTooltip = ({ active, payload, label }) => {
 };
 
 // ─── Report not yet published gate ───────────────────────────────────────────
-const REPORT_PUBLISHED = false; // Set to true when admin publishes — will come from API
 
 const NotPublished = ({ type = "report" }) => (
   <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -121,28 +152,70 @@ const StudentResults = () => {
   const [selectedTerm, setSelectedTerm] = useState("current");
   const [showKey, setShowKey] = useState(false);
   const [activeTab, setActiveTab] = useState("table"); // 'table' | 'charts'
+  const [result, setResult] = useState<any>(null);
+  const [subjectTypes, setSubjectTypes] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
 
-  if (!REPORT_PUBLISHED) return <NotPublished type="results" />;
+  useEffect(() => {
+    let alive = true;
+    Promise.all([
+      resultsApi.get({ term: RESULT_TERM, academicYear: RESULT_YEAR }),
+      subjectsApi.list().catch(() => []),
+    ])
+      .then(([res, subs]) => {
+        if (!alive) return;
+        setResult(res);
+        const map: Record<string, string> = {};
+        subs.forEach((s: any) => {
+          map[s.name] = s.type || "elective";
+        });
+        setSubjectTypes(map);
+      })
+      .catch(() => {
+        if (alive) setResult(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (loading)
+    return (
+      <div className="py-20 text-center text-sm text-gray-400">
+        Loading your results…
+      </div>
+    );
+  if (!result || result.subjects.length === 0)
+    return <NotPublished type="results" />;
+
+  const CURRENT_RESULTS = {
+    ...result,
+    totalStudents: result.outOf,
+    subjects: result.subjects.map((sub: any) => ({
+      ...sub,
+      type: subjectTypes[sub.name] === "core" ? "Core" : "Elective",
+    })),
+  };
+  const PREVIOUS_RESULTS: any[] = [];
 
   const terms = [
     {
       key: "current",
       label: `${CURRENT_RESULTS.term} · ${CURRENT_RESULTS.academicYear}`,
     },
-    ...PREVIOUS_RESULTS.map((r, i) => ({
-      key: `prev_${i}`,
-      label: `${r.term} · ${r.academicYear}`,
-    })),
   ];
 
-  const active =
-    selectedTerm === "current"
-      ? CURRENT_RESULTS
-      : PREVIOUS_RESULTS[parseInt(selectedTerm.split("_")[1])];
-  const totalScore = active.subjects.reduce((s, sub) => s + sub.total, 0);
-  const maxScore = active.subjects.length * 100;
+  const active = CURRENT_RESULTS;
+  const totalScore = active.subjects.reduce(
+    (s: number, sub: any) => s + sub.total,
+    0,
+  );
+  const maxScore = active.subjects.length * 100 || 1;
   const percentage = ((totalScore / maxScore) * 100).toFixed(1);
-  const totalPoints = active.subjects.reduce((s, sub) => s + sub.points, 0);
+  const totalPoints = active.aggregate;
   const band = getPerformanceBand(parseFloat(percentage));
 
   // Bar chart — CA vs Exam vs Total per subject

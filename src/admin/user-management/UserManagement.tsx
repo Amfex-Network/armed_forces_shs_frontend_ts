@@ -1,5 +1,5 @@
 // src/admin/user-management/UserManagement.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -29,331 +29,7 @@ import {
   ChevronRight,
   Copy,
 } from "lucide-react";
-import { STUDENTS, PARENTS } from "../data/adminData";
-
-// ─── Build all users from existing data ───────────────────────────────────────
-const ADMIN_USERS = [
-  {
-    id: "a1",
-    role: "admin",
-    title: "Mr",
-    firstName: "System",
-    lastName: "Administrator",
-    email: "admin@afts.edu.gh",
-    phone: "0244000001",
-    status: "Active",
-    lastLogin: "2025-03-17 14:32",
-    joinDate: "2018-09-01",
-    position: "System Administrator",
-  },
-];
-
-const TEACHER_USERS = [
-  {
-    id: "t1",
-    role: "teacher",
-    title: "Capt",
-    firstName: "Kwabena",
-    lastName: "Adjei",
-    email: "k.adjei@afts.edu.gh",
-    phone: "0244123456",
-    status: "Active",
-    lastLogin: "2025-03-17 08:05",
-    joinDate: "2018-09-01",
-    department: "Mathematics",
-    staffId: "AFSHTS/TCH/001",
-    teacherRole: "Subject Teacher + Form Teacher",
-    formClass: "Form 3 Science A",
-  },
-  {
-    id: "t2",
-    role: "teacher",
-    title: "Mrs",
-    firstName: "Ama",
-    lastName: "Eshun",
-    email: "a.eshun@afts.edu.gh",
-    phone: "0277654321",
-    status: "Active",
-    lastLogin: "2025-03-17 09:10",
-    joinDate: "2019-01-15",
-    department: "English",
-    staffId: "AFSHTS/TCH/002",
-    teacherRole: "Subject Teacher",
-    formClass: "",
-  },
-  {
-    id: "t3",
-    role: "teacher",
-    title: "Dr",
-    firstName: "Kofi",
-    lastName: "Osei",
-    email: "k.osei@afts.edu.gh",
-    phone: "0200112233",
-    status: "Active",
-    lastLogin: "2025-03-16 10:55",
-    joinDate: "2017-09-01",
-    department: "Science",
-    staffId: "AFSHTS/TCH/003",
-    teacherRole: "Subject Teacher + HOD",
-    formClass: "",
-  },
-  {
-    id: "t4",
-    role: "teacher",
-    title: "Sgt",
-    firstName: "Efua",
-    lastName: "Frimpong",
-    email: "e.frimpong@afts.edu.gh",
-    phone: "0244987654",
-    status: "Active",
-    lastLogin: "2025-03-15 08:30",
-    joinDate: "2020-09-01",
-    department: "Technical",
-    staffId: "AFSHTS/TCH/004",
-    teacherRole: "Subject Teacher",
-    formClass: "",
-  },
-  {
-    id: "t5",
-    role: "teacher",
-    title: "Mr",
-    firstName: "Nana",
-    lastName: "Boateng",
-    email: "n.boateng@afts.edu.gh",
-    phone: "0207654321",
-    status: "Active",
-    lastLogin: "2025-03-14 09:00",
-    joinDate: "2016-09-01",
-    department: "Social Studies",
-    staffId: "AFSHTS/TCH/005",
-    teacherRole: "Subject Teacher + Form Teacher + HOD",
-    formClass: "Form 2 Arts A",
-  },
-  {
-    id: "t6",
-    role: "teacher",
-    title: "Mrs",
-    firstName: "Abena",
-    lastName: "Mensah",
-    email: "a.mensah@afts.edu.gh",
-    phone: "0244555666",
-    status: "Active",
-    lastLogin: "2025-03-17 11:00",
-    joinDate: "2021-01-10",
-    department: "Science",
-    staffId: "AFSHTS/TCH/006",
-    teacherRole: "Subject Teacher + Form Teacher",
-    formClass: "Form 3 Science B",
-  },
-  {
-    id: "t7",
-    role: "teacher",
-    title: "Lt",
-    firstName: "Kwame",
-    lastName: "Asare",
-    email: "k.asare@afts.edu.gh",
-    phone: "0277112233",
-    status: "Active",
-    lastLogin: "2025-03-13 08:45",
-    joinDate: "2019-09-01",
-    department: "Science",
-    staffId: "AFSHTS/TCH/007",
-    teacherRole: "Examiner",
-    formClass: "",
-  },
-  {
-    id: "t8",
-    role: "teacher",
-    title: "Dr",
-    firstName: "Yaa",
-    lastName: "Agyemang",
-    email: "y.agyemang@afts.edu.gh",
-    phone: "0244567890",
-    status: "Active",
-    lastLogin: "2025-03-17 07:50",
-    joinDate: "2015-09-01",
-    department: "Mathematics",
-    staffId: "AFSHTS/TCH/015",
-    teacherRole: "Form Teacher + HOD",
-    formClass: "Form 1 Science A",
-  },
-  {
-    id: "t9",
-    role: "teacher",
-    title: "Mr",
-    firstName: "Ekow",
-    lastName: "Sarpong",
-    email: "e.sarpong@afts.edu.gh",
-    phone: "0244666777",
-    status: "Inactive",
-    lastLogin: "2025-01-10 09:00",
-    joinDate: "2017-01-10",
-    department: "Social Studies",
-    staffId: "AFSHTS/TCH/012",
-    teacherRole: "Subject Teacher",
-    formClass: "",
-  },
-];
-
-// Build student users from adminData
-const STUDENT_USERS = STUDENTS.slice(0, 20).map((s) => ({
-  id: `s${s.id}`,
-  role: "student",
-  title: "",
-  firstName: s.firstName,
-  lastName: s.lastName,
-  email:
-    s.email ||
-    `${s.firstName.toLowerCase()}.${s.lastName.toLowerCase()}@afts.edu.gh`,
-  phone: "—",
-  status: s.status,
-  lastLogin: s.status === "Active" ? "2025-03-17 08:00" : "—",
-  joinDate: s.enrollDate,
-  studentId: s.studentId,
-  formClass: s.formClass,
-  course: s.course,
-}));
-
-// Build parent users from adminData
-const PARENT_USERS = [
-  {
-    id: "p1",
-    role: "parent",
-    title: "Mr",
-    firstName: "Emmanuel",
-    lastName: "Asante",
-    email: "e.asante@gmail.com",
-    phone: "0244123456",
-    status: "Active",
-    lastLogin: "2025-03-17 19:00",
-    joinDate: "2022-09-05",
-    childrenCount: 3,
-  },
-  {
-    id: "p2",
-    role: "parent",
-    title: "Mrs",
-    firstName: "Grace",
-    lastName: "Mensah",
-    email: "g.mensah@gmail.com",
-    phone: "0277654321",
-    status: "Active",
-    lastLogin: "2025-03-16 20:10",
-    joinDate: "2024-09-02",
-    childrenCount: 1,
-  },
-  {
-    id: "p3",
-    role: "parent",
-    title: "Mr",
-    firstName: "Samuel",
-    lastName: "Boateng",
-    email: "s.boateng@yahoo.com",
-    phone: "0200334455",
-    status: "Active",
-    lastLogin: "2025-03-15 18:30",
-    joinDate: "2024-09-02",
-    childrenCount: 1,
-  },
-  {
-    id: "p4",
-    role: "parent",
-    title: "Mrs",
-    firstName: "Akua",
-    lastName: "Darkwah",
-    email: "a.darkwah@gmail.com",
-    phone: "0244565758",
-    status: "Active",
-    lastLogin: "2025-03-14 19:45",
-    joinDate: "2024-09-02",
-    childrenCount: 1,
-  },
-  {
-    id: "p5",
-    role: "parent",
-    title: "Mr",
-    firstName: "Kwabena",
-    lastName: "Asante",
-    email: "k.asante@outlook.com",
-    phone: "0277112233",
-    status: "Active",
-    lastLogin: "2025-03-13 20:00",
-    joinDate: "2024-09-02",
-    childrenCount: 1,
-  },
-  {
-    id: "p6",
-    role: "parent",
-    title: "Mrs",
-    firstName: "Comfort",
-    lastName: "Osei",
-    email: "c.osei@gmail.com",
-    phone: "0244888111",
-    status: "Active",
-    lastLogin: "2025-03-12 19:00",
-    joinDate: "2024-09-02",
-    childrenCount: 1,
-  },
-  {
-    id: "p7",
-    role: "parent",
-    title: "Mr",
-    firstName: "Richard",
-    lastName: "Frimpong",
-    email: "r.frimpong@gmail.com",
-    phone: "0207456789",
-    status: "Active",
-    lastLogin: "2025-03-11 20:30",
-    joinDate: "2024-09-02",
-    childrenCount: 1,
-  },
-  {
-    id: "p8",
-    role: "parent",
-    title: "Mrs",
-    firstName: "Janet",
-    lastName: "Tawiah",
-    email: "j.tawiah@yahoo.com",
-    phone: "0244321777",
-    status: "Active",
-    lastLogin: "2025-03-10 18:00",
-    joinDate: "2024-09-02",
-    childrenCount: 1,
-  },
-  {
-    id: "p9",
-    role: "parent",
-    title: "Mrs",
-    firstName: "Ama",
-    lastName: "Asare",
-    email: "a.asare@gmail.com",
-    phone: "0207111222",
-    status: "Inactive",
-    lastLogin: "2025-01-05 20:00",
-    joinDate: "2022-09-05",
-    childrenCount: 1,
-  },
-  {
-    id: "p10",
-    role: "parent",
-    title: "Mr",
-    firstName: "Eric",
-    lastName: "Bonsu",
-    email: "e.bonsu@gmail.com",
-    phone: "0244888999",
-    status: "Active",
-    lastLogin: "2025-03-09 21:00",
-    joinDate: "2024-09-03",
-    childrenCount: 1,
-  },
-];
-
-const ALL_USERS = [
-  ...ADMIN_USERS,
-  ...TEACHER_USERS,
-  ...STUDENT_USERS,
-  ...PARENT_USERS,
-];
+import { usersApi } from "../../api/users";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const ROLE_CONFIG = {
@@ -428,8 +104,26 @@ const Avatar = ({ name, role, size = "md" }) => {
 
 // ─── Reset Password Modal ─────────────────────────────────────────────────────
 const ResetPasswordModal = ({ user, onClose }) => {
+  const isNewAccount = !!user.tempPassword;
   const [copied, setCopied] = useState(false);
-  const tempPw = `AFSHTS@${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const [tempPw, setTempPw] = useState(user.tempPassword || "");
+  const [loading, setLoading] = useState(!user.tempPassword);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (user.tempPassword) return;
+    let active = true;
+    usersApi
+      .resetPassword(user.id)
+      .then((pw) => active && setTempPw(pw))
+      .catch(
+        (e) => active && setError(e?.message || "Failed to reset password"),
+      )
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(tempPw).catch(() => {});
@@ -453,7 +147,9 @@ const ResetPasswordModal = ({ user, onClose }) => {
           >
             <Key size={24} className="text-white" />
           </div>
-          <p className="text-white font-black text-lg">Reset Password</p>
+          <p className="text-white font-black text-lg">
+            {isNewAccount ? "Account Created" : "Reset Password"}
+          </p>
           <p className="text-blue-200 text-xs mt-1">
             {user.firstName} {user.lastName}
           </p>
@@ -475,7 +171,7 @@ const ResetPasswordModal = ({ user, onClose }) => {
               className="flex-1 font-mono font-bold text-lg text-center"
               style={{ color: "var(--royal-blue)" }}
             >
-              {tempPw}
+              {loading ? "Generating…" : error || tempPw}
             </p>
             <button
               type="button"
@@ -1500,7 +1196,8 @@ const ProfileDrawer = ({ user, onClose, onReset, onToggleStatus }) => {
 
 // ─── Main UserManagement ──────────────────────────────────────────────────────
 const UserManagement = () => {
-  const [users, setUsers] = useState(ALL_USERS);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeRole, setActiveRole] = useState("all");
   const [search, setSearch] = useState("");
   const [filterStatus, setFStatus] = useState("All");
@@ -1511,28 +1208,50 @@ const UserManagement = () => {
   const [showAddUser, setShowAddUser] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const showToast = (msg, type = "success") => {
+  const showToast = (msg, type = "success", duration = 3500) => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), duration);
   };
 
-  const handleAddUser = (newUser) => {
-    setUsers((us) => [newUser, ...us]);
-    setShowAddUser(false);
-    showToast(
-      `${newUser.firstName} ${newUser.lastName} added as ${newUser.role}`,
-    );
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setUsers(await usersApi.list());
+    } catch (err) {
+      showToast(err?.message || "Failed to load users", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleToggleStatus = (user) => {
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const handleAddUser = async (newUser) => {
+    try {
+      const { user, tempPassword } = await usersApi.create(newUser);
+      setUsers((us) => [user, ...us]);
+      setShowAddUser(false);
+      setResetUser({ ...user, tempPassword });
+      showToast(`${user.firstName} ${user.lastName} added as ${user.role}`);
+    } catch (err) {
+      showToast(err?.message || "Failed to add user", "error");
+    }
+  };
+
+  const handleToggleStatus = async (user) => {
     const newStatus = user.status === "Active" ? "Inactive" : "Active";
-    setUsers((us) =>
-      us.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u)),
-    );
-    showToast(
-      `${user.firstName} ${user.lastName} ${newStatus === "Active" ? "activated" : "deactivated"}`,
-    );
-    setViewUser((u) => (u ? { ...u, status: newStatus } : null));
+    try {
+      const updated = await usersApi.update(user.id, { status: newStatus });
+      setUsers((us) => us.map((u) => (u.id === user.id ? updated : u)));
+      setViewUser((u) => (u ? { ...u, status: newStatus } : null));
+      showToast(
+        `${user.firstName} ${user.lastName} ${newStatus === "Active" ? "activated" : "deactivated"}`,
+      );
+    } catch (err) {
+      showToast(err?.message || "Failed to update status", "error");
+    }
   };
 
   const handleExport = () => {
@@ -1897,7 +1616,11 @@ const UserManagement = () => {
                       colSpan={6}
                       className="px-4 py-12 text-center text-gray-400"
                     >
-                      No users match your search
+                      {loading
+                        ? "Loading users…"
+                        : users.length === 0
+                          ? "No users yet — click Add User to create one"
+                          : "No users match your search"}
                     </td>
                   </tr>
                 ) : (
@@ -2035,7 +1758,11 @@ const UserManagement = () => {
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.length === 0 ? (
               <div className="col-span-full text-center py-12 text-gray-400">
-                No users match your search
+                {loading
+                  ? "Loading users…"
+                  : users.length === 0
+                    ? "No users yet — click Add User to create one"
+                    : "No users match your search"}
               </div>
             ) : (
               filtered.map((u) => {
@@ -2181,12 +1908,15 @@ const UserManagement = () => {
       {editUser && (
         <EditUserModal
           user={editUser}
-          onSave={(updated) => {
-            setUsers((us) =>
-              us.map((u) => (u.id === updated.id ? updated : u)),
-            );
-            setEditUser(null);
-            showToast(`${updated.firstName} ${updated.lastName} updated`);
+          onSave={async (updated) => {
+            try {
+              const saved = await usersApi.update(updated.id, updated);
+              setUsers((us) => us.map((u) => (u.id === saved.id ? saved : u)));
+              setEditUser(null);
+              showToast(`${saved.firstName} ${saved.lastName} updated`);
+            } catch (err) {
+              showToast(err?.message || "Failed to update user", "error");
+            }
           }}
           onClose={() => setEditUser(null)}
         />
@@ -2207,15 +1937,7 @@ const UserManagement = () => {
       {resetUser && (
         <ResetPasswordModal
           user={resetUser}
-          onClose={() => {
-            setResetUser(null);
-            showToast(
-              "Password reset for " +
-                resetUser.firstName +
-                " " +
-                resetUser.lastName,
-            );
-          }}
+          onClose={() => setResetUser(null)}
         />
       )}
 

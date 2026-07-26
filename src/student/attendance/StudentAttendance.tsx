@@ -1,5 +1,5 @@
-// src/student/attendance/StudentAttendance.jsx
-import React, { useState } from "react";
+// src/student/attendance/StudentAttendance.tsx
+import React, { useState, useEffect } from "react";
 import { CalendarCheck, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import {
   PieChart,
@@ -14,68 +14,94 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-import {
-  ATTENDANCE_SUMMARY,
-  ATTENDANCE_RECORDS,
-  PREVIOUS_RESULTS,
-  CURRENT_RESULTS,
-  TERM_INFO,
-  STATUS_STYLE,
-  getAttendanceColor,
-} from "../data/studentData";
+import { attendanceApi } from "../../api/attendance";
 import { useAuth } from "../../context/AuthContext";
 
-// Custom donut label
-const DonutLabel = ({ cx, cy, pct }) => (
-  <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-    <tspan
-      x={cx}
-      dy="-0.4em"
-      style={{ fontSize: 28, fontWeight: 900, fill: "var(--royal-blue)" }}
-    >
-      {pct}%
-    </tspan>
-    <tspan x={cx} dy="1.6em" style={{ fontSize: 12, fill: "#6b7280" }}>
-      Attendance
-    </tspan>
-  </text>
-);
+const STATUS_STYLE: Record<
+  string,
+  { bg: string; color: string; label: string }
+> = {
+  present: { bg: "#f0fdf4", color: "var(--success-dark)", label: "Present" },
+  absent: { bg: "#fff1f2", color: "var(--accent-red)", label: "Absent" },
+  late: { bg: "#fffbeb", color: "var(--warning)", label: "Late" },
+  excused: { bg: "#eef2ff", color: "var(--royal-blue)", label: "Excused" },
+};
+
+const getAttendanceColor = (pct: number) =>
+  pct >= 95
+    ? "var(--success-dark)"
+    : pct >= 85
+      ? "var(--warning)"
+      : "var(--accent-red)";
+
+const weekKey = (dateStr: string) => {
+  const d = new Date(dateStr);
+  const onejan = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(
+    ((d.getTime() - onejan.getTime()) / 86400000 + onejan.getDay() + 1) / 7,
+  );
+  return `Wk ${week}`;
+};
 
 const StudentAttendance = () => {
   const { user } = useAuth();
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
 
-  const attPct = Math.round(
-    (ATTENDANCE_SUMMARY.present / ATTENDANCE_SUMMARY.totalDays) * 100,
-  );
+  useEffect(() => {
+    let active = true;
+    attendanceApi
+      .list()
+      .then((recs) => {
+        if (active) setRecords(recs);
+      })
+      .catch(() => {
+        if (active) setRecords([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const summary = {
+    present: records.filter((r) => r.status === "present").length,
+    absent: records.filter((r) => r.status === "absent").length,
+    late: records.filter((r) => r.status === "late").length,
+    totalDays: records.length,
+  };
+  const attPct = summary.totalDays
+    ? Math.round(((summary.present + summary.late) / summary.totalDays) * 100)
+    : 0;
   const attColor = getAttendanceColor(attPct);
 
   const filtered =
-    filter === "all"
-      ? ATTENDANCE_RECORDS
-      : ATTENDANCE_RECORDS.filter((r) => r.status === filter);
+    filter === "all" ? records : records.filter((r) => r.status === filter);
 
-  // Donut chart data
   const pieData = [
-    {
-      name: "Present",
-      value: ATTENDANCE_SUMMARY.present,
-      color: "var(--success-dark)",
-    },
-    {
-      name: "Absent",
-      value: ATTENDANCE_SUMMARY.absent,
-      color: "var(--accent-red)",
-    },
-    { name: "Late", value: ATTENDANCE_SUMMARY.late, color: "var(--warning)" },
+    { name: "Present", value: summary.present, color: "var(--success-dark)" },
+    { name: "Absent", value: summary.absent, color: "var(--accent-red)" },
+    { name: "Late", value: summary.late, color: "var(--warning)" },
   ].filter((d) => d.value > 0);
 
-  // Weekly attendance bar (last 3 weeks mock)
-  const weeklyData = [
-    { week: "Wk 7", present: 5, absent: 0, late: 0 },
-    { week: "Wk 8", present: 4, absent: 1, late: 0 },
-    { week: "Wk 9", present: 4, absent: 0, late: 1 },
-  ];
+  const weeklyMap: Record<string, any> = {};
+  records.forEach((r) => {
+    const k = weekKey(r.date);
+    if (!weeklyMap[k])
+      weeklyMap[k] = { week: k, present: 0, absent: 0, late: 0 };
+    if (weeklyMap[k][r.status] !== undefined) weeklyMap[k][r.status] += 1;
+  });
+  const weeklyData = Object.values(weeklyMap).slice(-4);
+
+  if (loading)
+    return (
+      <div className="py-20 text-center text-sm text-gray-400">
+        Loading attendance…
+      </div>
+    );
 
   return (
     <div className="space-y-6">
@@ -88,7 +114,7 @@ const StudentAttendance = () => {
           Attendance
         </h1>
         <p className="text-xs text-gray-400 mt-0.5">
-          {user?.formClass} · {TERM_INFO.term} · {TERM_INFO.academicYear}
+          {user?.formClass || "Your attendance record"}
         </p>
       </div>
 
@@ -97,25 +123,25 @@ const StudentAttendance = () => {
         {[
           {
             label: "Total Days",
-            value: ATTENDANCE_SUMMARY.totalDays,
+            value: summary.totalDays,
             icon: CalendarCheck,
             color: "var(--royal-blue)",
           },
           {
             label: "Present",
-            value: ATTENDANCE_SUMMARY.present,
+            value: summary.present,
             icon: CheckCircle2,
             color: "var(--success-dark)",
           },
           {
             label: "Absent",
-            value: ATTENDANCE_SUMMARY.absent,
+            value: summary.absent,
             icon: AlertCircle,
             color: "var(--accent-red)",
           },
           {
             label: "Late",
-            value: ATTENDANCE_SUMMARY.late,
+            value: summary.late,
             icon: Clock,
             color: "var(--warning)",
           },
@@ -141,171 +167,162 @@ const StudentAttendance = () => {
         ))}
       </div>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Donut chart */}
+      {summary.totalDays === 0 ? (
         <div
-          className="bg-white rounded-xl border shadow-sm p-5"
-          style={{
-            borderColor: "var(--medium-gray)",
-            borderLeft: `4px solid ${attColor}`,
-          }}
-        >
-          <h3
-            className="font-semibold text-sm mb-1"
-            style={{ color: "var(--dark-gray)" }}
-          >
-            Attendance Breakdown
-          </h3>
-          <p className="text-xs text-gray-400 mb-2">
-            {TERM_INFO.term} · {TERM_INFO.academicYear}
-          </p>
-          <ResponsiveContainer width="100%" height={230}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={70}
-                outerRadius={95}
-                paddingAngle={3}
-                dataKey="value"
-              >
-                {pieData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(v, n) => [`${v} days`, n]}
-                contentStyle={{ fontSize: 12, borderRadius: 8 }}
-              />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {/* Centre label */}
-              <text
-                x="50%"
-                y="46%"
-                textAnchor="middle"
-                dominantBaseline="central"
-              >
-                <tspan
-                  x="50%"
-                  dy="0"
-                  style={{ fontSize: 26, fontWeight: 900, fill: attColor }}
-                >
-                  {attPct}%
-                </tspan>
-              </text>
-              <text
-                x="50%"
-                y="55%"
-                textAnchor="middle"
-                dominantBaseline="central"
-              >
-                <tspan x="50%" dy="0" style={{ fontSize: 11, fill: "#6b7280" }}>
-                  Attendance
-                </tspan>
-              </text>
-            </PieChart>
-          </ResponsiveContainer>
-
-          {/* 95% warning */}
-          {attPct < 95 ? (
-            <div
-              className="mt-2 p-3 rounded-xl text-xs font-semibold"
-              style={{ backgroundColor: "#fffbeb", color: "#92400e" }}
-            >
-              ⚠ Below 95% — you need{" "}
-              {Math.ceil(0.95 * ATTENDANCE_SUMMARY.totalDays) -
-                ATTENDANCE_SUMMARY.present}{" "}
-              more days present to meet the exam requirement.
-            </div>
-          ) : (
-            <div
-              className="mt-2 p-3 rounded-xl text-xs font-semibold"
-              style={{
-                backgroundColor: "#f0fdf4",
-                color: "var(--success-dark)",
-              }}
-            >
-              ✓ Excellent! You meet the 95% attendance requirement.
-            </div>
-          )}
-        </div>
-
-        {/* Weekly breakdown bar */}
-        <div
-          className="bg-white rounded-xl border shadow-sm p-5"
+          className="bg-white rounded-xl border shadow-sm p-12 text-center text-sm text-gray-400"
           style={{ borderColor: "var(--medium-gray)" }}
         >
-          <h3
-            className="font-semibold text-sm mb-1"
-            style={{ color: "var(--dark-gray)" }}
-          >
-            Weekly Attendance
-          </h3>
-          <p className="text-xs text-gray-400 mb-4">
-            Days per week — last 3 weeks
-          </p>
-          <ResponsiveContainer width="100%" height={190}>
-            <BarChart
-              data={weeklyData}
-              margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="week" tick={{ fontSize: 11, fill: "#6b7280" }} />
-              <YAxis
-                tick={{ fontSize: 11, fill: "#6b7280" }}
-                domain={[0, 5]}
-                ticks={[0, 1, 2, 3, 4, 5]}
-              />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar
-                dataKey="present"
-                name="Present"
-                fill="var(--success-dark)"
-                radius={[4, 4, 0, 0]}
-                stackId="a"
-              />
-              <Bar
-                dataKey="absent"
-                name="Absent"
-                fill="var(--accent-red)"
-                radius={[4, 4, 0, 0]}
-                stackId="a"
-              />
-              <Bar
-                dataKey="late"
-                name="Late"
-                fill="var(--warning)"
-                radius={[4, 4, 0, 0]}
-                stackId="a"
-              />
-            </BarChart>
-          </ResponsiveContainer>
-
-          {/* Progress bar */}
-          <div className="mt-4">
-            <div className="flex justify-between text-xs mb-1">
-              <span style={{ color: "var(--dark-gray)", fontWeight: 600 }}>
-                Overall Rate
-              </span>
-              <span style={{ color: attColor, fontWeight: 700 }}>
-                {attPct}%
-              </span>
-            </div>
+          No attendance has been recorded for you yet.
+        </div>
+      ) : (
+        <>
+          {/* Charts row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Donut chart */}
             <div
-              className="h-3 rounded-full overflow-hidden"
-              style={{ backgroundColor: "var(--medium-gray)" }}
+              className="bg-white rounded-xl border shadow-sm p-5"
+              style={{
+                borderColor: "var(--medium-gray)",
+                borderLeft: `4px solid ${attColor}`,
+              }}
             >
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${attPct}%`, backgroundColor: attColor }}
-              />
+              <h3
+                className="font-semibold text-sm mb-1"
+                style={{ color: "var(--dark-gray)" }}
+              >
+                Attendance Breakdown
+              </h3>
+              <ResponsiveContainer width="100%" height={230}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={95}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(v, n) => [`${v} days`, n]}
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <text
+                    x="50%"
+                    y="46%"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                  >
+                    <tspan
+                      x="50%"
+                      dy="0"
+                      style={{ fontSize: 26, fontWeight: 900, fill: attColor }}
+                    >
+                      {attPct}%
+                    </tspan>
+                  </text>
+                </PieChart>
+              </ResponsiveContainer>
+
+              {attPct < 95 ? (
+                <div
+                  className="mt-2 p-3 rounded-xl text-xs font-semibold"
+                  style={{ backgroundColor: "#fffbeb", color: "#92400e" }}
+                >
+                  ⚠ Below the 95% attendance requirement for exams.
+                </div>
+              ) : (
+                <div
+                  className="mt-2 p-3 rounded-xl text-xs font-semibold"
+                  style={{
+                    backgroundColor: "#f0fdf4",
+                    color: "var(--success-dark)",
+                  }}
+                >
+                  ✓ Excellent! You meet the 95% attendance requirement.
+                </div>
+              )}
+            </div>
+
+            {/* Weekly breakdown bar */}
+            <div
+              className="bg-white rounded-xl border shadow-sm p-5"
+              style={{ borderColor: "var(--medium-gray)" }}
+            >
+              <h3
+                className="font-semibold text-sm mb-1"
+                style={{ color: "var(--dark-gray)" }}
+              >
+                Weekly Attendance
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">
+                Days per week — recent weeks
+              </p>
+              <ResponsiveContainer width="100%" height={190}>
+                <BarChart
+                  data={weeklyData}
+                  margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="week"
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                  />
+                  <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar
+                    dataKey="present"
+                    name="Present"
+                    fill="var(--success-dark)"
+                    radius={[4, 4, 0, 0]}
+                    stackId="a"
+                  />
+                  <Bar
+                    dataKey="absent"
+                    name="Absent"
+                    fill="var(--accent-red)"
+                    radius={[4, 4, 0, 0]}
+                    stackId="a"
+                  />
+                  <Bar
+                    dataKey="late"
+                    name="Late"
+                    fill="var(--warning)"
+                    radius={[4, 4, 0, 0]}
+                    stackId="a"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+
+              <div className="mt-4">
+                <div className="flex justify-between text-xs mb-1">
+                  <span style={{ color: "var(--dark-gray)", fontWeight: 600 }}>
+                    Overall Rate
+                  </span>
+                  <span style={{ color: attColor, fontWeight: 700 }}>
+                    {attPct}%
+                  </span>
+                </div>
+                <div
+                  className="h-3 rounded-full overflow-hidden"
+                  style={{ backgroundColor: "var(--medium-gray)" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${attPct}%`, backgroundColor: attColor }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Records table */}
       <div
@@ -338,8 +355,8 @@ const StudentAttendance = () => {
                 }}
               >
                 {f === "all"
-                  ? `All (${ATTENDANCE_RECORDS.length})`
-                  : `${f} (${ATTENDANCE_RECORDS.filter((r) => r.status === f).length})`}
+                  ? `All (${records.length})`
+                  : `${f} (${records.filter((r) => r.status === f).length})`}
               </button>
             ))}
           </div>
@@ -380,7 +397,7 @@ const StudentAttendance = () => {
                 </tr>
               ) : (
                 filtered.map((rec, i) => {
-                  const ss = STATUS_STYLE[rec.status];
+                  const ss = STATUS_STYLE[rec.status] || STATUS_STYLE.present;
                   return (
                     <tr key={i} className="hover:bg-gray-50 transition">
                       <td
@@ -393,7 +410,11 @@ const StudentAttendance = () => {
                           year: "numeric",
                         })}
                       </td>
-                      <td className="px-4 py-3 text-gray-500">{rec.day}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {new Date(rec.date).toLocaleDateString("en-GB", {
+                          weekday: "long",
+                        })}
+                      </td>
                       <td className="px-4 py-3">
                         <span
                           className="px-2 py-0.5 rounded text-xs font-bold"
@@ -403,7 +424,7 @@ const StudentAttendance = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400">
-                        {rec.remark || "—"}
+                        {rec.note || "—"}
                       </td>
                     </tr>
                   );

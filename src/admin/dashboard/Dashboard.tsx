@@ -35,99 +35,39 @@ import {
   Area,
 } from "recharts";
 import { useAuth } from "../../context/AuthContext";
+import { statsApi } from "../../api/stats";
 
-// ─── Mock school-wide data ────────────────────────────────────────────────────
-const STATS = {
-  totalStudents: 5000,
-  form1Students: 2500,
-  form2Students: 2500,
-  totalTeachers: 42,
-  totalParents: 3800,
-  totalClasses: 24,
-  attendanceRate: 91,
-  passRate: 87,
-  pendingScores: 14,
-  reportsGenerated: 320,
+const PROGRAM_COLORS = [
+  "var(--royal-blue)",
+  "#7c3aed",
+  "var(--warning)",
+  "var(--accent-red)",
+  "var(--success-dark)",
+  "#0369a1",
+];
+
+const GRADE_COLORS: Record<string, string> = {
+  A1: "#16a34a",
+  B2: "#2563eb",
+  B3: "#3b82f6",
+  C4: "#ca8a04",
+  C5: "#ea580c",
+  C6: "#f97316",
+  D7: "#dc2626",
+  E8: "#b91c1c",
+  F9: "#7f1d1d",
 };
 
-// Grade distribution (current term)
-const GRADE_DIST = [
-  { grade: "A1", count: 142, color: "#16a34a" },
-  { grade: "B2", count: 118, color: "#2563eb" },
-  { grade: "B3", count: 96, color: "#3b82f6" },
-  { grade: "C4", count: 72, color: "#ca8a04" },
-  { grade: "C5", count: 48, color: "#ea580c" },
-  { grade: "C6", count: 36, color: "#f97316" },
-  { grade: "D7", count: 28, color: "#dc2626" },
-  { grade: "E8", count: 12, color: "#b91c1c" },
-  { grade: "F9", count: 8, color: "#7f1d1d" },
-];
+const TERM_TREND: any[] = [];
+const YEAR_ATTENDANCE: any[] = [];
+const TRACK_DATA: any[] = [];
+const RECENT_ACTIVITY: any[] = [];
 
-// Term trend — avg score per term
-const TERM_TREND = [
-  { term: "T1 23/24", avg: 62, attendance: 88 },
-  { term: "T2 23/24", avg: 65, attendance: 90 },
-  { term: "T3 23/24", avg: 64, attendance: 87 },
-  { term: "T1 24/25", avg: 68, attendance: 91 },
-  { term: "T2 24/25", avg: 71, attendance: 91 },
-];
-
-// Attendance by year group
-const YEAR_ATTENDANCE = [
-  { year: "Form 1", present: 94, absent: 6 },
-  { year: "Form 2", present: 90, absent: 10 },
-  { year: "Form 3", present: 88, absent: 12 },
-];
-
-// Department performance
-
-// Track split pie
-const TRACK_DATA = [
-  { name: "Semester 1 (Gold)", value: 243, color: "#ca8a04" },
-  { name: "Semester 2 (Green)", value: 243, color: "#16a34a" },
-];
-
-// Program split pie
-const PROGRAM_DATA = [
-  { name: "General Science", value: 148, color: "var(--royal-blue)" },
-  { name: "General Arts", value: 124, color: "#7c3aed" },
-  { name: "Business", value: 98, color: "var(--warning)" },
-  { name: "Technical", value: 116, color: "var(--accent-red)" },
-];
-
-// Recent activity — no emojis, uses type for icon
-const RECENT_ACTIVITY = [
-  {
-    text: "WOI Ama Mensah submitted Form 3A exam scores",
-    time: "5 min ago",
-    type: "success",
-  },
-  {
-    text: "14 score submissions still pending — deadline Friday",
-    time: "1 hr ago",
-    type: "warning",
-  },
-  {
-    text: "New teacher Cpt Ebo Darko added to Mathematics dept",
-    time: "2 hrs ago",
-    type: "info",
-  },
-  {
-    text: "Semester 1 report cards approved for Form 3 Science B",
-    time: "3 hrs ago",
-    type: "success",
-  },
-  {
-    text: "12 new students enrolled — Form 1 General Science",
-    time: "1 day ago",
-    type: "info",
-  },
-  {
-    text: "Bulk SMS sent to 380 parents re: Semester 1 exams",
-    time: "2 days ago",
-    type: "info",
-  },
-];
+const NoData = ({ label = "No data yet" }) => (
+  <div className="h-[160px] flex items-center justify-center text-sm text-gray-400">
+    {label}
+  </div>
+);
 
 // Activity icon map
 const ACTIVITY_ICON = {
@@ -347,6 +287,39 @@ const Card = ({
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [stats, setStats] = React.useState({
+    students: 0,
+    teachers: 0,
+    parents: 0,
+    admins: 0,
+    reports: 0,
+    passRate: 0,
+    totalScores: 0,
+    byCourse: [] as { course: string; count: number }[],
+    byGrade: [] as { grade: string; count: number }[],
+  });
+
+  React.useEffect(() => {
+    statsApi
+      .overview()
+      .then((s) => setStats((prev) => ({ ...prev, ...s })))
+      .catch(() => {});
+  }, []);
+
+  const programData = (stats.byCourse || []).map((c, i) => ({
+    name: c.course,
+    value: c.count,
+    color: PROGRAM_COLORS[i % PROGRAM_COLORS.length],
+  }));
+
+  const gradeDist =
+    stats.totalScores > 0
+      ? (stats.byGrade || []).map((g) => ({
+          ...g,
+          color: GRADE_COLORS[g.grade] || "#6b7280",
+        }))
+      : [];
+
   return (
     <div className="space-y-6">
       {/* Welcome banner */}
@@ -400,34 +373,30 @@ const Dashboard = () => {
         <StatCard
           icon={GraduationCap}
           label="Total Students"
-          target={STATS.totalStudents}
-          suffix="+"
+          target={stats.students}
           color="var(--royal-blue)"
           onClick={() => navigate("/dashboard/students")}
         />
         <StatCard
           icon={Users}
           label="Total Teachers"
-          target={STATS.totalTeachers}
-          suffix="+"
+          target={stats.teachers}
           color="#7c3aed"
           onClick={() => navigate("/dashboard/teacher")}
         />
         <StatCard
           icon={UserCheck}
           label="Total Parents"
-          target={STATS.totalParents}
-          suffix="+"
+          target={stats.parents}
           color="var(--success-dark)"
           onClick={() => navigate("/dashboard/parents")}
         />
         <StatCard
           icon={BookOpen}
-          label="Total Classes"
-          target={STATS.totalClasses}
-          suffix="+"
+          label="Total Reports"
+          target={stats.reports}
           color="var(--warning)"
-          onClick={() => navigate("/dashboard/academicStructure2")}
+          onClick={() => navigate("/dashboard/publishReports")}
         />
       </div>
 
@@ -435,22 +404,29 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Grade distribution */}
         <Card title="Grade Distribution" subtitle="Current Term · All students">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={GRADE_DIST}
-              margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="grade" tick={{ fontSize: 11, fill: "#6b7280" }} />
-              <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
-              <Tooltip content={<BarTip />} />
-              <Bar dataKey="count" name="Students" radius={[6, 6, 0, 0]}>
-                {GRADE_DIST.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {gradeDist.length ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart
+                data={gradeDist}
+                margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="grade"
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                />
+                <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
+                <Tooltip content={<BarTip />} />
+                <Bar dataKey="count" name="Students" radius={[6, 6, 0, 0]}>
+                  {gradeDist.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <NoData label="No grades recorded yet" />
+          )}
           {/* Credit pass summary */}
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div
@@ -461,9 +437,11 @@ const Dashboard = () => {
                 className="text-lg font-black"
                 style={{ color: "var(--success-dark)" }}
               >
-                {GRADE_DIST.filter((g) =>
-                  ["A1", "B2", "B3", "C4", "C5", "C6"].includes(g.grade),
-                ).reduce((s, g) => s + g.count, 0)}
+                {gradeDist
+                  .filter((g) =>
+                    ["A1", "B2", "B3", "C4", "C5", "C6"].includes(g.grade),
+                  )
+                  .reduce((s, g) => s + g.count, 0)}
               </p>
               <p className="text-xs text-gray-500">Credit Passes (A1–C6)</p>
             </div>
@@ -475,9 +453,9 @@ const Dashboard = () => {
                 className="text-lg font-black"
                 style={{ color: "var(--accent-red)" }}
               >
-                {GRADE_DIST.filter((g) =>
-                  ["D7", "E8", "F9"].includes(g.grade),
-                ).reduce((s, g) => s + g.count, 0)}
+                {gradeDist
+                  .filter((g) => ["D7", "E8", "F9"].includes(g.grade))
+                  .reduce((s, g) => s + g.count, 0)}
               </p>
               <p className="text-xs text-gray-500">Below Credit (D7–F9)</p>
             </div>
@@ -489,65 +467,72 @@ const Dashboard = () => {
           title="Performance Trend"
           subtitle="Avg score & attendance — last 5 terms"
         >
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart
-              data={TERM_TREND}
-              margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
-            >
-              <defs>
-                <linearGradient id="avgGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="5%"
-                    stopColor="var(--royal-blue)"
-                    stopOpacity={0.25}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="var(--royal-blue)"
-                    stopOpacity={0}
-                  />
-                </linearGradient>
-                <linearGradient id="attGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="5%"
-                    stopColor="var(--success-dark)"
-                    stopOpacity={0.2}
-                  />
-                  <stop
-                    offset="95%"
-                    stopColor="var(--success-dark)"
-                    stopOpacity={0}
-                  />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="term" tick={{ fontSize: 10, fill: "#6b7280" }} />
-              <YAxis
-                tick={{ fontSize: 10, fill: "#6b7280" }}
-                domain={[50, 100]}
-              />
-              <Tooltip content={<BarTip />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Area
-                type="monotone"
-                dataKey="avg"
-                name="Avg Score (%)"
-                stroke="var(--royal-blue)"
-                fill="url(#avgGrad)"
-                strokeWidth={2.5}
-                dot={{ r: 4 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="attendance"
-                name="Attendance (%)"
-                stroke="var(--success-dark)"
-                fill="url(#attGrad)"
-                strokeWidth={2.5}
-                dot={{ r: 4 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {TERM_TREND.length ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart
+                data={TERM_TREND}
+                margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+              >
+                <defs>
+                  <linearGradient id="avgGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="5%"
+                      stopColor="var(--royal-blue)"
+                      stopOpacity={0.25}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor="var(--royal-blue)"
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                  <linearGradient id="attGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="5%"
+                      stopColor="var(--success-dark)"
+                      stopOpacity={0.2}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor="var(--success-dark)"
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="term"
+                  tick={{ fontSize: 10, fill: "#6b7280" }}
+                />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "#6b7280" }}
+                  domain={[50, 100]}
+                />
+                <Tooltip content={<BarTip />} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Area
+                  type="monotone"
+                  dataKey="avg"
+                  name="Avg Score (%)"
+                  stroke="var(--royal-blue)"
+                  fill="url(#avgGrad)"
+                  strokeWidth={2.5}
+                  dot={{ r: 4 }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="attendance"
+                  name="Attendance (%)"
+                  stroke="var(--success-dark)"
+                  fill="url(#attGrad)"
+                  strokeWidth={2.5}
+                  dot={{ r: 4 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <NoData label="No performance data yet" />
+          )}
         </Card>
       </div>
 
@@ -555,18 +540,99 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Enrollment by program */}
         <div className="lg:col-span-2">
-          <Card title="Enrollment by Programme" subtitle="Total 486 students">
-            <ResponsiveContainer width="100%" height={200}>
+          <Card
+            title="Enrollment by Programme"
+            subtitle={`Total ${stats.students} students`}
+          >
+            {programData.length ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={programData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={75}
+                    paddingAngle={3}
+                    dataKey="value"
+                  >
+                    {programData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(v, n) => [`${v} students`, n]}
+                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <NoData label="No students enrolled yet" />
+            )}
+          </Card>
+        </div>
+      </div>
+
+      {/* Charts row 3 — Attendance + Track + Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Attendance by year group */}
+        <Card title="Attendance by Year Group" subtitle="This term">
+          {YEAR_ATTENDANCE.length ? (
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart
+                data={YEAR_ATTENDANCE}
+                margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="year"
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "#6b7280" }}
+                  domain={[0, 100]}
+                />
+                <Tooltip content={<BarTip />} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar
+                  dataKey="present"
+                  name="Present (%)"
+                  stackId="a"
+                  fill="var(--success-dark)"
+                  radius={[0, 0, 0, 0]}
+                />
+                <Bar
+                  dataKey="absent"
+                  name="Absent (%)"
+                  stackId="a"
+                  fill="var(--accent-red)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <NoData label="No attendance data yet" />
+          )}
+        </Card>
+
+        {/* Track split */}
+        <Card
+          title="Transitional System Split"
+          subtitle="Semester 1 in session · Semester 2 on vacation"
+        >
+          {TRACK_DATA.length ? (
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
-                  data={PROGRAM_DATA}
+                  data={TRACK_DATA}
                   cx="50%"
                   cy="50%"
+                  innerRadius={50}
                   outerRadius={75}
-                  paddingAngle={3}
+                  paddingAngle={4}
                   dataKey="value"
                 >
-                  {PROGRAM_DATA.map((entry, i) => (
+                  {TRACK_DATA.map((entry, i) => (
                     <Cell key={i} fill={entry.color} />
                   ))}
                 </Pie>
@@ -577,76 +643,16 @@ const Dashboard = () => {
                 <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
-          </Card>
-        </div>
-      </div>
-
-      {/* Charts row 3 — Attendance + Track + Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Attendance by year group */}
-        <Card title="Attendance by Year Group" subtitle="This term">
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart
-              data={YEAR_ATTENDANCE}
-              margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#6b7280" }} />
-              <YAxis
-                tick={{ fontSize: 11, fill: "#6b7280" }}
-                domain={[0, 100]}
-              />
-              <Tooltip content={<BarTip />} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar
-                dataKey="present"
-                name="Present (%)"
-                stackId="a"
-                fill="var(--success-dark)"
-                radius={[0, 0, 0, 0]}
-              />
-              <Bar
-                dataKey="absent"
-                name="Absent (%)"
-                stackId="a"
-                fill="var(--accent-red)"
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Track split */}
-        <Card
-          title="Transitional System Split"
-          subtitle="Semester 1 in session · Semester 2 on vacation"
-        >
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie
-                data={TRACK_DATA}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={75}
-                paddingAngle={4}
-                dataKey="value"
-              >
-                {TRACK_DATA.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(v, n) => [`${v} students`, n]}
-                contentStyle={{ fontSize: 12, borderRadius: 8 }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-            </PieChart>
-          </ResponsiveContainer>
+          ) : (
+            <NoData label="No data yet" />
+          )}
         </Card>
 
         {/* Recent activity */}
         <Card title="Recent Activity" subtitle="Last 24 hours">
+          {RECENT_ACTIVITY.length === 0 && (
+            <NoData label="No recent activity" />
+          )}
           <div className="space-y-3">
             {RECENT_ACTIVITY.slice(0, 5).map((a, i) => (
               <div key={i} className="flex items-start gap-3">

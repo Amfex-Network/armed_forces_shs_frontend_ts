@@ -1,5 +1,5 @@
 // src/admin/academic-structure2/SubjectManagement.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Edit3,
@@ -10,254 +10,14 @@ import {
   Search,
   BookOpen,
 } from "lucide-react";
+import { subjectsApi, departmentsApi } from "../../api/domains";
 
-const INITIAL_SUBJECTS = [
-  {
-    id: 1,
-    name: "Core Mathematics",
-    code: "CMATH",
-    type: "core",
-    department: "Mathematics",
-    courses: ["General Science", "General Arts", "Business", "Technical"],
-    periodsPerWeek: 5,
-    active: true,
-  },
-  {
-    id: 2,
-    name: "English Language",
-    code: "ENG",
-    type: "core",
-    department: "English",
-    courses: ["General Science", "General Arts", "Business", "Technical"],
-    periodsPerWeek: 5,
-    active: true,
-  },
-  {
-    id: 3,
-    name: "Integrated Science",
-    code: "ISCI",
-    type: "core",
-    department: "Science",
-    courses: ["General Science", "General Arts", "Business", "Technical"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 4,
-    name: "Social Studies",
-    code: "SOCS",
-    type: "core",
-    department: "Social Studies",
-    courses: ["General Science", "General Arts", "Business", "Technical"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 5,
-    name: "ICT",
-    code: "ICT",
-    type: "core",
-    department: "Technical",
-    courses: ["General Science", "General Arts", "Business", "Technical"],
-    periodsPerWeek: 3,
-    active: true,
-  },
-  {
-    id: 6,
-    name: "Elective Mathematics",
-    code: "EMATH",
-    type: "elective",
-    department: "Mathematics",
-    courses: ["General Science"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 7,
-    name: "Physics",
-    code: "PHY",
-    type: "elective",
-    department: "Science",
-    courses: ["General Science"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 8,
-    name: "Chemistry",
-    code: "CHEM",
-    type: "elective",
-    department: "Science",
-    courses: ["General Science"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 9,
-    name: "Biology",
-    code: "BIO",
-    type: "elective",
-    department: "Science",
-    courses: ["General Science"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 10,
-    name: "Literature in English",
-    code: "LIT",
-    type: "elective",
-    department: "English",
-    courses: ["General Arts"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 11,
-    name: "History",
-    code: "HIST",
-    type: "elective",
-    department: "Social Studies",
-    courses: ["General Arts"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 12,
-    name: "Geography",
-    code: "GEO",
-    type: "elective",
-    department: "Social Studies",
-    courses: ["General Arts"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 13,
-    name: "Economics",
-    code: "ECON",
-    type: "elective",
-    department: "Business",
-    courses: ["General Arts", "Business"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 14,
-    name: "Government",
-    code: "GOVT",
-    type: "elective",
-    department: "Social Studies",
-    courses: ["General Arts"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 15,
-    name: "Accounting",
-    code: "ACCT",
-    type: "elective",
-    department: "Business",
-    courses: ["Business"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 16,
-    name: "Business Management",
-    code: "BM",
-    type: "elective",
-    department: "Business",
-    courses: ["Business"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 17,
-    name: "Technical Drawing",
-    code: "TD",
-    type: "elective",
-    department: "Technical",
-    courses: ["Technical"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 18,
-    name: "Auto Mechanics",
-    code: "AUTO",
-    type: "elective",
-    department: "Technical",
-    courses: ["Technical"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 19,
-    name: "Welding & Fabrication",
-    code: "WELD",
-    type: "elective",
-    department: "Technical",
-    courses: ["Technical"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 20,
-    name: "Electronics",
-    code: "ELEC",
-    type: "elective",
-    department: "Technical",
-    courses: ["Technical"],
-    periodsPerWeek: 4,
-    active: true,
-  },
-  {
-    id: 21,
-    name: "French",
-    code: "FRE",
-    type: "elective",
-    department: "English",
-    courses: ["General Arts"],
-    periodsPerWeek: 3,
-    active: true,
-  },
-  {
-    id: 22,
-    name: "Typewriting/Keyboarding",
-    code: "TYPE",
-    type: "elective",
-    department: "Business",
-    courses: ["Business"],
-    periodsPerWeek: 3,
-    active: true,
-  },
-  {
-    id: 23,
-    name: "Electrical Installation",
-    code: "EI",
-    type: "elective",
-    department: "Technical",
-    courses: ["Technical"],
-    periodsPerWeek: 4,
-    active: false,
-  },
-];
-
-const DEPARTMENTS = [
-  "Mathematics",
-  "English",
-  "Science",
-  "Social Studies",
-  "Technical",
-  "Business",
-];
 const COURSES = ["General Science", "General Arts", "Business", "Technical"];
 const EMPTY_SUBJECT = {
   name: "",
   code: "",
   type: "elective",
-  department: "Mathematics",
+  department: "",
   courses: [],
   periodsPerWeek: 4,
   active: true,
@@ -282,7 +42,9 @@ const Toggle = ({ checked, onChange }) => (
 );
 
 const SubjectManagement = () => {
-  const [subjects, setSubjects] = useState(INITIAL_SUBJECTS);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [departmentNames, setDepartmentNames] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSubject, setEditingSubject] = useState(null);
   const [form, setForm] = useState({ ...EMPTY_SUBJECT });
@@ -295,6 +57,27 @@ const SubjectManagement = () => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      const [subs, deps] = await Promise.all([
+        subjectsApi.list(),
+        departmentsApi.list(),
+      ]);
+      setSubjects(subs);
+      setDepartmentNames(deps.map((d) => d.name));
+    } catch (err) {
+      showToast(err?.message || "Failed to load subjects", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
   const updateField = (key, value) =>
     setForm((prev) => ({ ...prev, [key]: value }));
   const toggleCourse = (course) =>
@@ -321,27 +104,36 @@ const SubjectManagement = () => {
     [subjects, search, filterType, filterDepartment],
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.code.trim()) return;
-    if (editingSubject) {
-      setSubjects((prev) =>
-        prev.map((subject) =>
-          subject.id === editingSubject.id ? { ...subject, ...form } : subject,
-        ),
-      );
-      showToast(`${form.name} updated`);
-    } else {
-      setSubjects((prev) => [...prev, { ...form, id: Date.now() }]);
-      showToast(`${form.name} added`);
+    try {
+      if (editingSubject) {
+        const saved = await subjectsApi.update(editingSubject.id, form);
+        setSubjects((prev) =>
+          prev.map((subject) => (subject.id === saved.id ? saved : subject)),
+        );
+        showToast(`${saved.name} updated`);
+      } else {
+        const saved = await subjectsApi.create(form);
+        setSubjects((prev) => [...prev, saved]);
+        showToast(`${saved.name} added`);
+      }
+      setShowForm(false);
+      setEditingSubject(null);
+      setForm({ ...EMPTY_SUBJECT });
+    } catch (err) {
+      showToast(err?.message || "Failed to save subject", "error");
     }
-    setShowForm(false);
-    setEditingSubject(null);
-    setForm({ ...EMPTY_SUBJECT });
   };
 
-  const handleDelete = (subject) => {
-    setSubjects((prev) => prev.filter((item) => item.id !== subject.id));
-    showToast(`${subject.name} removed`, "error");
+  const handleDelete = async (subject) => {
+    try {
+      await subjectsApi.remove(subject.id);
+      setSubjects((prev) => prev.filter((item) => item.id !== subject.id));
+      showToast(`${subject.name} removed`, "error");
+    } catch (err) {
+      showToast(err?.message || "Failed to delete subject", "error");
+    }
   };
 
   return (
@@ -356,7 +148,7 @@ const SubjectManagement = () => {
                 : "var(--success-dark)",
           }}
         >
-          <CheckCircle2 size={14} /> {toast.msg}
+          <CheckCircle2 size={14} /> {toast.message}
         </div>
       )}
 
@@ -379,7 +171,7 @@ const SubjectManagement = () => {
           type="button"
           onClick={() => {
             setEditingSubject(null);
-            setForm({ ...EMPTY });
+            setForm({ ...EMPTY_SUBJECT });
             setShowForm(true);
           }}
           className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white"
@@ -464,7 +256,7 @@ const SubjectManagement = () => {
             style={{ borderColor: "var(--medium-gray)" }}
           >
             <option value="all">All Departments</option>
-            {DEPARTMENTS.map((department) => (
+            {departmentNames.map((department) => (
               <option key={department}>{department}</option>
             ))}
           </select>
@@ -473,6 +265,14 @@ const SubjectManagement = () => {
           Showing {filtered.length} of {subjects.length}
         </p>
       </div>
+
+      {subjects.length === 0 && (
+        <div className="text-center py-12 text-sm text-gray-400">
+          {loading
+            ? "Loading subjects…"
+            : "No subjects yet — click Add Subject to create one"}
+        </div>
+      )}
 
       {/* ── CORE SUBJECTS — always shown, all courses ── */}
       <div
@@ -836,7 +636,7 @@ const SubjectManagement = () => {
                   {
                     label: "Department",
                     field: "department",
-                    options: DEPARTMENTS,
+                    options: departmentNames,
                   },
                 ].map(({ label, field, options }) => (
                   <div key={field}>

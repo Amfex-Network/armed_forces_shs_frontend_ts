@@ -1,5 +1,5 @@
 // src/admin/academic-structure2/ClassStreamSetup.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Edit3,
@@ -9,31 +9,7 @@ import {
   CheckCircle2,
   Search,
 } from "lucide-react";
-import { STUDENTS, TEACHERS } from "../data/adminData";
-
-const buildClasses = () => {
-  const map = {};
-  STUDENTS.forEach((s) => {
-    if (!s.formClass) return;
-    if (!map[s.formClass]) {
-      map[s.formClass] = {
-        id: s.formClass,
-        name: s.formClass,
-        yearGroup: s.year || s.yearGroup || "Form 1",
-        course: s.course || s.program || "General Science",
-        capacity: 40,
-        enrolled: 0,
-        formTeacher: null,
-      };
-    }
-    map[s.formClass].enrolled++;
-  });
-  TEACHERS.forEach((t) => {
-    if (t.formClass && map[t.formClass])
-      map[t.formClass].formTeacher = `${t.title} ${t.firstName} ${t.lastName}`;
-  });
-  return Object.values(map).sort((a, b) => a.name.localeCompare(b.name));
-};
+import { classesApi } from "../../api/domains";
 
 const YEAR_GROUPS = ["Form 1", "Form 2", "Form 3"];
 const COURSES = ["General Science", "General Arts", "Business", "Technical"];
@@ -60,7 +36,8 @@ const PB = {
 };
 
 const ClassStreamSetup = () => {
-  const [classes, setClasses] = useState(buildClasses());
+  const [classes, setClasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editC, setEditC] = useState(null);
   const [form, setForm] = useState({ ...EMPTY });
@@ -74,6 +51,21 @@ const ClassStreamSetup = () => {
   };
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const load = async () => {
+    try {
+      setLoading(true);
+      setClasses(await classesApi.list());
+    } catch (err) {
+      showToast(err?.message || "Failed to load classes", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
   const filtered = useMemo(
     () =>
       classes.filter((c) => {
@@ -85,25 +77,34 @@ const ClassStreamSetup = () => {
     [classes, filterYr, search],
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    if (editC) {
-      setClasses((cs) =>
-        cs.map((c) => (c.id === editC.id ? { ...c, ...form } : c)),
-      );
-      showToast(`${form.name} updated`);
-    } else {
-      setClasses((cs) => [...cs, { ...form, id: Date.now() + "" }]);
-      showToast(`${form.name} created`);
+    try {
+      if (editC) {
+        const saved = await classesApi.update(editC.id, form);
+        setClasses((cs) => cs.map((c) => (c.id === saved.id ? saved : c)));
+        showToast(`${saved.name} updated`);
+      } else {
+        const saved = await classesApi.create(form);
+        setClasses((cs) => [...cs, saved]);
+        showToast(`${saved.name} created`);
+      }
+      setShowForm(false);
+      setEditC(null);
+      setForm({ ...EMPTY });
+    } catch (err) {
+      showToast(err?.message || "Failed to save class", "error");
     }
-    setShowForm(false);
-    setEditC(null);
-    setForm({ ...EMPTY });
   };
 
-  const handleDelete = (cls) => {
-    setClasses((cs) => cs.filter((c) => c.id !== cls.id));
-    showToast(`${cls.name} removed`, "error");
+  const handleDelete = async (cls) => {
+    try {
+      await classesApi.remove(cls.id);
+      setClasses((cs) => cs.filter((c) => c.id !== cls.id));
+      showToast(`${cls.name} removed`, "error");
+    } catch (err) {
+      showToast(err?.message || "Failed to delete class", "error");
+    }
   };
 
   const FInput = ({ label, field, options, type = "text", required }) => (
@@ -340,8 +341,18 @@ const ClassStreamSetup = () => {
       {/* Empty state */}
       {filtered.length === 0 && (
         <div className="text-center py-12 text-gray-400">
-          <p className="font-semibold text-sm">No classes found</p>
-          <p className="text-xs mt-1">Try adjusting your search or filter</p>
+          <p className="font-semibold text-sm">
+            {loading
+              ? "Loading classes…"
+              : classes.length === 0
+                ? "No classes yet"
+                : "No classes found"}
+          </p>
+          <p className="text-xs mt-1">
+            {classes.length === 0 && !loading
+              ? "Click Add Class to create one"
+              : "Try adjusting your search or filter"}
+          </p>
         </div>
       )}
 
