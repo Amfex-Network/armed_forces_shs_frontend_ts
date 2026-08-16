@@ -1,593 +1,343 @@
-// src/teacher/timetable/TeacherTimetable.jsx
-import React, { useState } from "react";
-import { Clock, BookOpen, Users, RefreshCw, MapPin } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-import { TERM_INFO } from "../data/teacherData";
+import React, { useEffect, useMemo, useState } from "react";
+import { Clock, Plus, Trash2, CheckCircle2, AlertCircle, ChevronDown } from "lucide-react";
+import { classesApi, subjectsApi } from "../../api/domains";
+import {
+  timetableApi,
+  TimetableSlot,
+  TIMETABLE_DAYS,
+  TIMETABLE_PERIODS,
+} from "../../api/timetable";
 
-const PERIODS = [
-  { label: "Period 1", time: "07:30–08:20" },
-  { label: "Period 2", time: "08:20–09:10" },
-  { label: "Period 3", time: "09:10–10:00" },
-  { label: "Break", time: "10:00–10:20" },
-  { label: "Period 4", time: "10:20–11:10" },
-  { label: "Period 5", time: "11:10–12:00" },
-  { label: "Period 6", time: "12:00–12:50" },
-  { label: "Lunch", time: "12:50–13:30" },
-  { label: "Period 7", time: "13:30–14:20" },
-  { label: "Period 8", time: "14:20–15:10" },
-];
-
-const SUBJECT_COLORS = {
-  Mathematics: { bg: "#eef2ff", color: "var(--royal-blue)" },
-  "Core Mathematics": { bg: "#eef2ff", color: "var(--royal-blue)" },
-  "English Language": { bg: "#f0fdf4", color: "var(--success-dark)" },
-  Physics: { bg: "#fff1f2", color: "var(--accent-red)" },
-  Chemistry: { bg: "#fef3c7", color: "#92400e" },
-  Biology: { bg: "#ecfdf5", color: "#065f46" },
-  ICT: { bg: "#f0f9ff", color: "#0369a1" },
-  "Social Studies": { bg: "#f5f3ff", color: "#7c3aed" },
-  Free: { bg: "#f9fafb", color: "#9ca3af" },
-  Break: { bg: "#f3f4f6", color: "#6b7280" },
-  Lunch: { bg: "#f3f4f6", color: "#6b7280" },
-  Meeting: { bg: "#fffbeb", color: "var(--warning)" },
-};
-
-// Mock timetable — keyed by day
-const TEACHER_TIMETABLE = {
-  Monday: [
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 1 Science A",
-      room: "Block A Rm 2",
-      type: "class",
-    },
-    { subject: "Break", class: "", room: "", type: "break" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science B",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Arts A",
-      room: "Block B Rm 3",
-      type: "class",
-    },
-    { subject: "Lunch", class: "", room: "", type: "break" },
-    {
-      subject: "Meeting",
-      class: "HOD Meeting",
-      room: "Conference Rm",
-      type: "meeting",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-  ],
-  Tuesday: [
-    {
-      subject: "Core Mathematics",
-      class: "Form 1 Science A",
-      room: "Block A Rm 2",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-    { subject: "Break", class: "", room: "", type: "break" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 1 Business A",
-      room: "Block C Rm 1",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-    { subject: "Lunch", class: "", room: "", type: "break" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science B",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-  ],
-  Wednesday: [
-    { subject: "Free", class: "", room: "", type: "free" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Arts A",
-      room: "Block B Rm 3",
-      type: "class",
-    },
-    { subject: "Break", class: "", room: "", type: "break" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 1 Science A",
-      room: "Block A Rm 2",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-    { subject: "Lunch", class: "", room: "", type: "break" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 1 Business A",
-      room: "Block C Rm 1",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-  ],
-  Thursday: [
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science B",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    { subject: "Break", class: "", room: "", type: "break" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 1 Science A",
-      room: "Block A Rm 2",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Arts A",
-      room: "Block B Rm 3",
-      type: "class",
-    },
-    { subject: "Lunch", class: "", room: "", type: "break" },
-    { subject: "Free", class: "", room: "", type: "free" },
-    { subject: "Free", class: "", room: "", type: "free" },
-  ],
-  Friday: [
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science A",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    {
-      subject: "Core Mathematics",
-      class: "Form 1 Business A",
-      room: "Block C Rm 1",
-      type: "class",
-    },
-    { subject: "Break", class: "", room: "", type: "break" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 3 Science B",
-      room: "Block A Rm 1",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-    {
-      subject: "Meeting",
-      class: "Staff Meeting",
-      room: "Main Hall",
-      type: "meeting",
-    },
-    { subject: "Lunch", class: "", room: "", type: "break" },
-    {
-      subject: "Core Mathematics",
-      class: "Form 2 Arts A",
-      room: "Block B Rm 3",
-      type: "class",
-    },
-    { subject: "Free", class: "", room: "", type: "free" },
-  ],
-};
-
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const TEACHING_PERIODS = TIMETABLE_PERIODS.map((p, i) => ({ ...p, index: i })).filter(
+  (p) => !(p as any).isBreak,
+);
 
 const TeacherTimetable = () => {
-  const { user } = useAuth();
-  const [view, setView] = useState("week");
-  const [selectedDay, setSelectedDay] = useState("Monday");
+  const [classes, setClasses] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState<any>(null);
+  const [slots, setSlots] = useState<TimetableSlot[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const today = DAYS[new Date().getDay() - 1] || "Monday";
+  const [day, setDay] = useState("Monday");
+  const [period, setPeriod] = useState(TEACHING_PERIODS[0].index);
+  const [subject, setSubject] = useState("");
+  const [teacher, setTeacher] = useState("");
+  const [room, setRoom] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: string } | null>(
+    null,
+  );
 
-  const totalClasses = Object.values(TEACHER_TIMETABLE)
-    .flat()
-    .filter((s) => s.type === "class").length;
+  const showToast = (msg: string, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
-  const todayClasses = (TEACHER_TIMETABLE[today] || []).filter(
-    (s) => s.type === "class",
-  ).length;
+  useEffect(() => {
+    (async () => {
+      try {
+        const [cls, subs] = await Promise.all([
+          classesApi.list(),
+          subjectsApi.list().catch(() => []),
+        ]);
+        setClasses(cls);
+        setSubjects(subs);
+        if (cls.length) setSelectedClass(cls[0]);
+        if (subs.length) setSubject(subs[0].name);
+      } catch {
+        /* ignore */
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const loadSlots = async (formClass: string) => {
+    try {
+      setSlots(await timetableApi.list({ formClass }));
+    } catch {
+      setSlots([]);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedClass) loadSlots(selectedClass.name);
+    else setSlots([]);
+  }, [selectedClass]);
+
+  const byKey = useMemo(() => {
+    const map: Record<string, TimetableSlot> = {};
+    slots.forEach((s) => {
+      map[`${s.day}-${s.period}`] = s;
+    });
+    return map;
+  }, [slots]);
+
+  const handleSave = async () => {
+    if (!selectedClass || !subject.trim()) {
+      showToast("Pick a class and subject", "error");
+      return;
+    }
+    try {
+      setSaving(true);
+      const saved = await timetableApi.save({
+        formClass: selectedClass.name,
+        day,
+        period,
+        subject,
+        teacher: teacher || undefined,
+        room: room || undefined,
+      });
+      setSlots((ss) => {
+        const rest = ss.filter(
+          (s) => !(s.day === day && s.period === period),
+        );
+        return [...rest, saved];
+      });
+      showToast("Slot saved");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to save slot", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (slot: TimetableSlot) => {
+    try {
+      await timetableApi.remove(slot.id as string);
+      setSlots((ss) => ss.filter((s) => s.id !== slot.id));
+      showToast("Slot removed", "error");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to remove slot", "error");
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="py-20 text-center text-sm text-gray-400">Loading…</div>
+    );
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {toast && (
+        <div
+          className="fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl shadow-xl text-white text-sm font-semibold flex items-center gap-2"
+          style={{
+            backgroundColor:
+              toast.type === "error"
+                ? "var(--accent-red)"
+                : "var(--success-dark)",
+          }}
+        >
+          {toast.type === "error" ? (
+            <AlertCircle size={14} />
+          ) : (
+            <CheckCircle2 size={14} />
+          )}
+          {toast.msg}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1
-            className="text-xl font-black"
-            style={{ color: "var(--dark-gray)" }}
-          >
-            My Timetable
+          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+            Class Timetable
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {TERM_INFO.term} · {TERM_INFO.academicYear} ·{" "}
-            {user?.subject || "Core Mathematics"}
+            Build and maintain the weekly schedule for a class
           </p>
         </div>
-        <div className="flex gap-2">
-          {["week", "day"].map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              className="text-sm font-semibold px-4 py-2 rounded-xl capitalize transition"
-              style={{
-                backgroundColor: view === v ? "var(--royal-blue)" : "white",
-                color: view === v ? "white" : "var(--dark-gray)",
-                border: "1px solid var(--medium-gray)",
-              }}
-            >
-              {v} View
-            </button>
-          ))}
+        <div className="relative">
+          <select
+            value={selectedClass?.id || ""}
+            onChange={(e) =>
+              setSelectedClass(classes.find((c) => c.id === e.target.value) || null)
+            }
+            className="appearance-none pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2 outline-none cursor-pointer"
+            style={{
+              borderColor: "var(--royal-blue)",
+              color: "var(--royal-blue)",
+              backgroundColor: "#eef2ff",
+            }}
+          >
+            {classes.length === 0 && <option value="">No classes</option>}
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={14}
+            className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: "var(--royal-blue)" }}
+          />
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Total Periods/Week",
-            value: totalClasses,
-            color: "var(--royal-blue)",
-          },
-          {
-            label: "Today's Classes",
-            value: todayClasses,
-            color: "var(--success-dark)",
-          },
-          {
-            label: "Max Periods",
-            value: user?.maxPeriods || 30,
-            color: "var(--warning)",
-          },
-          {
-            label: "Track",
-            value: `Track ${user?.track || "A"}`,
-            color: "#7c3aed",
-          },
-        ].map(({ label, value, color }) => (
-          <div
-            key={label}
-            className="bg-white rounded-xl border p-4 text-center shadow-sm"
+      {/* Add / update slot */}
+      <div
+        className="bg-white rounded-xl border shadow-sm p-4"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
+        <p
+          className="text-xs font-black uppercase tracking-wider mb-3"
+          style={{ color: "var(--dark-gray)" }}
+        >
+          Add / Update Slot
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <select
+            value={day}
+            onChange={(e) => setDay(e.target.value)}
+            className="px-2 py-2 text-sm rounded-lg border-2 outline-none bg-white"
             style={{ borderColor: "var(--medium-gray)" }}
           >
-            <p className="text-2xl font-black" style={{ color }}>
-              {value}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Track info */}
-      <div
-        className="flex items-center gap-3 p-3 rounded-xl border"
-        style={{ backgroundColor: "#fffbeb", borderColor: "#fcd34d" }}
-      >
-        <RefreshCw
-          size={15}
-          style={{ color: "var(--warning)" }}
-          className="flex-shrink-0"
-        />
-        <p className="text-xs font-semibold" style={{ color: "#92400e" }}>
-          Track {user?.track || "A"} — currently in session · {TERM_INFO.term} ·{" "}
-          {TERM_INFO.academicYear}
-        </p>
-      </div>
-
-      {/* Day tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {DAYS.map((day) => (
-          <button
-            key={day}
-            type="button"
-            onClick={() => {
-              setSelectedDay(day);
-              setView("day");
-            }}
-            className="flex-shrink-0 text-xs font-semibold px-4 py-2 rounded-xl transition"
-            style={{
-              backgroundColor:
-                selectedDay === day && view === "day"
-                  ? "var(--royal-blue)"
-                  : day === today
-                    ? "#eef2ff"
-                    : "white",
-              color:
-                selectedDay === day && view === "day"
-                  ? "white"
-                  : day === today
-                    ? "var(--royal-blue)"
-                    : "var(--dark-gray)",
-              border: "1px solid var(--medium-gray)",
-              fontWeight: day === today ? 700 : undefined,
-            }}
+            {TIMETABLE_DAYS.map((d) => (
+              <option key={d}>{d}</option>
+            ))}
+          </select>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(Number(e.target.value))}
+            className="px-2 py-2 text-sm rounded-lg border-2 outline-none bg-white"
+            style={{ borderColor: "var(--medium-gray)" }}
           >
-            {day.slice(0, 3)}
-            {day === today ? " ●" : ""}
-          </button>
-        ))}
-      </div>
-
-      {/* Week view */}
-      {view === "week" && (
-        <div
-          className="bg-white rounded-xl border shadow-sm overflow-hidden"
-          style={{ borderColor: "var(--medium-gray)" }}
+            {TEACHING_PERIODS.map((p) => (
+              <option key={p.index} value={p.index}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="px-2 py-2 text-sm rounded-lg border-2 outline-none bg-white"
+            style={{ borderColor: "var(--medium-gray)" }}
+          >
+            {subjects.length === 0 && <option value="">No subjects</option>}
+            {subjects.map((s) => (
+              <option key={s.id || s.name} value={s.name}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <input
+            value={teacher}
+            onChange={(e) => setTeacher(e.target.value)}
+            placeholder="Teacher (optional)"
+            className="px-2 py-2 text-sm rounded-lg border-2 outline-none"
+            style={{ borderColor: "var(--medium-gray)" }}
+          />
+          <input
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            placeholder="Room (optional)"
+            className="px-2 py-2 text-sm rounded-lg border-2 outline-none"
+            style={{ borderColor: "var(--medium-gray)" }}
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving || !selectedClass}
+          className="mt-3 flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white disabled:opacity-50"
+          style={{ backgroundColor: "var(--royal-blue)" }}
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-xs">
-              <thead>
-                <tr style={{ backgroundColor: "var(--light-gray)" }}>
-                  <th
-                    className="px-3 py-3 text-left font-bold uppercase text-gray-500 border-b border-r w-28"
-                    style={{ borderColor: "var(--medium-gray)" }}
-                  >
-                    Period
-                  </th>
-                  {DAYS.map((d) => (
-                    <th
-                      key={d}
-                      className="px-3 py-3 text-center font-bold uppercase text-gray-500 border-b border-r"
-                      style={{
-                        borderColor: "var(--medium-gray)",
-                        color: d === today ? "var(--royal-blue)" : undefined,
-                      }}
-                    >
-                      {d.slice(0, 3)}
-                      {d === today ? " ●" : ""}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {PERIODS.map((period, pIdx) => {
-                  const isBreak =
-                    period.label === "Break" || period.label === "Lunch";
-                  return (
-                    <tr
-                      key={pIdx}
-                      style={{
-                        backgroundColor: isBreak ? "#f9fafb" : undefined,
-                      }}
-                    >
-                      <td
-                        className="px-3 py-2 border-b border-r"
-                        style={{ borderColor: "var(--medium-gray)" }}
-                      >
-                        <p
-                          className="font-semibold"
-                          style={{ color: "var(--dark-gray)" }}
-                        >
-                          {period.label}
-                        </p>
-                        <p className="text-gray-400 text-xs">{period.time}</p>
-                      </td>
-                      {DAYS.map((d) => {
-                        const slot = TEACHER_TIMETABLE[d]?.[pIdx];
-                        const style = SUBJECT_COLORS[slot?.subject] || {
-                          bg: "white",
-                          color: "#6b7280",
-                        };
-                        return (
-                          <td
-                            key={d}
-                            className="px-2 py-2 border-b border-r text-center"
-                            style={{ borderColor: "var(--medium-gray)" }}
-                          >
-                            {slot && slot.type === "class" ? (
-                              <div
-                                className="rounded-lg px-1.5 py-1.5"
-                                style={{ backgroundColor: style.bg }}
-                              >
-                                <p
-                                  className="font-bold truncate"
-                                  style={{ color: style.color }}
-                                >
-                                  {slot.subject}
-                                </p>
-                                <p
-                                  className="text-gray-500 truncate"
-                                  style={{ fontSize: "10px" }}
-                                >
-                                  {slot.class}
-                                </p>
-                                {slot.room && (
-                                  <p
-                                    className="text-gray-400 truncate"
-                                    style={{ fontSize: "10px" }}
-                                  >
-                                    {slot.room}
-                                  </p>
-                                )}
-                              </div>
-                            ) : slot?.type === "meeting" ? (
-                              <div
-                                className="rounded-lg px-1.5 py-1.5"
-                                style={{ backgroundColor: "#fffbeb" }}
-                              >
-                                <p
-                                  className="font-bold truncate"
-                                  style={{
-                                    color: "var(--warning)",
-                                    fontSize: "10px",
-                                  }}
-                                >
-                                  {slot.class}
-                                </p>
-                                {slot.room && (
-                                  <p
-                                    className="text-gray-400 truncate"
-                                    style={{ fontSize: "10px" }}
-                                  >
-                                    {slot.room}
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-gray-300">
-                                {isBreak ? period.label : "—"}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+          <Plus size={14} /> {saving ? "Saving…" : "Save Slot"}
+        </button>
+      </div>
 
-      {/* Day view */}
-      {view === "day" && (
-        <div className="space-y-3">
-          <h3
-            className="font-bold text-sm"
-            style={{ color: "var(--dark-gray)" }}
-          >
-            {selectedDay}
-            {selectedDay === today ? " (Today)" : ""}
-          </h3>
-          {PERIODS.map((period, pIdx) => {
-            const slot = TEACHER_TIMETABLE[selectedDay]?.[pIdx];
-            const style = SUBJECT_COLORS[slot?.subject] || {
-              bg: "white",
-              color: "#6b7280",
-            };
-            const isBreak =
-              period.label === "Break" || period.label === "Lunch";
-
-            return (
-              <div
-                key={pIdx}
-                className="flex items-center gap-4 bg-white rounded-xl border p-4 shadow-sm"
-                style={{
-                  borderColor: "var(--medium-gray)",
-                  opacity: isBreak ? 0.6 : 1,
-                }}
-              >
-                <div className="w-20 flex-shrink-0 text-center">
-                  <p
-                    className="text-xs font-bold"
-                    style={{ color: "var(--dark-gray)" }}
-                  >
-                    {period.label}
-                  </p>
-                  <p className="text-xs text-gray-400">{period.time}</p>
-                </div>
-                <div
-                  className="w-1 h-12 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: style.color }}
-                />
-                <div className="flex-1 min-w-0">
-                  {slot?.type === "class" ? (
-                    <>
-                      <p
-                        className="font-bold text-sm"
-                        style={{ color: style.color }}
-                      >
-                        {slot.subject}
-                      </p>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <p className="text-xs text-gray-500 flex items-center gap-1">
-                          <Users size={10} /> {slot.class}
-                        </p>
-                        {slot.room && (
-                          <p className="text-xs text-gray-400 flex items-center gap-1">
-                            <MapPin size={10} /> {slot.room}
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  ) : slot?.type === "meeting" ? (
-                    <>
-                      <p
-                        className="font-bold text-sm"
-                        style={{ color: "var(--warning)" }}
-                      >
-                        {slot.class}
-                      </p>
-                      {slot.room && (
-                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                          <MapPin size={10} /> {slot.room}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-sm font-semibold text-gray-400">
-                      {isBreak ? period.label : "Free Period"}
+      {/* Week grid */}
+      <div
+        className="bg-white rounded-xl border shadow-sm overflow-x-auto"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
+        <table className="w-full text-sm min-w-[820px]">
+          <thead>
+            <tr style={{ backgroundColor: "var(--light-gray)" }}>
+              <th className="px-3 py-3 text-left text-xs font-black uppercase text-gray-500 w-28">
+                Period
+              </th>
+              {TIMETABLE_DAYS.map((d) => (
+                <th
+                  key={d}
+                  className="px-3 py-3 text-center text-xs font-black uppercase text-gray-500"
+                >
+                  {d}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {TIMETABLE_PERIODS.map((p, i) => {
+              if ((p as any).isBreak)
+                return (
+                  <tr key={i}>
+                    <td
+                      colSpan={TIMETABLE_DAYS.length + 1}
+                      className="px-3 py-1.5 text-center text-xs font-semibold"
+                      style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
+                    >
+                      {p.label} · {p.time}
+                    </td>
+                  </tr>
+                );
+              return (
+                <tr key={i} className="border-b" style={{ borderColor: "var(--medium-gray)" }}>
+                  <td className="px-3 py-2">
+                    <p className="text-xs font-bold" style={{ color: "var(--dark-gray)" }}>
+                      {p.label}
                     </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                    <p className="text-xs text-gray-400">{p.time}</p>
+                  </td>
+                  {TIMETABLE_DAYS.map((d) => {
+                    const slot = byKey[`${d}-${i}`];
+                    return (
+                      <td key={d} className="px-2 py-2 text-center align-top">
+                        {slot ? (
+                          <div
+                            className="rounded-lg px-2 py-1.5 relative group"
+                            style={{ backgroundColor: "#eef2ff" }}
+                          >
+                            <p
+                              className="text-xs font-bold truncate"
+                              style={{ color: "var(--royal-blue)" }}
+                            >
+                              {slot.subject}
+                            </p>
+                            {(slot.teacher || slot.room) && (
+                              <p className="text-xs text-gray-400 truncate">
+                                {slot.teacher}
+                                {slot.room ? ` · ${slot.room}` : ""}
+                              </p>
+                            )}
+                            <button
+                              onClick={() => handleDelete(slot)}
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                              style={{ borderColor: "var(--medium-gray)" }}
+                              title="Remove"
+                            >
+                              <Trash2 size={11} style={{ color: "var(--accent-red)" }} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-gray-400 flex items-center gap-1">
+        <Clock size={11} /> Students in the selected class see this schedule in
+        their portal.
+      </p>
     </div>
   );
 };

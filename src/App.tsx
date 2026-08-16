@@ -3,6 +3,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { StudentProvider } from "./context/StudentContext";
+import { SettingsProvider } from "./context/SettingsContext";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import MainLayout from "./components/MainLayout";
 import Hero from "./components/Hero";
@@ -42,18 +43,11 @@ import TeacherScores from "./teacher/scores/TeacherScores";
 import TeacherAttendance from "./teacher/attendance/TeacherAttendance";
 import TeacherComments from "./teacher/comments/TeacherComments";
 import TeacherAnalytics from "./teacher/analytics/TeacherAnalytics";
-import TeacherHODPanel from "./teacher/hod/TeacherHODPanel";
 import TeacherFormClass from "./teacher/formclass/TeacherFormClass";
-import TeacherAssistantHOD from "./teacher/assistant-hod/TeacherAssistantHOD";
-import TeacherYearGroup from "./teacher/yeargroup/TeacherYearGroup";
-import TeacherExamCoord from "./teacher/examcoord/TeacherExamCoord";
-import TeacherHousePanel from "./teacher/house/TeacherHousePanel";
-import TeacherCounsellor from "./teacher/counsellor/TeacherCounsellor";
-import TeacherWAEC from "./teacher/waec/TeacherWAEC";
-import TeacherWorkshop from "./teacher/workshop/TeacherWorkshop";
-import TeacherSports from "./teacher/sports/TeacherSports";
+import ScopedPanel from "./teacher/components/ScopedPanel";
 import TeacherReports from "./teacher/reports/TeacherReports";
 import ScoreReview from "./teacher/score-review/ScoreReview";
+import TeacherTimetable from "./teacher/timetable/TeacherTimetable";
 import TeacherProfile from "./teacher/profile/TeacherProfile";
 
 // ── Student Portal ────────────────────────────────────────────────────────────
@@ -62,6 +56,7 @@ import StudentHome from "./student/dashboard/StudentHome";
 import StudentResults from "./student/results/StudentResults";
 import StudentReportCard from "./student/reportcard/StudentReportCard";
 import StudentAttendance from "./student/attendance/StudentAttendance";
+import StudentTimetable from "./student/timetable/StudentTimetable";
 import StudentProfile from "./student/profile/StudentProfile";
 import StudentSettings from "./student/setting/StudentSettings";
 
@@ -83,7 +78,8 @@ import "react-toastify/dist/ReactToastify.css";
 
 const App = () => (
   <AuthProvider>
-    <StudentProvider>
+    <SettingsProvider>
+      <StudentProvider>
       <ToastContainer />
       <Routes>
         {/* Public */}
@@ -151,20 +147,24 @@ const App = () => (
           <Route path="attendance" element={<TeacherAttendance />} />
           <Route path="comments" element={<TeacherComments />} />
           <Route path="reports" element={<TeacherReports />} />
+          <Route path="timetable" element={<TeacherTimetable />} />
           <Route path="analytics" element={<TeacherAnalytics />} />
           <Route path="profile" element={<TeacherProfile />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="hod" element={<TeacherHODPanel />} />
+          <Route path="hod" element={<ScopedPanel title="Head of Department" />} />
           <Route path="formclass" element={<TeacherFormClass />} />
           <Route path="scoreReview" element={<ScoreReview />} />
-          <Route path="assistant-hod" element={<TeacherAssistantHOD />} />
-          <Route path="yeargroup" element={<TeacherYearGroup />} />
-          <Route path="examcoord" element={<TeacherExamCoord />} />
-          <Route path="house" element={<TeacherHousePanel />} />
-          <Route path="counsellor" element={<TeacherCounsellor />} />
-          <Route path="waec" element={<TeacherWAEC />} />
-          <Route path="workshop" element={<TeacherWorkshop />} />
-          <Route path="sports" element={<TeacherSports />} />
+          <Route
+            path="assistant-hod"
+            element={<ScopedPanel title="Assistant HOD" />}
+          />
+          <Route path="yeargroup" element={<ScopedPanel title="Year Group Head" />} />
+          <Route path="examcoord" element={<ScopedPanel title="Exam Coordinator" />} />
+          <Route path="house" element={<ScopedPanel title="House Master" />} />
+          <Route path="counsellor" element={<ScopedPanel title="Counsellor" />} />
+          <Route path="waec" element={<ScopedPanel title="WAEC Coordinator" />} />
+          <Route path="workshop" element={<ScopedPanel title="Workshop Instructor" />} />
+          <Route path="sports" element={<ScopedPanel title="Sports Master" />} />
         </Route>
 
         {/* Student portal */}
@@ -180,6 +180,7 @@ const App = () => (
           <Route path="results" element={<StudentResults />} />
           <Route path="reportcard" element={<StudentReportCard />} />
           <Route path="attendance" element={<StudentAttendance />} />
+          <Route path="timetable" element={<StudentTimetable />} />
           <Route path="profile" element={<StudentProfile />} />
           <Route path="setting" element={<StudentSettings />} />
         </Route>
@@ -204,7 +205,8 @@ const App = () => (
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </StudentProvider>
+      </StudentProvider>
+    </SettingsProvider>
   </AuthProvider>
 );
 

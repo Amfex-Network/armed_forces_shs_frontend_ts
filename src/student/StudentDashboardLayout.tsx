@@ -20,7 +20,7 @@ import {
   FaCog,
   FaTable,
 } from "react-icons/fa";
-import { TERM_INFO } from "./data/studentData";
+import { useSettings } from "../context/SettingsContext";
 import logo from "../assets/logo.png";
 
 const NAV_ITEMS = [
@@ -37,6 +37,7 @@ const OTHER_NAV = [
 ];
 
 const StudentDashboardLayout = () => {
+  const { settings } = useSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
@@ -288,7 +289,7 @@ const StudentDashboardLayout = () => {
             className="text-xs font-semibold px-2 py-1 rounded"
             style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
           >
-            {TERM_INFO.term}
+            {settings.currentTerm}
           </span>
         </div>
 
@@ -321,7 +322,7 @@ const StudentDashboardLayout = () => {
               className="px-3 py-1.5 rounded-lg font-semibold"
               style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
             >
-              {TERM_INFO.academicYear} · {TERM_INFO.term}
+              {settings.currentAcademicYear} · {settings.currentTerm}
             </span>
             <span
               className="px-3 py-1.5 rounded-lg font-semibold"

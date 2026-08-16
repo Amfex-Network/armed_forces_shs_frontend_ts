@@ -1,5 +1,4 @@
-// src/teacher/comments/TeacherComments.jsx
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Save,
   CheckSquare,
@@ -8,288 +7,337 @@ import {
   Check,
   X,
   ChevronDown,
-  ChevronUp,
 } from "lucide-react";
-import {
-  FORM_CLASS_STUDENTS as _FCS,
-  COMMENT_TEMPLATES,
-  getGradeColor,
-} from "../data/teacherData";
-const FORM_CLASS_STUDENTS = Array.isArray(_FCS) ? _FCS : [];
+import { classesApi } from "../../api/domains";
+import { studentsApi } from "../../api/students";
+import { commentsApi } from "../../api/comments";
+import { useSettings } from "../../context/SettingsContext";
 import { Avatar, PageHeader } from "../components/TeacherUI";
 
-// ─── Ghana WASSCE Grade Letter Groups ────────────────────────────────────────
-// A=A1(80-100) | B=B2,B3(65-79) | C=C4,C5,C6(50-64) | D=D7(45-49) | E=E8(40-44) | F=F9(0-39)
-const GRADE_GROUPS = [
-  {
-    letter: "A",
-    label: "Grade A",
-    sub: "A1 · 80–100",
-    description: "Excellent",
-    grades: ["A1"],
-    color: "var(--success-dark)",
-    bg: "#f0fdf4",
-    border: "#86efac",
-  },
-  {
-    letter: "B",
-    label: "Grade B",
-    sub: "B2, B3 · 65–79",
-    description: "Very Good / Good",
-    grades: ["B2", "B3"],
-    color: "var(--info)",
-    bg: "#eff6ff",
-    border: "#93c5fd",
-  },
-  {
-    letter: "C",
-    label: "Grade C",
-    sub: "C4, C5, C6 · 50–64",
-    description: "Credit",
-    grades: ["C4", "C5", "C6"],
-    color: "var(--warning)",
-    bg: "#fffbeb",
-    border: "#fcd34d",
-  },
-  {
-    letter: "D",
-    label: "Grade D",
-    sub: "D7 · 45–49",
-    description: "Pass",
-    grades: ["D7"],
-    color: "#ea580c",
-    bg: "#fff7ed",
-    border: "#fdba74",
-  },
-  {
-    letter: "E",
-    label: "Grade E",
-    sub: "E8 · 40–44",
-    description: "Weak Pass",
-    grades: ["E8"],
-    color: "var(--accent-red)",
-    bg: "#fff1f2",
-    border: "#fca5a5",
-  },
-  {
-    letter: "F",
-    label: "Grade F",
-    sub: "F9 · 0–39",
-    description: "Fail",
-    grades: ["F9"],
-    color: "var(--accent-red-dark)",
-    bg: "#fef2f2",
-    border: "#f87171",
-  },
-  {
-    letter: "All",
-    label: "Select All",
-    sub: "All students",
-    description: "",
-    grades: "all",
-    color: "var(--royal-blue)",
-    bg: "#eef2ff",
-    border: "#a5b4fc",
-  },
+const TEMPLATES = [
+  "An excellent and hardworking student. Keep it up.",
+  "A good performance this term. Aim even higher next time.",
+  "Shows steady improvement. Encouraged to stay focused.",
+  "Capable of much better. Needs to be more serious with studies.",
+  "Must improve on class participation and assignments.",
 ];
 
-const buildInitialComments = () =>
-  FORM_CLASS_STUDENTS.reduce((acc, s) => ({ ...acc, [s.id]: "" }), {});
+interface Row {
+  id: string;
+  studentId: string;
+  name: string;
+  formClass?: string;
+  comment: string;
+  commentId?: string;
+  saved: boolean;
+}
 
 const TeacherComments = () => {
-  const [selected, setSelected] = useState([]);
-  const [comments, setComments] = useState(buildInitialComments());
+  const { settings } = useSettings();
+  const ACADEMIC_YEAR = settings.currentAcademicYear;
+  const TERMS = settings.terms;
+  const [classes, setClasses] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState<any>(null);
+  const [term, setTerm] = useState(settings.currentTerm);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
   const [bulkText, setBulkText] = useState("");
-  const [saved, setSaved] = useState([]);
-  const [expanded, setExpanded] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: string } | null>(
+    null,
+  );
 
-  // ── Selection helpers ────────────────────────────────────────────────────────
-  const selectByGrade = (grades) => {
-    const ids =
-      grades === "all"
-        ? FORM_CLASS_STUDENTS.map((s) => s.id)
-        : FORM_CLASS_STUDENTS.filter((s) => grades.includes(s.grade)).map(
-            (s) => s.id,
-          );
-    setSelected((prev) => [...new Set([...prev, ...ids])]);
+  const showToast = (msg: string, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
-  const toggleStudent = (id) =>
+  useEffect(() => {
+    setTerm(settings.currentTerm);
+  }, [settings.currentTerm]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cls = await classesApi.list();
+        setClasses(cls);
+        if (cls.length) setSelectedClass(cls[0]);
+      } catch {
+        /* ignore */
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedClass) {
+      setRows([]);
+      return;
+    }
+    let active = true;
+    (async () => {
+      try {
+        const [studs, comments] = await Promise.all([
+          studentsApi.list(),
+          commentsApi
+            .list({
+              formClass: selectedClass.name,
+              term,
+              academicYear: ACADEMIC_YEAR,
+            })
+            .catch(() => []),
+        ]);
+        if (!active) return;
+        const inClass = studs.filter(
+          (s) => s.formClass === selectedClass.name,
+        );
+        const byStudent: Record<string, any> = {};
+        comments.forEach((c) => {
+          const sid =
+            typeof c.student === "object" ? c.student._id : c.student;
+          byStudent[sid] = c;
+        });
+        setRows(
+          inClass.map((s) => {
+            const c = byStudent[s.id as string];
+            return {
+              id: s.id as string,
+              studentId: s.studentId,
+              name: `${s.firstName} ${s.lastName}`,
+              formClass: s.formClass,
+              comment: c?.formTeacherComment || "",
+              commentId: c?.id,
+              saved: !!c?.formTeacherComment,
+            };
+          }),
+        );
+        setSelected([]);
+        setBulkText("");
+      } catch {
+        if (active) setRows([]);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [selectedClass, term]);
+
+  const toggleStudent = (id: string) =>
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
-
+  const selectAll = () =>
+    setSelected((prev) =>
+      prev.length === rows.length ? [] : rows.map((r) => r.id),
+    );
   const clearSelection = () => {
     setSelected([]);
     setBulkText("");
   };
 
-  const selectedStudents = useMemo(
-    () => FORM_CLASS_STUDENTS.filter((s) => selected.includes(s.id)),
-    [selected],
+  const selectedRows = useMemo(
+    () => rows.filter((r) => selected.includes(r.id)),
+    [rows, selected],
   );
 
-  // ── Apply bulk text to all selected ────────────────────────────────────────
-  const applyBulkComment = () => {
+  const applyBulk = () => {
     if (!bulkText.trim() || selected.length === 0) return;
-    const updated = { ...comments };
-    selected.forEach((id) => {
-      updated[id] = bulkText;
-    });
-    setComments(updated);
+    setRows((rs) =>
+      rs.map((r) =>
+        selected.includes(r.id) ? { ...r, comment: bulkText, saved: false } : r,
+      ),
+    );
   };
 
-  // ── Save ────────────────────────────────────────────────────────────────────
-  const handleSave = () => {
-    if (selected.length === 0) return;
-    // Apply bulk text first if not yet applied
-    if (bulkText.trim()) {
-      const updated = { ...comments };
-      selected.forEach((id) => {
-        if (!updated[id]?.trim()) updated[id] = bulkText;
-      });
-      setComments(updated);
+  const setRowComment = (id: string, value: string) =>
+    setRows((rs) =>
+      rs.map((r) => (r.id === id ? { ...r, comment: value, saved: false } : r)),
+    );
+
+  const handleSave = async () => {
+    if (!selectedClass) return;
+    const applied = bulkText.trim()
+      ? rows.map((r) =>
+          selected.includes(r.id) ? { ...r, comment: bulkText } : r,
+        )
+      : rows;
+    const toSave = applied.filter(
+      (r) => selected.includes(r.id) && r.comment.trim(),
+    );
+    if (toSave.length === 0) {
+      showToast("Select students and write a comment first", "error");
+      return;
     }
-    setSaved((prev) => [...new Set([...prev, ...selected])]);
-    clearSelection();
+    try {
+      setSaving(true);
+      const results = await Promise.all(
+        toSave.map((r) =>
+          commentsApi.save({
+            student: r.id,
+            academicYear: ACADEMIC_YEAR,
+            term,
+            formClass: selectedClass.name,
+            formTeacherComment: r.comment,
+          }),
+        ),
+      );
+      const savedIds = new Set(toSave.map((r) => r.id));
+      const idMap: Record<string, string> = {};
+      results.forEach((c) => {
+        const sid = typeof c.student === "object" ? c.student._id : c.student;
+        if (c.id) idMap[sid as string] = c.id;
+      });
+      setRows((rs) =>
+        rs.map((r) =>
+          savedIds.has(r.id)
+            ? {
+                ...r,
+                comment: bulkText.trim() ? bulkText : r.comment,
+                commentId: idMap[r.id] || r.commentId,
+                saved: true,
+              }
+            : r,
+        ),
+      );
+      showToast(`Saved ${toSave.length} comment(s)`);
+      clearSelection();
+    } catch (err: any) {
+      showToast(err?.message || "Failed to save comments", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // ── Grade counts ─────────────────────────────────────────────────────────────
-  const gradeCounts = useMemo(
-    () =>
-      FORM_CLASS_STUDENTS.reduce((acc, s) => {
-        acc[s.grade] = (acc[s.grade] || 0) + 1;
-        return acc;
-      }, {}),
-    [],
-  );
-
-  const groupCount = (group) =>
-    group.grades === "all"
-      ? FORM_CLASS_STUDENTS.length
-      : FORM_CLASS_STUDENTS.filter((s) => group.grades.includes(s.grade))
-          .length;
+  const savedCount = rows.filter((r) => r.saved).length;
 
   return (
     <div className="space-y-5">
+      {toast && (
+        <div
+          className="fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl shadow-xl text-white text-sm font-semibold flex items-center gap-2"
+          style={{
+            backgroundColor:
+              toast.type === "error"
+                ? "var(--accent-red)"
+                : "var(--success-dark)",
+          }}
+        >
+          {toast.type === "error" ? <X size={14} /> : <Check size={14} />}
+          {toast.msg}
+        </div>
+      )}
+
       <PageHeader title="Student Comments & Remarks" />
 
-      {/* ── WASSCE Grade Quick-Select ───────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-[var(--medium-gray)] shadow-sm p-4">
-        <div className="flex items-center justify-between mb-3">
-          <p
-            className="text-xs font-bold uppercase tracking-wider"
-            style={{ color: "var(--dark-gray)" }}
-          >
-            Select by WASSCE Grade
-          </p>
-          <p className="text-xs text-gray-400">
-            Click a grade to select all students in that group
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
-          {GRADE_GROUPS.map((group) => {
-            const count = groupCount(group);
-            if (count === 0 && group.grades !== "all") return null;
-
-            return (
-              <button
-                key={group.letter}
-                onClick={() => selectByGrade(group.grades)}
-                className="flex flex-col items-center gap-1 px-2 py-3 rounded-xl border-2 text-center transition-all hover:shadow-md active:scale-95"
-                style={{
-                  backgroundColor: group.bg,
-                  borderColor: group.border,
-                  color: group.color,
-                }}
-              >
-                <span className="text-xl font-black">{group.letter}</span>
-                <span
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: group.color }}
-                >
-                  {count}
-                </span>
-                <span className="text-xs font-medium leading-tight">
-                  {group.sub.split("·")[0].trim()}
-                </span>
-                <span className="text-xs opacity-70 hidden sm:block">
-                  {group.description}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Selection summary */}
-        {selected.length > 0 && (
-          <div
-            className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
-            style={{ backgroundColor: "#eef2ff" }}
-          >
-            <CheckSquare size={14} style={{ color: "var(--royal-blue)" }} />
-            <span
-              className="font-semibold"
-              style={{ color: "var(--royal-blue)" }}
+      {/* Controls */}
+      <div className="bg-white rounded-xl border border-[var(--medium-gray)] shadow-sm p-4 flex flex-col sm:flex-row gap-3">
+        <div className="flex-1">
+          <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+            Class
+          </label>
+          <div className="relative">
+            <select
+              value={selectedClass?.id || ""}
+              onChange={(e) =>
+                setSelectedClass(
+                  classes.find((c) => c.id === e.target.value) || null,
+                )
+              }
+              className="w-full appearance-none pl-3 pr-8 py-2 text-sm rounded-lg border-2 outline-none bg-white"
+              style={{
+                borderColor: "var(--medium-gray)",
+                color: "var(--dark-gray)",
+              }}
             >
-              {selected.length} student{selected.length > 1 ? "s" : ""} selected
-            </span>
-            <span className="text-xs text-gray-400 flex-1 truncate">
-              {selectedStudents
-                .map((s) => `${s.name.split(" ")[0]} (${s.grade})`)
-                .join(", ")}
-            </span>
-            <button
-              onClick={clearSelection}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition"
-              style={{ color: "var(--accent-red)" }}
-            >
-              <X size={11} /> Clear
-            </button>
+              {classes.length === 0 && <option value="">No classes</option>}
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+            />
           </div>
-        )}
+        </div>
+        <div className="flex-1">
+          <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+            Term
+          </label>
+          <div className="relative">
+            <select
+              value={term}
+              onChange={(e) => setTerm(e.target.value)}
+              className="w-full appearance-none pl-3 pr-8 py-2 text-sm rounded-lg border-2 outline-none bg-white"
+              style={{
+                borderColor: "var(--medium-gray)",
+                color: "var(--dark-gray)",
+              }}
+            >
+              {TERMS.map((t) => (
+                <option key={t} value={t}>
+                  {t} · {ACADEMIC_YEAR}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        {/* ── Student List ──────────────────────────────────────────────────── */}
+        {/* Student list */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-[var(--medium-gray)] shadow-sm overflow-hidden">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="w-full flex items-center justify-between px-4 py-3 border-b transition hover:bg-gray-50"
+          <div
+            className="flex items-center justify-between px-4 py-3 border-b"
             style={{
               backgroundColor: "var(--light-gray)",
               borderColor: "var(--medium-gray)",
             }}
           >
-            <div className="text-left">
+            <div>
               <p
                 className="text-sm font-semibold"
                 style={{ color: "var(--dark-gray)" }}
               >
-                Form 3 Science B
+                {selectedClass?.name || "—"}
               </p>
               <p className="text-xs text-gray-400">
-                {FORM_CLASS_STUDENTS.length} students
+                {rows.length} students · {savedCount} with comments
               </p>
             </div>
-            {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-          </button>
+            {rows.length > 0 && (
+              <button
+                onClick={selectAll}
+                className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+                style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
+              >
+                {selected.length === rows.length ? "Clear" : "Select all"}
+              </button>
+            )}
+          </div>
 
-          {expanded && (
-            <div
-              className="divide-y"
-              style={{ borderColor: "var(--medium-gray)" }}
-            >
-              {FORM_CLASS_STUDENTS.map((s) => {
-                const isSelected = selected.includes(s.id);
-                const isSaved = saved.includes(s.id);
-                const hasComment = comments[s.id]?.trim();
-
+          <div className="divide-y" style={{ borderColor: "var(--medium-gray)" }}>
+            {rows.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-gray-400">
+                {loading
+                  ? "Loading…"
+                  : "No students in this class yet."}
+              </p>
+            ) : (
+              rows.map((r) => {
+                const isSelected = selected.includes(r.id);
                 return (
                   <div
-                    key={s.id}
-                    onClick={() => toggleStudent(s.id)}
+                    key={r.id}
+                    onClick={() => toggleStudent(r.id)}
                     className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-all"
                     style={{
                       backgroundColor: isSelected ? "#eef2ff" : "white",
@@ -310,62 +358,48 @@ const TeacherComments = () => {
                         <Square size={16} />
                       )}
                     </div>
-
                     <Avatar
-                      name={s.name}
+                      name={r.name}
                       size="sm"
                       color={
                         isSelected
                           ? "bg-blue-700"
-                          : isSaved
+                          : r.saved
                             ? "bg-green-600"
                             : "bg-gray-400"
                       }
                     />
-
                     <div className="flex-1 min-w-0">
                       <p
                         className="text-sm font-medium truncate"
                         style={{ color: "var(--dark-gray)" }}
                       >
-                        {s.name}
+                        {r.name}
                       </p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span
-                          className={`text-xs px-1.5 py-0.5 rounded font-bold ${getGradeColor(s.grade)}`}
-                        >
-                          {s.grade}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {s.total}/100
-                        </span>
-                      </div>
+                      <p className="text-xs text-gray-400">{r.studentId}</p>
                     </div>
-
-                    <div className="flex-shrink-0">
-                      {isSaved ? (
-                        <span
-                          className="text-xs flex items-center gap-0.5"
-                          style={{ color: "var(--success-dark)" }}
-                        >
-                          <Check size={11} /> Saved
-                        </span>
-                      ) : hasComment ? (
-                        <span
-                          className="w-2 h-2 rounded-full block"
-                          style={{ backgroundColor: "var(--warning)" }}
-                          title="Unsaved draft"
-                        />
-                      ) : null}
-                    </div>
+                    {r.saved ? (
+                      <span
+                        className="text-xs flex items-center gap-0.5 flex-shrink-0"
+                        style={{ color: "var(--success-dark)" }}
+                      >
+                        <Check size={11} /> Saved
+                      </span>
+                    ) : r.comment.trim() ? (
+                      <span
+                        className="w-2 h-2 rounded-full block flex-shrink-0"
+                        style={{ backgroundColor: "var(--warning)" }}
+                        title="Unsaved draft"
+                      />
+                    ) : null}
                   </div>
                 );
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </div>
 
-        {/* ── Comment Editor ────────────────────────────────────────────────── */}
+        {/* Editor */}
         <div className="lg:col-span-3 space-y-4">
           {selected.length === 0 ? (
             <div className="bg-white rounded-xl border border-[var(--medium-gray)] shadow-sm p-10 text-center">
@@ -378,29 +412,11 @@ const TeacherComments = () => {
                 No students selected
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                Click a grade button above or select students individually from
-                the list
+                Select students from the list to write their comments.
               </p>
-              <div className="flex justify-center gap-2 mt-4 flex-wrap">
-                {GRADE_GROUPS.filter((g) => groupCount(g) > 0).map((g) => (
-                  <button
-                    key={g.letter}
-                    onClick={() => selectByGrade(g.grades)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition"
-                    style={{
-                      backgroundColor: g.bg,
-                      borderColor: g.border,
-                      color: g.color,
-                    }}
-                  >
-                    Grade {g.letter} ({groupCount(g)})
-                  </button>
-                ))}
-              </div>
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-[var(--medium-gray)] shadow-sm overflow-hidden">
-              {/* Header */}
               <div
                 className="px-5 py-3 border-b flex items-center justify-between"
                 style={{
@@ -414,133 +430,95 @@ const TeacherComments = () => {
                     style={{ color: "var(--dark-gray)" }}
                   >
                     {selected.length === 1
-                      ? selectedStudents[0].name
+                      ? selectedRows[0].name
                       : `${selected.length} Students Selected`}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {selected.length === 1
-                      ? `${selectedStudents[0].studentId} · ${selectedStudents[0].grade} · ${selectedStudents[0].total}/100`
-                      : `Grades present: ${[...new Set(selectedStudents.map((s) => s.grade))].join(", ")}`}
+                      ? selectedRows[0].studentId
+                      : "Comment applies to all selected"}
                   </p>
                 </div>
-                {selected.length > 1 && (
-                  <div className="flex -space-x-2">
-                    {selectedStudents.slice(0, 5).map((s) => (
-                      <Avatar
-                        key={s.id}
-                        name={s.name}
-                        size="sm"
-                        color="bg-blue-700"
-                      />
-                    ))}
-                    {selectedStudents.length > 5 && (
-                      <div className="w-7 h-7 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-600">
-                        +{selectedStudents.length - 5}
-                      </div>
-                    )}
-                  </div>
-                )}
+                <button
+                  onClick={clearSelection}
+                  className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg"
+                  style={{ color: "var(--accent-red)" }}
+                >
+                  <X size={11} /> Clear
+                </button>
               </div>
 
               <div className="p-5 space-y-4">
+                {/* single-student existing comment editor */}
+                {selected.length === 1 && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+                      Teacher's Comment
+                    </label>
+                    <textarea
+                      value={selectedRows[0].comment}
+                      onChange={(e) =>
+                        setRowComment(
+                          selectedRows[0].id,
+                          e.target.value.slice(0, 500),
+                        )
+                      }
+                      rows={4}
+                      placeholder={`Write a comment for ${selectedRows[0].name}…`}
+                      className="w-full px-3 py-2 text-sm border-2 rounded-lg resize-none focus:outline-none"
+                      style={{ borderColor: "var(--medium-gray)" }}
+                    />
+                  </div>
+                )}
+
                 {/* Templates */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
                     Quick Templates
                   </label>
                   <div className="space-y-1.5">
-                    {COMMENT_TEMPLATES.map((t, i) => (
+                    {TEMPLATES.map((t, i) => (
                       <button
                         key={i}
-                        onClick={() => setBulkText(t)}
+                        onClick={() => {
+                          if (selected.length === 1) {
+                            setRowComment(selectedRows[0].id, t);
+                          } else {
+                            setBulkText(t);
+                          }
+                        }}
                         className="w-full text-left px-3 py-2 text-xs rounded-lg border-2 transition-all"
                         style={{
-                          borderColor:
-                            bulkText === t
-                              ? "var(--royal-blue)"
-                              : "var(--medium-gray)",
-                          backgroundColor: bulkText === t ? "#eef2ff" : "white",
+                          borderColor: "var(--medium-gray)",
+                          backgroundColor: "white",
                           color: "var(--dark-gray)",
                         }}
                       >
-                        {bulkText === t && (
-                          <Check
-                            size={10}
-                            className="inline mr-1.5"
-                            style={{ color: "var(--royal-blue)" }}
-                          />
-                        )}
                         {t}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Textarea */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
-                    {selected.length === 1
-                      ? "Teacher's Comment"
-                      : `Comment for all ${selected.length} selected students`}
-                    <span className="font-normal text-gray-400 ml-1 normal-case">
-                      ({bulkText.length}/500)
-                    </span>
-                  </label>
-                  <textarea
-                    value={bulkText}
-                    onChange={(e) => setBulkText(e.target.value.slice(0, 500))}
-                    rows={4}
-                    placeholder={
-                      selected.length === 1
-                        ? `Write a comment for ${selectedStudents[0]?.name}...`
-                        : `This comment will be applied to all ${selected.length} selected students...`
-                    }
-                    className="w-full px-3 py-2 text-sm border-2 rounded-lg resize-none focus:outline-none transition-all"
-                    style={{ borderColor: "var(--medium-gray)" }}
-                    onFocus={(e) =>
-                      (e.target.style.borderColor = "var(--royal-blue)")
-                    }
-                    onBlur={(e) =>
-                      (e.target.style.borderColor = "var(--medium-gray)")
-                    }
-                  />
-                </div>
-
-                {/* Bulk preview warning */}
-                {selected.length > 1 && bulkText.trim() && (
-                  <div
-                    className="rounded-lg p-3 text-xs border-2"
-                    style={{
-                      backgroundColor: "#fffbeb",
-                      borderColor: "var(--warning)",
-                      color: "var(--dark-gray)",
-                    }}
-                  >
-                    <p
-                      className="font-bold mb-1.5"
-                      style={{ color: "var(--warning)" }}
-                    >
-                      Note: This comment will be applied to:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedStudents.map((s) => (
-                        <span
-                          key={s.id}
-                          className="px-2 py-0.5 rounded text-xs font-medium border"
-                          style={{
-                            backgroundColor: "white",
-                            borderColor: "var(--medium-gray)",
-                          }}
-                        >
-                          {s.name.split(" ")[0]}{" "}
-                          <span
-                            className={`font-bold ${getGradeColor(s.grade)}`}
-                          >
-                            ({s.grade})
-                          </span>
-                        </span>
-                      ))}
-                    </div>
+                {/* Bulk textarea (multi) */}
+                {selected.length > 1 && (
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
+                      Comment for all {selected.length} selected
+                      <span className="font-normal text-gray-400 ml-1 normal-case">
+                        ({bulkText.length}/500)
+                      </span>
+                    </label>
+                    <textarea
+                      value={bulkText}
+                      onChange={(e) =>
+                        setBulkText(e.target.value.slice(0, 500))
+                      }
+                      rows={4}
+                      placeholder={`This comment will be applied to all ${selected.length} selected students…`}
+                      className="w-full px-3 py-2 text-sm border-2 rounded-lg resize-none focus:outline-none"
+                      style={{ borderColor: "var(--medium-gray)" }}
+                    />
                   </div>
                 )}
 
@@ -548,100 +526,28 @@ const TeacherComments = () => {
                 <div className="flex flex-col sm:flex-row gap-2 pt-1">
                   {selected.length > 1 && (
                     <button
-                      onClick={applyBulkComment}
+                      onClick={applyBulk}
                       disabled={!bulkText.trim()}
-                      className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg border-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg border-2 disabled:opacity-40"
                       style={{
                         borderColor: "var(--royal-blue)",
                         color: "var(--royal-blue)",
                         backgroundColor: "white",
                       }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "#eef2ff")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = "white")
-                      }
                     >
-                      <Users size={13} />
-                      Apply to {selected.length} Students
+                      <Users size={13} /> Apply to {selected.length}
                     </button>
                   )}
                   <button
                     onClick={handleSave}
-                    disabled={!bulkText.trim()}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold text-white rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={saving}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-40"
                     style={{ backgroundColor: "var(--royal-blue)" }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        "var(--royal-blue-dark)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        "var(--royal-blue)")
-                    }
                   >
                     <Save size={13} />
-                    Save{" "}
-                    {selected.length > 1
-                      ? `${selected.length} Comments`
-                      : "Comment"}
+                    {saving ? "Saving…" : "Save"}
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Saved Comments Review */}
-          {saved.length > 0 && (
-            <div className="bg-white rounded-xl border border-[var(--medium-gray)] shadow-sm overflow-hidden">
-              <div
-                className="px-5 py-3 border-b"
-                style={{
-                  backgroundColor: "var(--light-gray)",
-                  borderColor: "var(--medium-gray)",
-                }}
-              >
-                <p
-                  className="text-sm font-semibold"
-                  style={{ color: "var(--dark-gray)" }}
-                >
-                  Saved Comments ({saved.length}/{FORM_CLASS_STUDENTS.length})
-                </p>
-              </div>
-              <div
-                className="divide-y"
-                style={{ borderColor: "var(--medium-gray)" }}
-              >
-                {FORM_CLASS_STUDENTS.filter((s) => saved.includes(s.id)).map(
-                  (s) => (
-                    <div key={s.id} className="px-5 py-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Avatar name={s.name} size="sm" color="bg-green-600" />
-                        <span
-                          className="text-sm font-medium"
-                          style={{ color: "var(--dark-gray)" }}
-                        >
-                          {s.name}
-                        </span>
-                        <span
-                          className={`text-xs px-1.5 py-0.5 rounded font-bold ${getGradeColor(s.grade)}`}
-                        >
-                          {s.grade}
-                        </span>
-                        <span
-                          className="ml-auto text-xs flex items-center gap-1"
-                          style={{ color: "var(--success-dark)" }}
-                        >
-                          <Check size={10} /> Saved
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 ml-9 italic">
-                        "{comments[s.id]}"
-                      </p>
-                    </div>
-                  ),
-                )}
               </div>
             </div>
           )}

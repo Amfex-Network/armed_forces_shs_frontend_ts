@@ -1,23 +1,20 @@
-// src/parent/profile/ParentProfile.jsx
-import React, { useState } from "react";
-import {
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Briefcase,
-  BookOpen,
-  Edit3,
-  Save,
-  X,
-  Users,
-} from "lucide-react";
-import { CHILDREN_DATA } from "../data/parentData";
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { User, Mail, Phone, MapPin, Users, ChevronRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useActiveChild } from "../ParentDashboardLayout";
-import { getPerformanceBand } from "../data/parentData";
 
-const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
+const InfoRow = ({
+  icon: Icon,
+  label,
+  value,
+  color = "var(--royal-blue)",
+}: {
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  label: string;
+  value?: string;
+  color?: string;
+}) => (
   <div
     className="flex items-start gap-3 py-3 border-b"
     style={{ borderColor: "var(--medium-gray)" }}
@@ -42,68 +39,21 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
 
 const ParentProfile = () => {
   const { user } = useAuth();
-  const { childIds } = useActiveChild();
+  const navigate = useNavigate();
+  const { children, setActiveChildId } = useActiveChild();
 
-  const [editMode, setEditMode] = useState(false);
-  const [contact, setContact] = useState({
-    phone: user?.phone || "",
-    address: user?.address || "",
-    occupation: user?.occupation || "",
-  });
-  const [draft, setDraft] = useState({ ...contact });
-
-  const handleSave = () => {
-    setContact(draft);
-    setEditMode(false);
-  };
-  const handleCancel = () => {
-    setDraft({ ...contact });
-    setEditMode(false);
+  const viewChild = (id: string) => {
+    setActiveChildId(id);
+    navigate("/parent/results");
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1
-            className="text-xl font-black"
-            style={{ color: "var(--dark-gray)" }}
-          >
-            My Profile
-          </h1>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Parent / Guardian Account
-          </p>
-        </div>
-        {!editMode ? (
-          <button
-            onClick={() => setEditMode(true)}
-            className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition"
-            style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
-          >
-            <Edit3 size={13} /> Edit Contact
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl text-white"
-              style={{ backgroundColor: "var(--success-dark)" }}
-            >
-              <Save size={13} /> Save
-            </button>
-            <button
-              onClick={handleCancel}
-              className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl"
-              style={{
-                backgroundColor: "var(--medium-gray)",
-                color: "var(--dark-gray)",
-              }}
-            >
-              <X size={13} /> Cancel
-            </button>
-          </div>
-        )}
+      <div>
+        <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+          My Profile
+        </h1>
+        <p className="text-xs text-gray-400 mt-0.5">Parent / Guardian Account</p>
       </div>
 
       {/* Profile card */}
@@ -126,10 +76,7 @@ const ParentProfile = () => {
           </div>
         </div>
         <div className="pt-12 px-6 pb-6">
-          <h2
-            className="text-xl font-black"
-            style={{ color: "var(--dark-gray)" }}
-          >
+          <h2 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
             {user?.title} {user?.firstName} {user?.lastName}
           </h2>
           <p className="text-sm text-gray-400">Parent / Guardian</p>
@@ -138,7 +85,8 @@ const ParentProfile = () => {
               className="text-xs font-semibold px-2.5 py-1 rounded-full"
               style={{ backgroundColor: "#f5f3ff", color: "#7c3aed" }}
             >
-              {childIds.length} child{childIds.length > 1 ? "ren" : ""} enrolled
+              {children.length} child{children.length === 1 ? "" : "ren"}{" "}
+              enrolled
             </span>
           </div>
         </div>
@@ -160,7 +108,7 @@ const ParentProfile = () => {
           <InfoRow
             icon={User}
             label="Full Name"
-            value={`${user?.title} ${user?.firstName} ${user?.lastName}`}
+            value={`${user?.title || ""} ${user?.firstName || ""} ${user?.lastName || ""}`.trim()}
             color="var(--royal-blue)"
           />
           <InfoRow
@@ -169,158 +117,79 @@ const ParentProfile = () => {
             value={user?.email}
             color="var(--accent-red)"
           />
-
-          {/* Editable fields */}
-          {["phone", "address", "occupation"].map((field) =>
-            editMode ? (
-              <div
-                key={field}
-                className="py-3 border-b"
-                style={{ borderColor: "var(--medium-gray)" }}
-              >
-                <label className="text-xs text-gray-400 uppercase tracking-wider capitalize">
-                  {field}
-                </label>
-                <input
-                  value={draft[field]}
-                  onChange={(e) =>
-                    setDraft({ ...draft, [field]: e.target.value })
-                  }
-                  placeholder={
-                    field === "phone"
-                      ? "e.g. 0244123456"
-                      : field === "address"
-                        ? "Your address"
-                        : "Your occupation"
-                  }
-                  className="w-full mt-1 px-3 py-2 text-sm rounded-lg border-2 outline-none"
-                  style={{
-                    borderColor: "var(--royal-blue)",
-                    color: "var(--dark-gray)",
-                  }}
-                />
-              </div>
-            ) : (
-              <InfoRow
-                key={field}
-                icon={
-                  field === "phone"
-                    ? Phone
-                    : field === "address"
-                      ? MapPin
-                      : Briefcase
-                }
-                label={field.charAt(0).toUpperCase() + field.slice(1)}
-                value={contact[field] || "Not provided"}
-                color={
-                  field === "phone"
-                    ? "var(--success-dark)"
-                    : field === "address"
-                      ? "var(--warning)"
-                      : "var(--info)"
-                }
-              />
-            ),
-          )}
+          <InfoRow
+            icon={Phone}
+            label="Phone"
+            value={(user?.phone as string) || "Not provided"}
+            color="var(--success-dark)"
+          />
+          <InfoRow
+            icon={MapPin}
+            label="Address"
+            value={(user?.address as string) || "Not provided"}
+            color="var(--warning)"
+          />
         </div>
 
         {/* Children summary */}
-        <div className="space-y-4">
-          <div
-            className="bg-white rounded-xl border shadow-sm p-5"
-            style={{ borderColor: "var(--medium-gray)" }}
+        <div
+          className="bg-white rounded-xl border shadow-sm p-5"
+          style={{ borderColor: "var(--medium-gray)" }}
+        >
+          <h3
+            className="font-black text-sm mb-3 flex items-center gap-2"
+            style={{ color: "var(--dark-gray)" }}
           >
-            <h3
-              className="font-black text-sm mb-3 flex items-center gap-2"
-              style={{ color: "var(--dark-gray)" }}
-            >
-              <Users size={14} style={{ color: "#7c3aed" }} /> My Children
-            </h3>
+            <Users size={14} style={{ color: "#7c3aed" }} /> My Children
+          </h3>
+          {children.length === 0 ? (
+            <p className="text-sm text-gray-400 py-6 text-center">
+              No children are linked to your account yet. Please contact the
+              Admin office.
+            </p>
+          ) : (
             <div className="space-y-3">
-              {childIds.map((id) => {
-                const child = CHILDREN_DATA[id];
-                if (!child) return null;
-                const results = child.results.current;
-                const total = results.subjects.reduce(
-                  (s, sub) => s + sub.total,
-                  0,
-                );
-                const maxS = results.subjects.length * 100;
-                const pct = ((total / maxS) * 100).toFixed(1);
-                const band = getPerformanceBand(parseFloat(pct));
-                const attPct = Math.round(
-                  (child.attendance.summary.present /
-                    child.attendance.summary.totalDays) *
-                    100,
-                );
+              {children.map((child) => {
+                const id = child.id as string;
                 return (
-                  <div
+                  <button
                     key={id}
-                    className="p-4 rounded-xl border"
+                    onClick={() => viewChild(id)}
+                    className="w-full text-left p-4 rounded-xl border flex items-center gap-3 hover:shadow-md transition"
                     style={{
                       borderColor: "var(--medium-gray)",
                       backgroundColor: "var(--light-gray)",
                     }}
                   >
-                    <div className="flex items-center gap-3 mb-3">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0"
-                        style={{ backgroundColor: "var(--royal-blue)" }}
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0"
+                      style={{ backgroundColor: "var(--royal-blue)" }}
+                    >
+                      {child.firstName?.[0]}
+                      {child.lastName?.[0]}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="text-sm font-black"
+                        style={{ color: "var(--dark-gray)" }}
                       >
-                        {child.firstName[0]}
-                        {child.lastName[0]}
-                      </div>
-                      <div className="min-w-0">
-                        <p
-                          className="text-sm font-black"
-                          style={{ color: "var(--dark-gray)" }}
-                        >
-                          {child.firstName} {child.lastName}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {child.studentId} · {child.formClass}
-                        </p>
-                      </div>
+                        {child.firstName} {child.lastName}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {child.studentId} · {child.formClass}
+                        {child.course ? ` · ${child.course}` : ""}
+                      </p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="p-2 rounded-lg bg-white">
-                        <p
-                          className="text-sm font-black"
-                          style={{ color: band.color }}
-                        >
-                          {pct}%
-                        </p>
-                        <p className="text-xs text-gray-400">Score</p>
-                      </div>
-                      <div className="p-2 rounded-lg bg-white">
-                        <p
-                          className="text-sm font-black"
-                          style={{ color: "var(--warning)" }}
-                        >
-                          {results.position}/{results.totalStudents}
-                        </p>
-                        <p className="text-xs text-gray-400">Position</p>
-                      </div>
-                      <div className="p-2 rounded-lg bg-white">
-                        <p
-                          className="text-sm font-black"
-                          style={{
-                            color:
-                              attPct >= 95
-                                ? "var(--success-dark)"
-                                : "var(--accent-red)",
-                          }}
-                        >
-                          {attPct}%
-                        </p>
-                        <p className="text-xs text-gray-400">Attend.</p>
-                      </div>
-                    </div>
-                  </div>
+                    <ChevronRight
+                      size={16}
+                      className="flex-shrink-0"
+                      style={{ color: "var(--royal-blue)" }}
+                    />
+                  </button>
                 );
               })}
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

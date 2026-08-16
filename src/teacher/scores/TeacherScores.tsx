@@ -12,6 +12,7 @@ import {
 import { classesApi, subjectsApi } from "../../api/domains";
 import { studentsApi } from "../../api/students";
 import { scoresApi } from "../../api/scores";
+import { useSettings } from "../../context/SettingsContext";
 
 // submission status per class: null | 'saved' | 'submitted' | 'approved' | 'rejected'
 const SUBMIT_STATUS = {
@@ -28,9 +29,6 @@ const SUBMIT_STATUS = {
     bg: "#fff1f2",
   },
 };
-
-const TERMS = ["Term 1", "Term 2", "Term 3"];
-const ACADEMIC_YEAR = "2024/2025";
 
 const gradeFromTotal = (total) => {
   if (total >= 80) return "A1";
@@ -57,12 +55,14 @@ const GRADE_COLORS = {
 };
 
 const TeacherScores = () => {
+  const { settings } = useSettings();
+  const TERMS = settings.terms;
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [selectedSubject, setSelectedSubject] = useState("");
-  const [term, setTerm] = useState("Term 1");
-  const [academicYear] = useState(ACADEMIC_YEAR);
+  const [term, setTerm] = useState(settings.currentTerm);
+  const academicYear = settings.currentAcademicYear;
   const [students, setStudents] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState(false);
@@ -70,6 +70,10 @@ const TeacherScores = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [classStatus, setClassStatus] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setTerm(settings.currentTerm);
+  }, [settings.currentTerm]);
 
   useEffect(() => {
     (async () => {

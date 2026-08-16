@@ -21,6 +21,7 @@ export interface ReportResult {
   term: string;
   academicYear: string;
   formClass?: string;
+  published?: boolean;
   position: number;
   outOf: number;
   totalScore: number;
@@ -33,6 +34,13 @@ export interface ReportResult {
     late: number;
     totalDays: number;
     rate: number;
+  };
+  comments?: {
+    formTeacher: string;
+    head: string;
+    conduct: string;
+    interest: string;
+    attitude: string;
   };
 }
 

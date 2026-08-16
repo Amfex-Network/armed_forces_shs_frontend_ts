@@ -1,4 +1,3 @@
-// src/parent/ParentDashboardLayout.jsx
 import React, { useState, useEffect, createContext, useContext } from "react";
 import {
   NavLink,
@@ -21,10 +20,27 @@ import {
   FaChevronDown,
   FaChild,
 } from "react-icons/fa";
-import { TERM_INFO, CHILDREN_DATA } from "./data/parentData";
+import { studentsApi, Student } from "../api/students";
+import { useSettings } from "../context/SettingsContext";
 import logo from "../assets/logo.png";
 
-export const ActiveChildContext = createContext(null);
+interface ActiveChildContextValue {
+  activeChild: Student | null;
+  activeChildId: string | null;
+  setActiveChildId: (id: string) => void;
+  childIds: string[];
+  children: Student[];
+  loading: boolean;
+}
+
+export const ActiveChildContext = createContext<ActiveChildContextValue>({
+  activeChild: null,
+  activeChildId: null,
+  setActiveChildId: () => {},
+  childIds: [],
+  children: [],
+  loading: true,
+});
 export const useActiveChild = () => useContext(ActiveChildContext);
 
 const NAV_ITEMS = [
@@ -39,11 +55,20 @@ const OTHER_NAV = [
   { icon: FaCog, label: "Settings", path: "/parent/settings" },
 ];
 
-// ─── Child switcher ────────────────────────────────────────────────────────────
-const ChildSwitcher = ({ childIds, activeId, onSwitch, collapsed }) => {
+const ChildSwitcher = ({
+  children,
+  activeId,
+  onSwitch,
+  collapsed,
+}: {
+  children: Student[];
+  activeId: string | null;
+  onSwitch: (id: string) => void;
+  collapsed: boolean;
+}) => {
   const [open, setOpen] = useState(false);
-  if (!childIds || childIds.length <= 1) return null;
-  const active = CHILDREN_DATA.find((c) => c.id === activeId);
+  if (!children || children.length <= 1) return null;
+  const active = children.find((c) => c.id === activeId);
 
   return (
     <div className="relative px-2 mb-2">
@@ -89,9 +114,8 @@ const ChildSwitcher = ({ childIds, activeId, onSwitch, collapsed }) => {
             >
               My Children
             </p>
-            {childIds.map((id) => {
-              const child = CHILDREN_DATA.find((c) => c.id === id);
-              if (!child) return null;
+            {children.map((child) => {
+              const id = child.id as string;
               return (
                 <button
                   key={id}
@@ -111,8 +135,8 @@ const ChildSwitcher = ({ childIds, activeId, onSwitch, collapsed }) => {
                           : "var(--success-dark)",
                     }}
                   >
-                    {child.firstName[0]}
-                    {child.lastName[0]}
+                    {child.firstName?.[0]}
+                    {child.lastName?.[0]}
                   </div>
                   <div className="min-w-0">
                     <p
@@ -122,7 +146,7 @@ const ChildSwitcher = ({ childIds, activeId, onSwitch, collapsed }) => {
                       {child.firstName} {child.lastName}
                     </p>
                     <p className="text-xs text-gray-400 truncate">
-                      {child.formClass} · {child.course || child.program}
+                      {child.formClass} · {child.course}
                     </p>
                   </div>
                   {id === activeId && (
@@ -143,24 +167,42 @@ const ChildSwitcher = ({ childIds, activeId, onSwitch, collapsed }) => {
   );
 };
 
-// ─── Layout ───────────────────────────────────────────────────────────────────
 const ParentDashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const { settings } = useSettings();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const childIds = CHILDREN_DATA.map((c) => c.id);
-  const [activeChildId, setActiveChildId] = useState(
-    CHILDREN_DATA[0]?.id || null,
-  );
-  const activeChild = activeChildId
-    ? CHILDREN_DATA.find((c) => c.id === activeChildId) ||
-      CHILDREN_DATA[0] ||
-      null
-    : CHILDREN_DATA[0] || null;
+  const [children, setChildren] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeChildId, setActiveChildId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    studentsApi
+      .myChildren()
+      .then((list) => {
+        if (!alive) return;
+        setChildren(list);
+        setActiveChildId(list[0]?.id ?? null);
+      })
+      .catch(() => {
+        if (alive) setChildren([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const childIds = children.map((c) => c.id as string);
+  const activeChild =
+    children.find((c) => c.id === activeChildId) ?? children[0] ?? null;
 
   useEffect(() => {
     setMobileOpen(false);
@@ -180,7 +222,14 @@ const ParentDashboardLayout = () => {
 
   return (
     <ActiveChildContext.Provider
-      value={{ activeChild, activeChildId, setActiveChildId, childIds }}
+      value={{
+        activeChild,
+        activeChildId,
+        setActiveChildId,
+        childIds,
+        children,
+        loading,
+      }}
     >
       <div
         className="flex min-h-screen"
@@ -271,7 +320,7 @@ const ParentDashboardLayout = () => {
                 }}
               >
                 <p className="text-xs font-bold text-yellow-300">
-                  {childIds.length} child{childIds.length > 1 ? "ren" : ""}{" "}
+                  {childIds.length} child{childIds.length === 1 ? "" : "ren"}{" "}
                   enrolled
                 </p>
               </div>
@@ -288,7 +337,7 @@ const ParentDashboardLayout = () => {
                 Viewing
               </p>
               <ChildSwitcher
-                childIds={childIds}
+                children={children}
                 activeId={activeChildId}
                 onSwitch={setActiveChildId}
                 collapsed={collapsed}
@@ -424,7 +473,7 @@ const ParentDashboardLayout = () => {
               className="text-xs font-semibold px-2 py-1 rounded"
               style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
             >
-              {TERM_INFO.term}
+              {settings.currentTerm}
             </span>
           </div>
 
@@ -460,8 +509,8 @@ const ParentDashboardLayout = () => {
             <div className="flex items-center gap-3 text-xs">
               {childIds.length > 1 && (
                 <div className="flex items-center gap-1">
-                  {childIds.map((id) => {
-                    const child = CHILDREN_DATA.find((c) => c.id === id);
+                  {children.map((child) => {
+                    const id = child.id as string;
                     return (
                       <button
                         key={id}
@@ -473,7 +522,7 @@ const ParentDashboardLayout = () => {
                           color: id === activeChildId ? "white" : "#7c3aed",
                         }}
                       >
-                        <span>{child?.firstName}</span>
+                        <span>{child.firstName}</span>
                       </button>
                     );
                   })}
@@ -486,7 +535,7 @@ const ParentDashboardLayout = () => {
                   color: "var(--royal-blue)",
                 }}
               >
-                {TERM_INFO.academicYear} · {TERM_INFO.term}
+                {settings.currentAcademicYear} · {settings.currentTerm}
               </span>
             </div>
           </header>

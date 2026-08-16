@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import { studentsApi } from "../../api/students";
+import { usersApi, type ManagedUser } from "../../api/users";
 
 const PROGRAMS = [
   "General Science",
@@ -64,8 +65,13 @@ const EMPTY = {
   enrollDate: "",
 };
 
-const getParentInfo = (_parentId) => {
-  return { parentName: "—", parentPhone: "—" };
+const getParentInfo = (parentId, parents = []) => {
+  const p = parents.find((x) => x.id === parentId);
+  if (!p) return { parentName: "—", parentPhone: "—" };
+  return {
+    parentName: `${p.title ? p.title + " " : ""}${p.firstName} ${p.lastName}`.trim(),
+    parentPhone: p.phone || "—",
+  };
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -179,7 +185,7 @@ const FInput = ({
 );
 
 // ─── Add / Edit Student Modal ─────────────────────────────────────────────────
-const StudentFormModal = ({ student, onSave, onClose }) => {
+const StudentFormModal = ({ student, onSave, onClose, parents = [] }) => {
   const isEdit = !!student?.id;
   const [form, setForm] = useState(student || EMPTY);
   const [errors, setErrors] = useState({});
@@ -361,9 +367,7 @@ const StudentFormModal = ({ student, onSave, onClose }) => {
                 </label>
                 <select
                   value={form.parentId || ""}
-                  onChange={(e) =>
-                    set("parentId", parseInt(e.target.value) || null)
-                  }
+                  onChange={(e) => set("parentId", e.target.value || null)}
                   className="px-3 py-2 text-sm rounded-lg border-2 outline-none bg-white"
                   style={{
                     borderColor: "var(--medium-gray)",
@@ -377,6 +381,13 @@ const StudentFormModal = ({ student, onSave, onClose }) => {
                   }
                 >
                   <option value="">-- No parent linked --</option>
+                  {parents.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title ? `${p.title} ` : ""}
+                      {p.firstName} {p.lastName}
+                      {p.email ? ` · ${p.email}` : ""}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -473,9 +484,10 @@ const DeleteConfirm = ({ student, onConfirm, onClose }) => (
 );
 
 // ─── Student Profile Drawer ───────────────────────────────────────────────────
-const ProfileDrawer = ({ student, onEdit, onClose }) => {
+const ProfileDrawer = ({ student, onEdit, onClose, parents = [] }) => {
   if (!student) return null;
   const ss = statusStyle(student.status);
+  const parentInfo = getParentInfo(student.parentId, parents);
 
   return (
     <div
@@ -609,12 +621,12 @@ const ProfileDrawer = ({ student, onEdit, onClose }) => {
             {
               icon: Phone,
               label: "Parent Phone",
-              value: getParentInfo(student.parentId).parentPhone,
+              value: parentInfo.parentPhone,
             },
             {
               icon: User,
               label: "Parent/Guardian",
-              value: getParentInfo(student.parentId).parentName,
+              value: parentInfo.parentName,
             },
             { icon: MapPin, label: "Address", value: student.address },
             {
@@ -660,6 +672,7 @@ const ProfileDrawer = ({ student, onEdit, onClose }) => {
 // ─── Main Students Component ──────────────────────────────────────────────────
 const Students = () => {
   const [students, setStudents] = useState<any[]>([]);
+  const [parents, setParents] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCourse, setFP] = useState("All");
@@ -693,6 +706,10 @@ const Students = () => {
 
   useEffect(() => {
     loadStudents();
+    usersApi
+      .list()
+      .then((all) => setParents(all.filter((u) => u.role === "parent")))
+      .catch(() => setParents([]));
   }, []);
 
   // ── Filtered list ──────────────────────────────────────────────────────────
@@ -1597,6 +1614,7 @@ const Students = () => {
       {showForm && (
         <StudentFormModal
           student={editStudent}
+          parents={parents}
           onSave={handleSave}
           onClose={() => {
             setShowForm(false);
@@ -1616,6 +1634,7 @@ const Students = () => {
       {viewStudent && (
         <ProfileDrawer
           student={viewStudent}
+          parents={parents}
           onEdit={() => {
             setEditStu(viewStudent);
             setViewStu(null);

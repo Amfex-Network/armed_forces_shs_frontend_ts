@@ -16,8 +16,7 @@ import {
   Search,
 } from "lucide-react";
 import SchoolProfileSetup from "./SchoolProfileSetup";
-import GradingConfiguration from "./GradingConfiguration";
-import AssessmentConfiguration from "./AssessmentConfiguration";
+import GradingConfig from "../academic-setup/GradingConfig";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (d) => {
@@ -1080,9 +1079,7 @@ const AcademicYearAndTrack = () => {
 // ─── Steps ────────────────────────────────────────────────────────────────────
 const STEPS = [
   { id: 1, title: "School Profile", desc: "Identity & contacts" },
-  { id: 2, title: "Academic Year", desc: "Semesters & year groups" },
-  { id: 3, title: "Grading Scale", desc: "A1–F9 configuration" },
-  { id: 4, title: "Assessment", desc: "CA breakdown & weights" },
+  { id: 2, title: "Grading & Academic", desc: "Year, term & A1–F9 scale" },
 ];
 
 const AcademicStructure1 = () => {
@@ -1101,11 +1098,7 @@ const AcademicStructure1 = () => {
       case 1:
         return <SchoolProfileSetup />;
       case 2:
-        return <AcademicYearAndTrack />;
-      case 3:
-        return <GradingConfiguration />;
-      case 4:
-        return <AssessmentConfiguration />;
+        return <GradingConfig />;
       default:
         return null;
     }

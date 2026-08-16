@@ -14,8 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { studentsApi } from "../../api/students";
-
-const ACADEMIC_YEAR = "2024/2025";
+import { useSettings } from "../../context/SettingsContext";
 
 const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
   <div
@@ -42,6 +41,7 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
 
 const StudentProfile = () => {
   const { user: authUser } = useAuth();
+  const { settings } = useSettings();
   const [student, setStudent] = useState<any>(null);
   useEffect(() => {
     studentsApi
@@ -338,7 +338,7 @@ const StudentProfile = () => {
             <InfoRow
               icon={Calendar}
               label="Academic Year"
-              value={ACADEMIC_YEAR}
+              value={settings.currentAcademicYear}
               color="var(--royal-blue)"
             />
           </div>

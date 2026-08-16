@@ -56,6 +56,13 @@ export const studentsApi = {
     return toUi(res.student);
   },
 
+  async myChildren(): Promise<Student[]> {
+    const res = await api.get<{ success: boolean; students: Student[] }>(
+      "/api/students/my-children",
+    );
+    return res.students.map(toUi);
+  },
+
   async create(payload: Partial<Student>): Promise<Student> {
     const res = await api.post<{ success: boolean; student: Student }>(
       "/api/students",

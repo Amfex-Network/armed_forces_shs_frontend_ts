@@ -25,7 +25,7 @@ import {
   FaUser,
   FaCalendarCheck,
 } from "react-icons/fa";
-import { TERM_INFO } from "./data/teacherData";
+import { useSettings } from "../context/SettingsContext";
 import logo from "../assets/logo.png";
 
 // ─── Nav item definitions ─────────────────────────────────────────────────────
@@ -53,6 +53,11 @@ const N = {
     path: "/teacher/comments",
   },
   reports: { icon: FaFileAlt, label: "Report Cards", path: "/teacher/reports" },
+  timetable: {
+    icon: FaCalendarCheck,
+    label: "Timetable",
+    path: "/teacher/timetable",
+  },
   analytics: {
     icon: FaChartBar,
     label: "Analytics",
@@ -79,14 +84,14 @@ const SIDEBAR_CONFIG = {
       section: "Main",
       items: [N.dashboard, N.classes, N.scores, N.attendance],
     },
-    { section: "Academic", items: [N.comments, N.reports, N.analytics] },
+    { section: "Academic", items: [N.comments, N.reports, N.timetable, N.analytics] },
   ],
   "Subject Teacher + Form Master": [
     {
       section: "Main",
       items: [N.dashboard, N.classes, N.scores, N.attendance],
     },
-    { section: "Academic", items: [N.comments, N.reports, N.analytics] },
+    { section: "Academic", items: [N.comments, N.reports, N.timetable, N.analytics] },
     { section: "Form Master", items: [N.formclass, N.scoreReview] },
   ],
   "Form Master": [
@@ -94,7 +99,7 @@ const SIDEBAR_CONFIG = {
       section: "Main",
       items: [N.dashboard, N.classes, N.scores, N.attendance],
     },
-    { section: "Academic", items: [N.comments, N.reports, N.analytics] },
+    { section: "Academic", items: [N.comments, N.reports, N.timetable, N.analytics] },
     { section: "Form Master", items: [N.formclass, N.scoreReview] },
   ],
 };
@@ -102,6 +107,7 @@ const SIDEBAR_CONFIG = {
 const DEFAULT_NAV = SIDEBAR_CONFIG["Subject Teacher"];
 
 const TeacherDashboardLayout = () => {
+  const { settings } = useSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user, activeRole } = useAuth();
@@ -366,7 +372,7 @@ const TeacherDashboardLayout = () => {
             className="text-xs font-semibold px-2 py-1 rounded"
             style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
           >
-            {TERM_INFO.term}
+            {settings.currentTerm}
           </span>
         </div>
 
@@ -398,7 +404,7 @@ const TeacherDashboardLayout = () => {
               className="px-3 py-1.5 rounded-lg font-semibold"
               style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
             >
-              {TERM_INFO.academicYear} · {TERM_INFO.term}
+              {settings.currentAcademicYear} · {settings.currentTerm}
             </span>
             <span
               className="px-3 py-1.5 rounded-lg font-semibold"

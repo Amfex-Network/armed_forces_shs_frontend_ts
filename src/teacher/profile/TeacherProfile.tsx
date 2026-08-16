@@ -15,10 +15,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { authApi } from "../../api/auth";
+import { useSettings } from "../../context/SettingsContext";
 
 const TERM_INFO = {
-  academicYear: "2024/2025",
-  term: "Term 1",
   weeksGone: 0,
   weeksTotal: 14,
   startDate: "—",
@@ -50,6 +49,7 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
 
 const TeacherProfile = () => {
   const { user: authUser } = useAuth();
+  const { settings } = useSettings();
   const [full, setFull] = useState<any>(null);
   useEffect(() => {
     authApi
@@ -368,8 +368,10 @@ const TeacherProfile = () => {
                   "linear-gradient(135deg, var(--royal-blue), var(--royal-blue-dark))",
               }}
             >
-              <p className="text-blue-200 text-xs">{TERM_INFO.academicYear}</p>
-              <p className="font-black text-lg">{TERM_INFO.term}</p>
+              <p className="text-blue-200 text-xs">
+                {settings.currentAcademicYear}
+              </p>
+              <p className="font-black text-lg">{settings.currentTerm}</p>
               <p className="text-blue-200 text-xs mt-1">
                 Week {TERM_INFO.weeksGone} of {TERM_INFO.weeksTotal}
               </p>

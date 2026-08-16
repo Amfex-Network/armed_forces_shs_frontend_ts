@@ -23,9 +23,7 @@ import {
 import { resultsApi } from "../../api/results";
 import { subjectsApi } from "../../api/domains";
 import { useAuth } from "../../context/AuthContext";
-
-const RESULT_TERM = "Term 1";
-const RESULT_YEAR = "2024/2025";
+import { useSettings } from "../../context/SettingsContext";
 
 const GRADE_COLOR: Record<string, string> = {
   A1: "text-green-700 bg-green-50",
@@ -148,6 +146,9 @@ const NotPublished = ({ type = "report" }) => (
 
 const StudentResults = () => {
   const { user } = useAuth();
+  const { settings } = useSettings();
+  const RESULT_TERM = settings.currentTerm;
+  const RESULT_YEAR = settings.currentAcademicYear;
 
   const [selectedTerm, setSelectedTerm] = useState("current");
   const [showKey, setShowKey] = useState(false);
@@ -180,7 +181,7 @@ const StudentResults = () => {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [RESULT_TERM, RESULT_YEAR]);
 
   if (loading)
     return (
@@ -188,6 +189,7 @@ const StudentResults = () => {
         Loading your results…
       </div>
     );
+  if (result && result.published === false) return <NotPublished type="results" />;
   if (!result || result.subjects.length === 0)
     return <NotPublished type="results" />;
 

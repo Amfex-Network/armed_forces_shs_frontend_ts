@@ -28,10 +28,9 @@ import {
 } from "recharts";
 import { resultsApi } from "../../api/results";
 import { useAuth } from "../../context/AuthContext";
+import { useSettings } from "../../context/SettingsContext";
 
 const TERM_INFO = {
-  academicYear: "2024/2025",
-  term: "Term 1",
   weeksGone: 0,
   weeksTotal: 14,
   startDate: "—",
@@ -103,19 +102,22 @@ const CustomTooltip = ({ active, payload, label }) => {
 const StudentHome = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { settings } = useSettings();
+  const CURRENT_TERM = settings.currentTerm;
+  const ACADEMIC_YEAR = settings.currentAcademicYear;
 
   const [result, setResult] = useState<any>(null);
 
   useEffect(() => {
     resultsApi
-      .get({ term: TERM_INFO.term, academicYear: TERM_INFO.academicYear })
+      .get({ term: CURRENT_TERM, academicYear: ACADEMIC_YEAR })
       .then(setResult)
       .catch(() => setResult(null));
-  }, []);
+  }, [CURRENT_TERM, ACADEMIC_YEAR]);
 
   const CURRENT_RESULTS = result || {
-    term: TERM_INFO.term,
-    academicYear: TERM_INFO.academicYear,
+    term: CURRENT_TERM,
+    academicYear: ACADEMIC_YEAR,
     subjects: [],
     position: 0,
     outOf: 0,
@@ -203,8 +205,8 @@ const StudentHome = () => {
             className="rounded-xl p-3 text-center min-w-[130px] flex-shrink-0"
             style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
           >
-            <p className="text-blue-200 text-xs">{TERM_INFO.academicYear}</p>
-            <p className="font-bold text-sm">{TERM_INFO.term}</p>
+            <p className="text-blue-200 text-xs">{ACADEMIC_YEAR}</p>
+            <p className="font-bold text-sm">{CURRENT_TERM}</p>
             <p className="text-blue-200 text-xs mt-1"></p>
             <div
               className="mt-1.5 h-1.5 rounded-full overflow-hidden"

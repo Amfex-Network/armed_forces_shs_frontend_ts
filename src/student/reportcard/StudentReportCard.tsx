@@ -2,9 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Printer, ChevronDown } from "lucide-react";
 import { resultsApi, type ReportResult } from "../../api/results";
-
-const TERMS = ["Term 1", "Term 2", "Term 3"];
-const ACADEMIC_YEAR = "2024/2025";
+import { useSettings } from "../../context/SettingsContext";
 
 const GRADE_COLOR: Record<string, string> = {
   A1: "text-green-700 bg-green-50",
@@ -48,10 +46,17 @@ const EmptyState = ({ title, message }: { title: string; message: string }) => (
 
 const StudentReportCard = () => {
   const printRef = useRef<HTMLDivElement>(null);
-  const [term, setTerm] = useState("Term 1");
+  const { settings } = useSettings();
+  const TERMS = settings.terms;
+  const ACADEMIC_YEAR = settings.currentAcademicYear;
+  const [term, setTerm] = useState(settings.currentTerm);
   const [result, setResult] = useState<ReportResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTerm(settings.currentTerm);
+  }, [settings.currentTerm]);
 
   useEffect(() => {
     let active = true;
@@ -74,7 +79,7 @@ const StudentReportCard = () => {
     return () => {
       active = false;
     };
-  }, [term]);
+  }, [term, ACADEMIC_YEAR]);
 
   const handlePrint = () => window.print();
 
@@ -92,6 +97,13 @@ const StudentReportCard = () => {
           error ||
           "We couldn't find your report. Make sure your student record is linked to your account."
         }
+      />
+    );
+  if (result.published === false)
+    return (
+      <EmptyState
+        title="Report Card Not Yet Published"
+        message={`Your ${term} report has not been published yet. Please check back after the admin finalizes and publishes the reports.`}
       />
     );
   if (result.subjects.length === 0)
@@ -354,24 +366,31 @@ const StudentReportCard = () => {
           className="p-5 space-y-4 border-b"
           style={{ borderColor: "var(--medium-gray)" }}
         >
-          {["Form Teacher's Comment", "Head of School's Comment"].map(
-            (label) => (
-              <div key={label}>
-                <p
-                  className="text-xs font-black uppercase tracking-wider mb-1"
-                  style={{ color: "var(--dark-gray)" }}
-                >
-                  {label}
-                </p>
-                <p
-                  className="text-sm text-gray-400 italic leading-relaxed p-3 rounded-lg"
-                  style={{ backgroundColor: "var(--light-gray)" }}
-                >
-                  No comment recorded yet.
-                </p>
-              </div>
-            ),
-          )}
+          {[
+            {
+              label: "Form Teacher's Comment",
+              value: result.comments?.formTeacher,
+            },
+            {
+              label: "Head of School's Comment",
+              value: result.comments?.head,
+            },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <p
+                className="text-xs font-black uppercase tracking-wider mb-1"
+                style={{ color: "var(--dark-gray)" }}
+              >
+                {label}
+              </p>
+              <p
+                className={`text-sm leading-relaxed p-3 rounded-lg ${value ? "text-gray-600" : "text-gray-400 italic"}`}
+                style={{ backgroundColor: "var(--light-gray)" }}
+              >
+                {value || "No comment recorded yet."}
+              </p>
+            </div>
+          ))}
         </div>
 
         {/* Signatures */}

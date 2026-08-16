@@ -1,6 +1,5 @@
-// src/parent/results/ParentResults.jsx
-import React, { useState } from "react";
-import { Award, ChevronDown, TrendingUp } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Award, ChevronDown } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -10,23 +9,47 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  Legend,
-  LineChart,
-  Line,
 } from "recharts";
-import {
-  getGradeColor,
-  getGradeLabel,
-  getPerformanceBand,
-  CHILD_RESULTS,
-  CHILD_ATTENDANCE,
-} from "../data/parentData";
+import { resultsApi, ReportResult } from "../../api/results";
+import { subjectsApi } from "../../api/domains";
 import { useActiveChild } from "../ParentDashboardLayout";
+import { useSettings } from "../../context/SettingsContext";
 
-// ─── Report not yet published gate ───────────────────────────────────────────
-const REPORT_PUBLISHED = false; // Set to true when admin publishes — will come from API
+const GRADE_COLOR: Record<string, string> = {
+  A1: "text-green-700 bg-green-50",
+  B2: "text-blue-700 bg-blue-50",
+  B3: "text-blue-600 bg-blue-50",
+  C4: "text-yellow-700 bg-yellow-50",
+  C5: "text-orange-600 bg-orange-50",
+  C6: "text-orange-700 bg-orange-50",
+  D7: "text-red-500 bg-red-50",
+  E8: "text-red-600 bg-red-50",
+  F9: "text-red-700 bg-red-50",
+};
+const GRADE_LABEL: Record<string, string> = {
+  A1: "Excellent",
+  B2: "Very Good",
+  B3: "Good",
+  C4: "Credit",
+  C5: "Credit",
+  C6: "Credit",
+  D7: "Pass",
+  E8: "Pass",
+  F9: "Fail",
+};
+const getGradeColor = (g: string) =>
+  GRADE_COLOR[g] || "text-gray-600 bg-gray-50";
+const getGradeLabel = (g: string) => GRADE_LABEL[g] || "";
+const getPerformanceBand = (pct: number) =>
+  pct >= 75
+    ? { label: "Excellent", color: "var(--success-dark)" }
+    : pct >= 60
+      ? { label: "Very Good", color: "var(--royal-blue)" }
+      : pct >= 50
+        ? { label: "Good", color: "var(--warning)" }
+        : { label: "Needs Improvement", color: "var(--accent-red)" };
 
-const NotPublished = ({ type = "report" }) => (
+const NotPublished = () => (
   <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
     <div
       className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
@@ -44,18 +67,12 @@ const NotPublished = ({ type = "report" }) => (
         <path d="M7 11V7a5 5 0 0110 0v4" />
       </svg>
     </div>
-    <h2
-      className="text-lg font-black mb-2"
-      style={{ color: "var(--dark-gray)" }}
-    >
-      {type === "report"
-        ? "Report Card Not Yet Available"
-        : "Results Not Yet Published"}
+    <h2 className="text-lg font-black mb-2" style={{ color: "var(--dark-gray)" }}>
+      Results Not Yet Published
     </h2>
     <p className="text-sm text-gray-400 max-w-sm">
-      Your {type === "report" ? "report card" : "results"} for this semester
-      have not been published yet. Please check back after the admin finalizes
-      and publishes the reports.
+      Your ward's results for this semester have not been published yet. Please
+      check back after the admin finalizes and publishes the reports.
     </p>
     <div
       className="mt-4 px-4 py-2 rounded-xl text-xs font-semibold"
@@ -67,41 +84,78 @@ const NotPublished = ({ type = "report" }) => (
 );
 
 const ParentResults = () => {
-  const { activeChild } = useActiveChild();
-  const [selectedTerm, setSelectedTerm] = useState("current");
+  const { activeChild, loading: childLoading } = useActiveChild();
+  const { settings } = useSettings();
+  const CURRENT_TERM = settings.currentTerm;
+  const ACADEMIC_YEAR = settings.currentAcademicYear;
+  const [result, setResult] = useState<ReportResult | null>(null);
+  const [subjectTypes, setSubjectTypes] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
 
-  if (!REPORT_PUBLISHED) return <NotPublished type="results" />;
+  const childId = activeChild?.id;
+
+  useEffect(() => {
+    if (!childId) {
+      setResult(null);
+      setLoading(false);
+      return;
+    }
+    let alive = true;
+    setLoading(true);
+    Promise.all([
+      resultsApi.get({
+        student: childId,
+        term: CURRENT_TERM,
+        academicYear: ACADEMIC_YEAR,
+      }),
+      subjectsApi.list().catch(() => []),
+    ])
+      .then(([res, subs]) => {
+        if (!alive) return;
+        setResult(res);
+        const map: Record<string, string> = {};
+        subs.forEach((s: any) => {
+          map[s.name] = s.type || "elective";
+        });
+        setSubjectTypes(map);
+      })
+      .catch(() => {
+        if (alive) setResult(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [childId, CURRENT_TERM, ACADEMIC_YEAR]);
+
+  if (childLoading || loading)
+    return (
+      <div className="py-20 text-center text-sm text-gray-400">
+        Loading results…
+      </div>
+    );
   if (!activeChild)
     return (
-      <div className="text-center py-12 text-gray-400">No child selected.</div>
+      <div className="text-center py-12 text-gray-400">
+        No child linked to your account.
+      </div>
     );
+  if (!result || result.published === false || result.subjects.length === 0)
+    return <NotPublished />;
 
-  const childResults =
-    CHILD_RESULTS[activeChild.studentId] ||
-    CHILD_RESULTS[Object.keys(CHILD_RESULTS)[0]];
-
-  const allTerms = [
-    {
-      key: "current",
-      label: `${childResults?.current?.term || "Semester 1"} · ${childResults?.current?.academicYear || "2024/2025"}`,
-    },
-    ...(childResults?.previous || []).map((r, i) => ({
-      key: `prev_${i}`,
-      label: `${r.term} · ${r.academicYear}`,
-    })),
-  ];
-
-  const active =
-    selectedTerm === "current"
-      ? childResults?.current
-      : childResults?.previous?.[parseInt(selectedTerm.split("_")[1])];
-  const totalScore = active.subjects.reduce((s, sub) => s + sub.total, 0);
-  const maxScore = active.subjects.length * 100;
+  const subjects = result.subjects.map((sub) => ({
+    ...sub,
+    type: subjectTypes[sub.name] === "core" ? "Core" : "Elective",
+  }));
+  const totalScore = subjects.reduce((s, sub) => s + sub.total, 0);
+  const maxScore = subjects.length * 100 || 1;
   const percentage = ((totalScore / maxScore) * 100).toFixed(1);
   const band = getPerformanceBand(parseFloat(percentage));
-  const totalPoints = 0; // Grade points removed
+  const aggregate = result.aggregate;
 
-  const barData = active.subjects.map((s) => ({
+  const barData = subjects.map((s) => ({
     name: s.name
       .replace("Integrated ", "Int. ")
       .replace("Language", "Lang.")
@@ -109,49 +163,28 @@ const ParentResults = () => {
     total: s.total,
   }));
 
-  const trendData = [
-    ...(childResults?.previous || []).slice().reverse(),
-    childResults?.current,
-  ]
-    .filter(Boolean)
-    .map((t) => ({
-      term: t.term.replace("Term ", "T"),
-      avg: Math.round(
-        t.subjects.reduce((s, sub) => s + sub.total, 0) / t.subjects.length,
-      ),
-    }));
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1
-            className="text-xl font-black"
-            style={{ color: "var(--dark-gray)" }}
-          >
+          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
             {activeChild.firstName}'s Results
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {activeChild.formClass} · {activeChild.program}
+            {activeChild.formClass} · {activeChild.course}
           </p>
         </div>
         <div className="relative">
-          <select
-            value={selectedTerm}
-            onChange={(e) => setSelectedTerm(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2 outline-none cursor-pointer"
+          <span
+            className="inline-flex items-center pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2"
             style={{
               borderColor: "var(--royal-blue)",
               color: "var(--royal-blue)",
               backgroundColor: "#eef2ff",
             }}
           >
-            {allTerms.map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            {result.term} · {result.academicYear}
+          </span>
           <ChevronDown
             size={14}
             className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -171,14 +204,13 @@ const ParentResults = () => {
           { label: "Overall %", value: `${percentage}%`, color: band.color },
           {
             label: "Class Position",
-            value: `${active.position}/${active.totalStudents}`,
+            value: `${result.position}/${result.outOf}`,
             color: "var(--warning)",
           },
           {
             label: "Aggregate",
-            value: totalPoints,
-            color:
-              totalPoints <= 12 ? "var(--success-dark)" : "var(--accent-red)",
+            value: aggregate,
+            color: aggregate <= 12 ? "var(--success-dark)" : "var(--accent-red)",
           },
         ].map(({ label, value, color }) => (
           <div
@@ -208,12 +240,12 @@ const ParentResults = () => {
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p className="text-blue-200 text-xs">
-              {active.term} · {active.academicYear}
+              {result.term} · {result.academicYear}
             </p>
             <p className="font-black text-2xl">{band.label}</p>
             <p className="text-blue-200 text-sm">
-              Overall: {percentage}% · Position: {active.position} of{" "}
-              {active.totalStudents}
+              Overall: {percentage}% · Position: {result.position} of{" "}
+              {result.outOf}
             </p>
           </div>
           <div className="flex gap-3">
@@ -221,7 +253,7 @@ const ParentResults = () => {
               className="text-center px-4 py-2 rounded-xl"
               style={{ backgroundColor: "rgba(255,255,255,0.12)" }}
             >
-              <p className="font-black text-xl">{totalPoints}</p>
+              <p className="font-black text-xl">{aggregate}</p>
               <p className="text-blue-200 text-xs">Aggregate</p>
             </div>
             <div
@@ -230,7 +262,7 @@ const ParentResults = () => {
             >
               <p className="font-black text-xl">
                 {
-                  active.subjects.filter((s) =>
+                  subjects.filter((s) =>
                     ["A1", "B2", "B3", "C4", "C5", "C6"].includes(s.grade),
                   ).length
                 }
@@ -241,99 +273,53 @@ const ParentResults = () => {
         </div>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div
-          className="bg-white rounded-xl border shadow-sm p-5"
-          style={{ borderColor: "var(--medium-gray)" }}
+      {/* Chart */}
+      <div
+        className="bg-white rounded-xl border shadow-sm p-5"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
+        <h3
+          className="font-semibold text-sm mb-4"
+          style={{ color: "var(--dark-gray)" }}
         >
-          <h3
-            className="font-semibold text-sm mb-4"
-            style={{ color: "var(--dark-gray)" }}
+          Subject Scores
+        </h3>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart
+            data={barData}
+            margin={{ top: 5, right: 10, left: -20, bottom: 40 }}
           >
-            Subject Scores
-          </h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart
-              data={barData}
-              margin={{ top: 5, right: 10, left: -20, bottom: 40 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 10, fill: "#6b7280" }}
-                angle={-35}
-                textAnchor="end"
-                interval={0}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: "#6b7280" }}
-                domain={[0, 100]}
-              />
-              <Tooltip
-                formatter={(v) => [`${v}%`, "Score"]}
-                contentStyle={{ fontSize: 12, borderRadius: 8 }}
-              />
-              <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-                {barData.map((e, i) => (
-                  <Cell
-                    key={i}
-                    fill={
-                      e.total >= 80
-                        ? "var(--success-dark)"
-                        : e.total >= 60
-                          ? "var(--royal-blue)"
-                          : e.total >= 50
-                            ? "var(--warning)"
-                            : "var(--accent-red)"
-                    }
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        {trendData.length > 1 && (
-          <div
-            className="bg-white rounded-xl border shadow-sm p-5"
-            style={{ borderColor: "var(--medium-gray)" }}
-          >
-            <h3
-              className="font-semibold text-sm mb-4"
-              style={{ color: "var(--dark-gray)" }}
-            >
-              Score Trend
-            </h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart
-                data={trendData}
-                margin={{ top: 5, right: 20, left: -20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis
-                  dataKey="term"
-                  tick={{ fontSize: 11, fill: "#6b7280" }}
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 10, fill: "#6b7280" }}
+              angle={-35}
+              textAnchor="end"
+              interval={0}
+            />
+            <YAxis tick={{ fontSize: 10, fill: "#6b7280" }} domain={[0, 100]} />
+            <Tooltip
+              formatter={(v) => [`${v}%`, "Score"]}
+              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+            />
+            <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+              {barData.map((e, i) => (
+                <Cell
+                  key={i}
+                  fill={
+                    e.total >= 80
+                      ? "var(--success-dark)"
+                      : e.total >= 60
+                        ? "var(--royal-blue)"
+                        : e.total >= 50
+                          ? "var(--warning)"
+                          : "var(--accent-red)"
+                  }
                 />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#6b7280" }}
-                  domain={[40, 100]}
-                />
-                <Tooltip
-                  formatter={(v) => [`${v}%`, "Avg Score"]}
-                  contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="avg"
-                  stroke="var(--royal-blue)"
-                  strokeWidth={2.5}
-                  dot={{ r: 5 }}
-                  activeDot={{ r: 7 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Results table */}
@@ -348,10 +334,7 @@ const ParentResults = () => {
             backgroundColor: "var(--light-gray)",
           }}
         >
-          <h3
-            className="font-semibold text-sm"
-            style={{ color: "var(--dark-gray)" }}
-          >
+          <h3 className="font-semibold text-sm" style={{ color: "var(--dark-gray)" }}>
             Detailed Results
           </h3>
         </div>
@@ -384,27 +367,27 @@ const ParentResults = () => {
               </tr>
             </thead>
             <tbody>
-              {["Core", "Elective"].map((type) => (
-                <React.Fragment key={type}>
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-1.5 text-xs font-black uppercase"
-                      style={{
-                        backgroundColor:
-                          type === "Core" ? "#eef2ff" : "#f0fdf4",
-                        color:
-                          type === "Core"
-                            ? "var(--royal-blue)"
-                            : "var(--success-dark)",
-                      }}
-                    >
-                      {type} Subjects
-                    </td>
-                  </tr>
-                  {active.subjects
-                    .filter((s) => s.type === type)
-                    .map((sub, i) => (
+              {["Core", "Elective"].map((type) => {
+                const rows = subjects.filter((s) => s.type === type);
+                if (rows.length === 0) return null;
+                return (
+                  <React.Fragment key={type}>
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-4 py-1.5 text-xs font-black uppercase"
+                        style={{
+                          backgroundColor: type === "Core" ? "#eef2ff" : "#f0fdf4",
+                          color:
+                            type === "Core"
+                              ? "var(--royal-blue)"
+                              : "var(--success-dark)",
+                        }}
+                      >
+                        {type} Subjects
+                      </td>
+                    </tr>
+                    {rows.map((sub, i) => (
                       <tr
                         key={i}
                         className="border-b hover:bg-gray-50"
@@ -447,12 +430,13 @@ const ParentResults = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">
-                          {getGradeLabel(sub.grade)}
+                          {sub.remarks || getGradeLabel(sub.grade)}
                         </td>
                       </tr>
                     ))}
-                </React.Fragment>
-              ))}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr style={{ backgroundColor: "var(--light-gray)" }}>
