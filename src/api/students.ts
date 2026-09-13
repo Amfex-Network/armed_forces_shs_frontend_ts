@@ -23,6 +23,14 @@ export interface Student {
   [key: string]: unknown;
 }
 
+export interface BulkImportResult {
+  success: boolean;
+  created: number;
+  skipped: number;
+  total: number;
+  errors: { row: number; studentId?: string; reason: string }[];
+}
+
 function toUi(s: Student): Student {
   return { ...s, id: s._id };
 }
@@ -69,6 +77,12 @@ export const studentsApi = {
       toApi(payload),
     );
     return toUi(res.student);
+  },
+
+  async bulkCreate(
+    students: Record<string, unknown>[],
+  ): Promise<BulkImportResult> {
+    return api.post<BulkImportResult>("/api/students/bulk", { students });
   },
 
   async update(id: string, payload: Partial<Student>): Promise<Student> {

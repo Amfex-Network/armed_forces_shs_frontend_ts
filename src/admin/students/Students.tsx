@@ -31,7 +31,8 @@ import {
 } from "lucide-react";
 
 import { KeyRound } from "lucide-react";
-import { studentsApi } from "../../api/students";
+import * as XLSX from "xlsx";
+import { studentsApi, type BulkImportResult } from "../../api/students";
 import { usersApi, type ManagedUser } from "../../api/users";
 import CredentialModal from "../../components/common/CredentialModal";
 
@@ -681,6 +682,10 @@ const Students = () => {
     tempPassword?: string;
     userId?: string;
   } | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<BulkImportResult | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCourse, setFP] = useState("All");
@@ -913,9 +918,13 @@ const Students = () => {
       "  e.g.  AFSHTS/2025/001",
       "",
       "NOTES:",
-      "  - Email must be unique per student.",
-      "  - parentId must match an existing parent record.",
-      "  - Leave parentId blank if parent not yet registered.",
+      "  - studentId, firstName and lastName are required.",
+      "  - Rows with a studentId that already exists are skipped.",
+      "  - The parentId column is ignored on import - link parents",
+      "    afterwards from the Parents page.",
+      "  - Import creates student records only. Give a student a login",
+      "    later with the key icon on their row.",
+      "  - Accepts .csv, .xlsx and .xls files.",
       "============================================",
     ];
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
@@ -926,14 +935,31 @@ const Students = () => {
     showToast("Student sample guide downloaded");
   };
 
-  const handleImport = (e) => {
+  const handleImport = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    showToast(
-      `"${file.name}" ready - import will be processed by the backend`,
-      "info",
-    );
     e.target.value = "";
+    try {
+      setImporting(true);
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+        defval: "",
+        raw: false,
+      });
+      if (rows.length === 0) {
+        showToast("The file has no data rows.", "error");
+        return;
+      }
+      const result = await studentsApi.bulkCreate(rows);
+      setImportResult(result);
+      if (result.created > 0) await loadStudents();
+    } catch (err) {
+      showToast(err?.message || "Failed to import file", "error");
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleExport = () => {
@@ -1031,11 +1057,12 @@ const Students = () => {
               backgroundColor: "#eef2ff",
             }}
           >
-            <Upload size={13} /> Import CSV
+            <Upload size={13} /> {importing ? "Importing…" : "Import CSV/Excel"}
             <input
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               className="hidden"
+              disabled={importing}
               onChange={handleImport}
             />
           </label>
@@ -1740,6 +1767,92 @@ const Students = () => {
           userId={credential.userId}
           onClose={() => setCredential(null)}
         />
+      )}
+
+      {importResult && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden">
+            <div
+              className="px-6 py-5 text-center"
+              style={{
+                background:
+                  "linear-gradient(135deg,var(--royal-blue),var(--royal-blue-dark))",
+              }}
+            >
+              <p className="text-white font-black text-lg">Import Complete</p>
+              <p className="text-blue-200 text-xs mt-1">
+                {importResult.total} row{importResult.total === 1 ? "" : "s"}{" "}
+                processed
+              </p>
+            </div>
+            <div className="p-6 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div
+                  className="text-center p-3 rounded-xl"
+                  style={{ backgroundColor: "#f0fdf4" }}
+                >
+                  <p
+                    className="text-2xl font-black"
+                    style={{ color: "var(--success-dark)" }}
+                  >
+                    {importResult.created}
+                  </p>
+                  <p className="text-xs text-gray-500">Imported</p>
+                </div>
+                <div
+                  className="text-center p-3 rounded-xl"
+                  style={{ backgroundColor: "#fffbeb" }}
+                >
+                  <p
+                    className="text-2xl font-black"
+                    style={{ color: "var(--warning)" }}
+                  >
+                    {importResult.skipped}
+                  </p>
+                  <p className="text-xs text-gray-500">Skipped</p>
+                </div>
+              </div>
+
+              {importResult.errors.length > 0 && (
+                <div>
+                  <p
+                    className="text-xs font-bold uppercase tracking-wider mb-1.5"
+                    style={{ color: "var(--dark-gray)" }}
+                  >
+                    Skipped rows
+                  </p>
+                  <div
+                    className="rounded-xl border divide-y max-h-48 overflow-y-auto"
+                    style={{ borderColor: "var(--medium-gray)" }}
+                  >
+                    {importResult.errors.map((e, i) => (
+                      <div key={i} className="px-3 py-2 text-xs">
+                        <span className="font-semibold" style={{ color: "var(--dark-gray)" }}>
+                          {e.studentId || (e.row ? `Row ${e.row}` : "Row")}
+                        </span>
+                        <span className="text-gray-500"> - {e.reason}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {importResult.skipped > importResult.errors.length && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Showing first {importResult.errors.length} of{" "}
+                      {importResult.skipped}.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={() => setImportResult(null)}
+                className="w-full py-2.5 text-sm font-bold text-white rounded-xl"
+                style={{ backgroundColor: "var(--royal-blue)" }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <style>{`
