@@ -305,7 +305,7 @@ const PublishReports = () => {
                         {r.formClass}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600">
-                        {r.course || "—"}
+                        {r.course || "-"}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1 text-xs text-gray-600">

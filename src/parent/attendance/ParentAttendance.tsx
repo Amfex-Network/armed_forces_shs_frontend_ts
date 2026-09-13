@@ -332,7 +332,7 @@ const ParentAttendance = () => {
                 >
                   {attPct >= 95
                     ? `${activeChild.firstName} meets the 95% attendance requirement.`
-                    : `⚠ ${attPct}% — below the 95% exam requirement.`}
+                    : `⚠ ${attPct}% - below the 95% exam requirement.`}
                 </p>
               </div>
             </div>
@@ -437,7 +437,7 @@ const ParentAttendance = () => {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-xs text-gray-400">
-                            {(rec.note as string) || "—"}
+                            {(rec.note as string) || "-"}
                           </td>
                         </tr>
                       );

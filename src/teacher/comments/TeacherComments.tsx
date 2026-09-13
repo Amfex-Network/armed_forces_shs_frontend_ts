@@ -307,7 +307,7 @@ const TeacherComments = () => {
                 className="text-sm font-semibold"
                 style={{ color: "var(--dark-gray)" }}
               >
-                {selectedClass?.name || "—"}
+                {selectedClass?.name || "-"}
               </p>
               <p className="text-xs text-gray-400">
                 {rows.length} students · {savedCount} with comments

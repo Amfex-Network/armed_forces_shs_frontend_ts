@@ -61,7 +61,7 @@ const Field = ({
         >
           {options.map((o: string) => (
             <option key={o} value={o}>
-              {o || "— Select —"}
+              {o || "- Select -"}
             </option>
           ))}
         </select>

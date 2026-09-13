@@ -63,7 +63,7 @@ const ReportView = ({
             ARMED FORCES SENIOR HIGH TECHNICAL SCHOOL
           </p>
           <p className="text-blue-200 text-xs">
-            Terminal Report — {result.term} · {result.academicYear}
+            Terminal Report - {result.term} · {result.academicYear}
           </p>
         </div>
 
@@ -73,9 +73,9 @@ const ReportView = ({
         >
           {[
             { l: "Name", v: `${s.firstName} ${s.lastName}` },
-            { l: "Student ID", v: s.studentId || "—" },
-            { l: "Class", v: s.formClass || "—" },
-            { l: "Position", v: result.position ? `${result.position}/${result.outOf}` : "—" },
+            { l: "Student ID", v: s.studentId || "-" },
+            { l: "Class", v: s.formClass || "-" },
+            { l: "Position", v: result.position ? `${result.position}/${result.outOf}` : "-" },
             { l: "Aggregate", v: result.aggregate },
             { l: "Overall", v: `${pct}%` },
           ].map(({ l, v }) => (

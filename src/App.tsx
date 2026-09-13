@@ -50,7 +50,7 @@ import ScoreReview from "./teacher/score-review/ScoreReview";
 import TeacherTimetable from "./teacher/timetable/TeacherTimetable";
 import TeacherProfile from "./teacher/profile/TeacherProfile";
 
-// ── Student Portal ────────────────────────────────────────────────────────────
+// Student Portal
 import StudentDashboardLayout from "./student/StudentDashboardLayout";
 import StudentHome from "./student/dashboard/StudentHome";
 import StudentResults from "./student/results/StudentResults";
@@ -60,7 +60,7 @@ import StudentTimetable from "./student/timetable/StudentTimetable";
 import StudentProfile from "./student/profile/StudentProfile";
 import StudentSettings from "./student/setting/StudentSettings";
 
-// ── Parent Portal ─────────────────────────────────────────────────────────────
+// Parent Portal
 import ParentDashboardLayout from "./parent/ParentDashboardLayout";
 import ParentHome from "./parent/dashboard/ParentHome";
 import ParentResults from "./parent/results/ParentResults";
@@ -69,7 +69,7 @@ import ParentAttendance from "./parent/attendance/ParentAttendance";
 import ParentProfile from "./parent/profile/ParentProfile";
 import ParentSettings from "./parent/settings/ParentSettings";
 
-// ── Admin extras ──────────────────────────────────────────────────────────────
+// Admin extras
 import AdminAnalytics from "./admin/analytics/AdminAnalytics";
 import SchoolCalendar from "./admin/calendar/SchoolCalendar";
 

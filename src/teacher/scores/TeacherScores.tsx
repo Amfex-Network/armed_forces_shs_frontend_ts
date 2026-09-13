@@ -285,12 +285,12 @@ const TeacherScores = () => {
             onClick={() => {
               const lines = [
                 "============================================",
-                "AFSHTS SCORE ENTRY — SAMPLE GUIDE",
+                "AFSHTS SCORE ENTRY - SAMPLE GUIDE",
                 "============================================",
                 "",
                 "HOW TO ENTER SCORES:",
-                "  • CA Score   : Continuous Assessment — maximum 30 marks",
-                "  • Exam Score : End of Semester Examination — maximum 70 marks",
+                "  • CA Score   : Continuous Assessment - maximum 30 marks",
+                "  • Exam Score : End of Semester Examination - maximum 70 marks",
                 "  • Total      : CA + Exam = 100 marks (calculated automatically)",
                 "",
                 "GRADING SCALE:",
@@ -471,7 +471,7 @@ const TeacherScores = () => {
           <p className="text-sm text-gray-400 py-4">
             {loading
               ? "Loading classes…"
-              : "No classes yet — an admin needs to create classes first."}
+              : "No classes yet - an admin needs to create classes first."}
           </p>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -675,7 +675,7 @@ const TeacherScores = () => {
                           updateScore(s.id, "ca", e.target.value)
                         }
                         disabled={isLocked}
-                        placeholder="—"
+                        placeholder="-"
                         className="w-20 px-2 py-1.5 text-sm rounded-lg border-2 outline-none text-center"
                         style={{
                           borderColor: caErr
@@ -711,7 +711,7 @@ const TeacherScores = () => {
                           updateScore(s.id, "exam", e.target.value)
                         }
                         disabled={isLocked}
-                        placeholder="—"
+                        placeholder="-"
                         className="w-20 px-2 py-1.5 text-sm rounded-lg border-2 outline-none text-center"
                         style={{
                           borderColor: exErr
@@ -755,7 +755,7 @@ const TeacherScores = () => {
                           {total}
                         </span>
                       ) : (
-                        <span className="text-gray-300">—</span>
+                        <span className="text-gray-300">-</span>
                       )}
                     </td>
                     <td className="px-4 py-2.5">
@@ -766,7 +766,7 @@ const TeacherScores = () => {
                           {grade}
                         </span>
                       ) : (
-                        <span className="text-gray-300">—</span>
+                        <span className="text-gray-300">-</span>
                       )}
                     </td>
                   </tr>

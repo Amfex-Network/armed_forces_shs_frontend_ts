@@ -150,7 +150,7 @@ const BarTip = ({ active, payload, label }) => {
   return null;
 };
 
-// ─── Animated counter hook ────────────────────────────────────────────────────
+// Animated counter hook
 const useCounter = (target, suffix = "", duration = 1800) => {
   const [val, setVal] = React.useState(0);
   const ref = React.useRef(null);
@@ -181,7 +181,7 @@ const useCounter = (target, suffix = "", duration = 1800) => {
   return { val, ref, display: val.toLocaleString() + suffix };
 };
 
-// ─── Stat card with animated counter ─────────────────────────────────────────
+// Stat card with animated counter
 const StatCard = ({
   icon: Icon,
   label,
@@ -235,7 +235,7 @@ const StatCard = ({
   );
 };
 
-// ─── Section card ─────────────────────────────────────────────────────────────
+// Section card
 const Card = ({
   title,
   subtitle,
@@ -283,7 +283,7 @@ const Card = ({
   );
 };
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
+// Dashboard
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -400,7 +400,7 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Charts row 1 — Grade distribution + Term trend */}
+      {/* Charts row 1 - Grade distribution + Term trend */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Grade distribution */}
         <Card title="Grade Distribution" subtitle="Current Term · All students">
@@ -465,7 +465,7 @@ const Dashboard = () => {
         {/* Term trend */}
         <Card
           title="Performance Trend"
-          subtitle="Avg score & attendance — last 5 terms"
+          subtitle="Avg score & attendance - last 5 terms"
         >
           {TERM_TREND.length ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -536,7 +536,7 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Charts row 2 — Dept perf + Enrollment split */}
+      {/* Charts row 2 - Dept perf + Enrollment split */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Enrollment by program */}
         <div className="lg:col-span-2">
@@ -573,7 +573,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Charts row 3 — Attendance + Track + Activity */}
+      {/* Charts row 3 - Attendance + Track + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Attendance by year group */}
         <Card title="Attendance by Year Group" subtitle="This term">

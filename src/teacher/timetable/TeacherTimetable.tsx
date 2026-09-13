@@ -322,7 +322,7 @@ const TeacherTimetable = () => {
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-300">—</span>
+                          <span className="text-xs text-gray-300">-</span>
                         )}
                       </td>
                     );

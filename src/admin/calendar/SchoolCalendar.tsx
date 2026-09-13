@@ -65,7 +65,7 @@ const INITIAL_EVENTS = [
   {
     id: 6,
     date: "2025-03-17",
-    title: "HOD Meeting — Semester 1 Review",
+    title: "HOD Meeting - Semester 1 Review",
     type: "meeting",
     time: "10:00",
     venue: "Conference Room",
@@ -145,7 +145,7 @@ const INITIAL_EVENTS = [
   {
     id: 16,
     date: "2025-07-04",
-    title: "Graduation Ceremony — Form 3",
+    title: "Graduation Ceremony - Form 3",
     type: "event",
     time: "10:00",
     venue: "Main Hall",
@@ -162,7 +162,7 @@ const INITIAL_EVENTS = [
 
 const EMPTY_EVENT = { title: "", date: "", time: "", venue: "", type: "event" };
 
-// ─── Modal ─────────────────────────────────────────────────────────────────────
+// Modal
 const EventModal = ({ event, onSave, onClose }) => {
   const isEdit = !!event?.id;
   const [form, setForm] = useState(event || EMPTY_EVENT);
@@ -382,7 +382,7 @@ const EventModal = ({ event, onSave, onClose }) => {
   );
 };
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// Main
 const MONTHS = [
   "January",
   "February",
@@ -697,7 +697,7 @@ const AdminCalendar = () => {
               >
                 {selectedEvents.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-6">
-                    No events — click Add to create one
+                    No events - click Add to create one
                   </p>
                 ) : (
                   selectedEvents.map((e) => {

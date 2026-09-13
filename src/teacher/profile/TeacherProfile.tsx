@@ -20,8 +20,8 @@ import { useSettings } from "../../context/SettingsContext";
 const TERM_INFO = {
   weeksGone: 0,
   weeksTotal: 14,
-  startDate: "—",
-  endDate: "—",
+  startDate: "-",
+  endDate: "-",
 };
 
 const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
@@ -41,7 +41,7 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
         className="text-sm font-semibold mt-0.5"
         style={{ color: "var(--dark-gray)" }}
       >
-        {value || "—"}
+        {value || "-"}
       </p>
     </div>
   </div>

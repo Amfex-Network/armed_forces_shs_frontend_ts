@@ -215,7 +215,7 @@ const ParentHome = () => {
           {
             icon: TrendingUp,
             label: "Overall Score",
-            value: hasResults ? `${percentage}%` : "—",
+            value: hasResults ? `${percentage}%` : "-",
             sub: hasResults ? band.label : "Pending",
             color: band.color,
             path: "/parent/results",
@@ -223,7 +223,7 @@ const ParentHome = () => {
           {
             icon: Award,
             label: "Class Position",
-            value: hasResults ? `${result?.position}/${result?.outOf}` : "—",
+            value: hasResults ? `${result?.position}/${result?.outOf}` : "-",
             sub: result?.term || CURRENT_TERM,
             color: "var(--warning)",
             path: "/parent/results",
@@ -231,7 +231,7 @@ const ParentHome = () => {
           {
             icon: CalendarCheck,
             label: "Attendance",
-            value: att && att.totalDays > 0 ? `${attPct}%` : "—",
+            value: att && att.totalDays > 0 ? `${attPct}%` : "-",
             sub:
               att && att.totalDays > 0
                 ? `${att.present}/${att.totalDays} days`
@@ -287,7 +287,7 @@ const ParentHome = () => {
             </p>
             <p className="text-xs mt-0.5" style={{ color: "#92400e" }}>
               {activeChild.firstName}'s attendance is <strong>{attPct}%</strong>{" "}
-              — below the required 95%. Please ensure regular school attendance
+              - below the required 95%. Please ensure regular school attendance
               to avoid exam eligibility issues.
             </p>
           </div>
@@ -321,7 +321,7 @@ const ParentHome = () => {
                   className="font-semibold text-sm"
                   style={{ color: "var(--dark-gray)" }}
                 >
-                  Subject Scores — {result?.term}
+                  Subject Scores - {result?.term}
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {activeChild.firstName}'s performance per subject
@@ -392,7 +392,7 @@ const ParentHome = () => {
                 className="font-semibold text-sm"
                 style={{ color: "var(--dark-gray)" }}
               >
-                {result?.term} Results — {result?.academicYear}
+                {result?.term} Results - {result?.academicYear}
               </h3>
               <button
                 onClick={() => navigate("/parent/results")}

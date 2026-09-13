@@ -39,7 +39,7 @@ const TeacherFormClass = () => {
         >
           <Users size={16} style={{ color: "var(--royal-blue)" }} />
         </div>
-        <PageHeader title={`Form Class — ${formClass || "My Form Class"}`} />
+        <PageHeader title={`Form Class - ${formClass || "My Form Class"}`} />
       </div>
 
       {!formClass ? (
@@ -89,7 +89,7 @@ const TeacherFormClass = () => {
           <div className="bg-white rounded-xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--medium-gray)" }}>
             <div className="px-5 py-3.5 border-b" style={{ backgroundColor: "var(--light-gray)", borderColor: "var(--medium-gray)" }}>
               <h3 className="text-sm font-semibold" style={{ color: "var(--dark-gray)" }}>
-                Student Roster — {formClass}
+                Student Roster - {formClass}
               </h3>
             </div>
             <div className="overflow-x-auto">
@@ -123,7 +123,7 @@ const TeacherFormClass = () => {
                           </div>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-gray-500">{s.studentId}</td>
-                        <td className="px-4 py-3 text-xs text-gray-600">{s.gender || "—"}</td>
+                        <td className="px-4 py-3 text-xs text-gray-600">{s.gender || "-"}</td>
                         <td className="px-4 py-3">
                           <span
                             className="text-xs font-semibold px-2 py-0.5 rounded"

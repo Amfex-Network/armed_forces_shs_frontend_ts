@@ -261,7 +261,7 @@ const StudentAttendance = () => {
                 Weekly Attendance
               </h3>
               <p className="text-xs text-gray-400 mb-4">
-                Days per week — recent weeks
+                Days per week - recent weeks
               </p>
               <ResponsiveContainer width="100%" height={190}>
                 <BarChart
@@ -424,7 +424,7 @@ const StudentAttendance = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400">
-                        {rec.note || "—"}
+                        {rec.note || "-"}
                       </td>
                     </tr>
                   );

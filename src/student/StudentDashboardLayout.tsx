@@ -75,7 +75,7 @@ const StudentDashboardLayout = () => {
         />
       )}
 
-      {/* ── Sidebar ─────────────────────────────────────────────────── */}
+      {/* Sidebar */}
       <div
         className={`
           fixed top-0 left-0 h-screen z-50 flex flex-col
@@ -260,7 +260,7 @@ const StudentDashboardLayout = () => {
         </div>
       </div>
 
-      {/* ── Main content ──────────────────────────────────────────────── */}
+      {/* Main content */}
       <div
         className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${collapsed ? "lg:ml-20" : "lg:ml-64"}`}
       >

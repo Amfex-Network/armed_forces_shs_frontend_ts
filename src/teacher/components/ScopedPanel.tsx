@@ -60,10 +60,10 @@ const ScopedPanel = ({
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           {[
-            { l: "Name", v: `${user?.title || ""} ${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "—" },
+            { l: "Name", v: `${user?.title || ""} ${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "-" },
             { l: "Role", v: (user as any)?.teacherRole || "Teacher" },
-            { l: "Department", v: (user as any)?.department || "—" },
-            { l: "Form Class", v: user?.formClass || "—" },
+            { l: "Department", v: (user as any)?.department || "-" },
+            { l: "Form Class", v: user?.formClass || "-" },
           ].map(({ l, v }) => (
             <div key={l}>
               <p className="text-xs text-gray-400 uppercase">{l}</p>
@@ -83,7 +83,7 @@ const ScopedPanel = ({
         <Info size={16} style={{ color: "var(--royal-blue)" }} className="flex-shrink-0 mt-0.5" />
         <p className="text-xs" style={{ color: "#1e40af" }}>
           {description ||
-            "Role-specific analytics for this panel are being finalised. In the meantime, use the tools below — all your marking, attendance, comments and reports run on live data."}
+            "Role-specific analytics for this panel are being finalised. In the meantime, use the tools below - all your marking, attendance, comments and reports run on live data."}
         </p>
       </div>
 

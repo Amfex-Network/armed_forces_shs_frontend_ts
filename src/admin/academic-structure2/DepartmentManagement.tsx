@@ -234,7 +234,7 @@ const DepartmentManagement = () => {
           <div className="text-center py-12 text-sm text-gray-400">
             {loading
               ? "Loading departments…"
-              : "No departments yet — click Add Department to create one"}
+              : "No departments yet - click Add Department to create one"}
           </div>
         )}
         {departments.map((department) => {

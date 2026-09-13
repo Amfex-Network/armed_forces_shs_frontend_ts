@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { usersApi, type ManagedUser } from "../../api/users";
 import { studentsApi, type Student } from "../../api/students";
+import CredentialModal from "../../components/common/CredentialModal";
 
 const TITLES = ["Mr", "Mrs", "Miss", "Dr", "Prof", "Rev"];
 const STATUSES = ["Active", "Inactive"];
@@ -437,6 +438,11 @@ const Parents = () => {
   const [editParent, setEditParent] = useState<ManagedUser | null>(null);
   const [deleteParent, setDeleteParent] = useState<ManagedUser | null>(null);
   const [viewParent, setViewParent] = useState<ManagedUser | null>(null);
+  const [credential, setCredential] = useState<{
+    name: string;
+    tempPassword?: string;
+    userId?: string;
+  } | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
 
   const showToast = (msg: string, type = "success") => {
@@ -494,9 +500,10 @@ const Parents = () => {
           role: "parent",
         });
         setParents((ps) => [user, ...ps]);
-        showToast(
-          `${user.firstName} registered · Temp password: ${tempPassword}`,
-        );
+        setCredential({
+          name: `${user.title || ""} ${user.firstName} ${user.lastName}`.trim(),
+          tempPassword,
+        });
       }
       setShowForm(false);
       setEditParent(null);
@@ -527,13 +534,11 @@ const Parents = () => {
     }
   };
 
-  const handleResetPassword = async (parent: ManagedUser) => {
-    try {
-      const tempPassword = await usersApi.resetPassword(parent.id as string);
-      showToast(`New temp password for ${parent.firstName}: ${tempPassword}`);
-    } catch (err: any) {
-      showToast(err?.message || "Failed to reset password", "error");
-    }
+  const handleResetPassword = (parent: ManagedUser) => {
+    setCredential({
+      name: `${parent.title || ""} ${parent.firstName} ${parent.lastName}`.trim(),
+      userId: parent.id as string,
+    });
   };
 
   const linkChild = async (studentId: string, parentId: string) => {
@@ -702,7 +707,7 @@ const Parents = () => {
                     {loading
                       ? "Loading parents…"
                       : parents.length === 0
-                        ? "No parents yet — click Add Parent to register one"
+                        ? "No parents yet - click Add Parent to register one"
                         : "No parents match your search"}
                   </td>
                 </tr>
@@ -729,7 +734,7 @@ const Parents = () => {
                         {p.email}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600">
-                        {p.phone || "—"}
+                        {p.phone || "-"}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -819,6 +824,14 @@ const Parents = () => {
           onClose={() => setViewParent(null)}
           onLink={(sid) => linkChild(sid, viewParent.id as string)}
           onUnlink={(sid) => unlinkChild(sid)}
+        />
+      )}
+      {credential && (
+        <CredentialModal
+          name={credential.name}
+          tempPassword={credential.tempPassword}
+          userId={credential.userId}
+          onClose={() => setCredential(null)}
         />
       )}
     </div>

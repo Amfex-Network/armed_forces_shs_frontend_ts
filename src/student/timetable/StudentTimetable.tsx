@@ -114,7 +114,7 @@ const StudentTimetable = () => {
                       className="text-sm font-bold truncate"
                       style={{ color: "var(--dark-gray)" }}
                     >
-                      {slot?.subject || "—"}
+                      {slot?.subject || "-"}
                     </p>
                     {slot && (
                       <p className="text-xs text-gray-400 truncate">
@@ -208,7 +208,7 @@ const StudentTimetable = () => {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-xs text-gray-300">—</span>
+                              <span className="text-xs text-gray-300">-</span>
                             )}
                           </td>
                         );

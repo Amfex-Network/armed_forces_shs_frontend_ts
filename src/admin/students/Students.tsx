@@ -30,8 +30,10 @@ import {
   Printer,
 } from "lucide-react";
 
+import { KeyRound } from "lucide-react";
 import { studentsApi } from "../../api/students";
 import { usersApi, type ManagedUser } from "../../api/users";
+import CredentialModal from "../../components/common/CredentialModal";
 
 const PROGRAMS = [
   "General Science",
@@ -67,14 +69,14 @@ const EMPTY = {
 
 const getParentInfo = (parentId, parents = []) => {
   const p = parents.find((x) => x.id === parentId);
-  if (!p) return { parentName: "—", parentPhone: "—" };
+  if (!p) return { parentName: "-", parentPhone: "-" };
   return {
     parentName: `${p.title ? p.title + " " : ""}${p.firstName} ${p.lastName}`.trim(),
-    parentPhone: p.phone || "—",
+    parentPhone: p.phone || "-",
   };
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 const attColor = (a) =>
   a >= 95
     ? "var(--success-dark)"
@@ -120,7 +122,7 @@ const Avatar = ({ name, size = "md" }) => {
   );
 };
 
-// ─── Input field ──────────────────────────────────────────────────────────────
+// Input field
 const FInput = ({
   label,
   value,
@@ -184,7 +186,7 @@ const FInput = ({
   </div>
 );
 
-// ─── Add / Edit Student Modal ─────────────────────────────────────────────────
+// Add / Edit Student Modal
 const StudentFormModal = ({ student, onSave, onClose, parents = [] }) => {
   const isEdit = !!student?.id;
   const [form, setForm] = useState(student || EMPTY);
@@ -434,7 +436,7 @@ const StudentFormModal = ({ student, onSave, onClose, parents = [] }) => {
   );
 };
 
-// ─── Delete Confirm ───────────────────────────────────────────────────────────
+// Delete Confirm
 const DeleteConfirm = ({ student, onConfirm, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 text-center">
@@ -483,7 +485,7 @@ const DeleteConfirm = ({ student, onConfirm, onClose }) => (
   </div>
 );
 
-// ─── Student Profile Drawer ───────────────────────────────────────────────────
+// Student Profile Drawer
 const ProfileDrawer = ({ student, onEdit, onClose, parents = [] }) => {
   if (!student) return null;
   const ss = statusStyle(student.status);
@@ -638,7 +640,7 @@ const ProfileDrawer = ({ student, onEdit, onClose, parents = [] }) => {
                     month: "long",
                     year: "numeric",
                   })
-                : "—",
+                : "-",
             },
           ].map(({ icon: Icon, label, value }) => (
             <div
@@ -658,7 +660,7 @@ const ProfileDrawer = ({ student, onEdit, onClose, parents = [] }) => {
                   className="text-sm font-semibold"
                   style={{ color: "var(--dark-gray)" }}
                 >
-                  {value || "—"}
+                  {value || "-"}
                 </p>
               </div>
             </div>
@@ -669,10 +671,16 @@ const ProfileDrawer = ({ student, onEdit, onClose, parents = [] }) => {
   );
 };
 
-// ─── Main Students Component ──────────────────────────────────────────────────
+// Main Students Component
 const Students = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [parents, setParents] = useState<ManagedUser[]>([]);
+  const [studentUsers, setStudentUsers] = useState<ManagedUser[]>([]);
+  const [credential, setCredential] = useState<{
+    name: string;
+    tempPassword?: string;
+    userId?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCourse, setFP] = useState("All");
@@ -708,11 +716,17 @@ const Students = () => {
     loadStudents();
     usersApi
       .list()
-      .then((all) => setParents(all.filter((u) => u.role === "parent")))
-      .catch(() => setParents([]));
+      .then((all) => {
+        setParents(all.filter((u) => u.role === "parent"));
+        setStudentUsers(all.filter((u) => u.role === "student"));
+      })
+      .catch(() => {
+        setParents([]);
+        setStudentUsers([]);
+      });
   }, []);
 
-  // ── Filtered list ──────────────────────────────────────────────────────────
+  // Filtered list
   const filtered = useMemo(
     () =>
       students.filter((s) => {
@@ -732,7 +746,7 @@ const Students = () => {
     [students, search, filterCourse, filterYearGroup, filterStatus],
   );
 
-  // ── CRUD ───────────────────────────────────────────────────────────────────
+  // CRUD
   const handleSave = async (form) => {
     try {
       if (form.id) {
@@ -742,14 +756,70 @@ const Students = () => {
       } else {
         const saved = await studentsApi.create(form);
         setStudents((ss) => [saved, ...ss]);
-        showToast(
-          `${saved.firstName} ${saved.lastName} registered successfully`,
-        );
+        setShowForm(false);
+        setEditStu(null);
+        // Also create the student's login (matched to their record by email)
+        if (saved.email) {
+          try {
+            const { user, tempPassword } = await usersApi.create({
+              role: "student",
+              firstName: saved.firstName,
+              lastName: saved.lastName,
+              email: saved.email,
+              studentId: saved.studentId,
+            });
+            setStudentUsers((us) => [user, ...us]);
+            setCredential({
+              name: `${saved.firstName} ${saved.lastName}`,
+              tempPassword,
+            });
+          } catch (e) {
+            showToast(
+              `${saved.firstName} registered. A login for ${saved.email} already exists - use the key icon to reset it.`,
+              "info",
+            );
+          }
+        } else {
+          showToast(
+            `${saved.firstName} registered. Add an email to give them a login.`,
+            "info",
+          );
+        }
+        return;
       }
       setShowForm(false);
       setEditStu(null);
     } catch (err) {
       showToast(err?.message || "Failed to save student", "error");
+    }
+  };
+
+  const handleResetLogin = async (student) => {
+    if (!student.email) {
+      showToast("Add an email to this student first", "error");
+      return;
+    }
+    const existing = studentUsers.find(
+      (u) => u.email?.toLowerCase() === student.email.toLowerCase(),
+    );
+    const name = `${student.firstName} ${student.lastName}`;
+    if (existing) {
+      setCredential({ name, userId: existing.id as string });
+      return;
+    }
+    // No login yet - create one now
+    try {
+      const { user, tempPassword } = await usersApi.create({
+        role: "student",
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: student.email,
+        studentId: student.studentId,
+      });
+      setStudentUsers((us) => [user, ...us]);
+      setCredential({ name, tempPassword });
+    } catch (e) {
+      showToast(e?.message || "Failed to create login", "error");
     }
   };
 
@@ -819,7 +889,7 @@ const Students = () => {
   const handleSampleGuide = () => {
     const lines = [
       "============================================",
-      "AFSHTS STUDENT IMPORT — SAMPLE GUIDE",
+      "AFSHTS STUDENT IMPORT - SAMPLE GUIDE",
       "============================================",
       "",
       "CSV FORMAT (first row must be the header):",
@@ -860,7 +930,7 @@ const Students = () => {
     const file = e.target.files[0];
     if (!file) return;
     showToast(
-      `"${file.name}" ready — import will be processed by the backend`,
+      `"${file.name}" ready - import will be processed by the backend`,
       "info",
     );
     e.target.value = "";
@@ -899,7 +969,7 @@ const Students = () => {
     (f) => f !== "All",
   ).length;
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
+  // Stats
   const total = students.length;
   const active = students.filter((s) => s.status === "Active").length;
 
@@ -1201,7 +1271,7 @@ const Students = () => {
         </div>
       </div>
 
-      {/* ── TABLE VIEW ──────────────────────────────────────────────────────── */}
+      {/* TABLE VIEW */}
       {viewMode === "table" && (
         <div
           className="bg-white rounded-xl border shadow-sm overflow-hidden"
@@ -1257,7 +1327,7 @@ const Students = () => {
                       {loading
                         ? "Loading students…"
                         : students.length === 0
-                          ? "No students yet — click Add Student to register one"
+                          ? "No students yet - click Add Student to register one"
                           : "No students match your search"}
                     </td>
                   </tr>
@@ -1343,6 +1413,14 @@ const Students = () => {
                               <Eye size={14} />
                             </button>
                             <button
+                              onClick={() => handleResetLogin(s)}
+                              title="Login & reset password"
+                              className="p-1.5 rounded-lg hover:bg-blue-50 transition"
+                              style={{ color: "var(--royal-blue)" }}
+                            >
+                              <KeyRound size={14} />
+                            </button>
+                            <button
                               onClick={() => {
                                 setEditStu(s);
                                 setShowForm(true);
@@ -1373,7 +1451,7 @@ const Students = () => {
         </div>
       )}
 
-      {/* ── CARDS VIEW ──────────────────────────────────────────────────────── */}
+      {/* CARDS VIEW */}
       {viewMode === "cards" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.length === 0 ? (
@@ -1381,7 +1459,7 @@ const Students = () => {
               {loading
                 ? "Loading students…"
                 : students.length === 0
-                  ? "No students yet — click Add Student to register one"
+                  ? "No students yet - click Add Student to register one"
                   : "No students match your search"}
             </div>
           ) : (
@@ -1495,6 +1573,17 @@ const Students = () => {
                         <Edit3 size={12} /> Edit
                       </button>
                       <button
+                        onClick={() => handleResetLogin(s)}
+                        title="Login & reset password"
+                        className="flex items-center justify-center p-1.5 rounded-lg transition"
+                        style={{
+                          backgroundColor: "#eef2ff",
+                          color: "var(--royal-blue)",
+                        }}
+                      >
+                        <KeyRound size={13} />
+                      </button>
+                      <button
                         onClick={() => setDeleteStu(s)}
                         className="flex items-center justify-center p-1.5 rounded-lg transition"
                         style={{
@@ -1513,7 +1602,7 @@ const Students = () => {
         </div>
       )}
 
-      {/* ── BULK ACTIONS MODAL ───────────────────────────────────────────────── */}
+      {/* BULK ACTIONS MODAL */}
       {showBulk && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
@@ -1610,7 +1699,7 @@ const Students = () => {
         </div>
       )}
 
-      {/* ── MODALS ─────────────────────────────────────────────────────────── */}
+      {/* MODALS */}
       {showForm && (
         <StudentFormModal
           student={editStudent}
@@ -1641,6 +1730,15 @@ const Students = () => {
             setShowForm(true);
           }}
           onClose={() => setViewStu(null)}
+        />
+      )}
+
+      {credential && (
+        <CredentialModal
+          name={credential.name}
+          tempPassword={credential.tempPassword}
+          userId={credential.userId}
+          onClose={() => setCredential(null)}
         />
       )}
 

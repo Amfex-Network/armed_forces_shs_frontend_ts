@@ -33,7 +33,7 @@ import {
 } from "react-icons/fa";
 import { MdDashboard, MdSchool } from "react-icons/md";
 
-// ─── Sidebar nav sections
+// Sidebar nav sections
 const NAV_SECTIONS = [
   {
     section: "Main",
@@ -68,12 +68,12 @@ const NAV_SECTIONS = [
     items: [
       {
         icon: FaLayerGroup,
-        label: "Structure — Part 1",
+        label: "Structure - Part 1",
         path: "/dashboard/academicStructure1",
       },
       {
         icon: FaLayerGroup,
-        label: "Structure — Part 2",
+        label: "Structure - Part 2",
         path: "/dashboard/academicStructure2",
       },
       {
@@ -148,7 +148,7 @@ const OTHER_NAV = [
   { icon: FaCog, label: "Settings", path: "/dashboard/settings" },
 ];
 
-// ─── DashboardLayout ──────────────────────────────────────────────────────────
+// DashboardLayout
 const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -187,7 +187,7 @@ const DashboardLayout = () => {
         />
       )}
 
-      {/* ── Sidebar ─────────────────────────────────────────────────── */}
+      {/* Sidebar */}
       <div
         className={`
           fixed top-0 left-0 h-screen z-50 flex flex-col
@@ -224,14 +224,14 @@ const DashboardLayout = () => {
             </div>
           )}
           <div className="flex items-center gap-2 ml-auto flex-shrink-0">
-            {/* Desktop only — collapse/expand */}
+            {/* Desktop only - collapse/expand */}
             <button
               onClick={() => setCollapsed(!collapsed)}
               className="hidden lg:flex text-white hover:text-blue-200 p-1 transition"
             >
               <FaBars />
             </button>
-            {/* Mobile only — close sidebar */}
+            {/* Mobile only - close sidebar */}
             <button
               onClick={() => setMobileOpen(false)}
               className="lg:hidden text-white hover:text-blue-200 p-1 transition"
@@ -372,7 +372,7 @@ const DashboardLayout = () => {
         </div>
       </div>
 
-      {/* ── Main content ──────────────────────────────────────────────── */}
+      {/* Main content */}
       <div
         className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${collapsed ? "lg:ml-20" : "lg:ml-64"}`}
       >
@@ -444,7 +444,7 @@ const DashboardLayout = () => {
         </main>
       </div>
 
-      {/* ── Logout Confirmation Modal ──────────────────────────────────── */}
+      {/* Logout Confirmation Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div

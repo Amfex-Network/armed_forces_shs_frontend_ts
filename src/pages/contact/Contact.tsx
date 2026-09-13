@@ -125,7 +125,7 @@ export default function Contact() {
     <>
       <style>{STYLES}</style>
       <div className="bgColor">
-        {/* ── HERO ─────────────────────────────────────────────────────────── */}
+        {/* HERO */}
         <section
           className="relative w-full overflow-hidden py-20 flex items-center justify-center text-center"
           style={{
@@ -189,10 +189,10 @@ export default function Contact() {
           </div>
         </section>
 
-        {/* ── MAIN CONTENT ──────────────────────────────────────────────── */}
+        {/* MAIN CONTENT */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* ── LEFT — form ──────────────────────────────────────────── */}
+            {/* LEFT - form */}
             <div>
               <h2
                 className="text-2xl font-black mb-2"
@@ -376,7 +376,7 @@ export default function Contact() {
               )}
             </div>
 
-            {/* ── RIGHT — info cards ────────────────────────────────────── */}
+            {/* RIGHT - info cards */}
             <div className="space-y-5">
               {INFO.map(({ icon, label, value, href }) => (
                 <a
@@ -417,7 +417,7 @@ export default function Contact() {
           </div>
         </div>
 
-        {/* ── FOOTER STRIP ──────────────────────────────────────────────── */}
+        {/* FOOTER STRIP */}
         <div
           className="border-t py-5 px-6 text-center"
           style={{

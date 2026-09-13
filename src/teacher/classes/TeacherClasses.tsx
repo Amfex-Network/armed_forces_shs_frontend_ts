@@ -28,7 +28,7 @@ const TeacherClasses = () => {
         </p>
       ) : classes.length === 0 ? (
         <p className="text-sm text-gray-400 py-10 text-center">
-          No classes yet — an admin needs to create classes first.
+          No classes yet - an admin needs to create classes first.
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -46,7 +46,7 @@ const TeacherClasses = () => {
                       {cls.name}
                     </h3>
                     <p className="text-sm text-gray-500">
-                      {cls.course || cls.yearGroup || "—"}
+                      {cls.course || cls.yearGroup || "-"}
                     </p>
                   </div>
                   <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -67,13 +67,13 @@ const TeacherClasses = () => {
                   <div className="bg-gray-50 rounded-lg p-2">
                     <p className="text-xs text-gray-400">Year Group</p>
                     <p className="font-bold text-gray-800">
-                      {cls.yearGroup || "—"}
+                      {cls.yearGroup || "-"}
                     </p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-2">
                     <p className="text-xs text-gray-400">Capacity</p>
                     <p className="font-bold text-gray-800">
-                      {cls.capacity ?? "—"}
+                      {cls.capacity ?? "-"}
                     </p>
                   </div>
                 </div>

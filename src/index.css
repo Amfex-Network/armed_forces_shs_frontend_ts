@@ -18,7 +18,7 @@
   --info: #3498db;
 }
 
-/* Subtle dot-grid background — white but not flat */
+/* Subtle dot-grid background - white but not flat */
 body {
   background-color: #ffffff;
   background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
@@ -108,10 +108,10 @@ body {
   animation: spin 10s linear infinite;
 }
 
-/* ─── PRINT STYLES ───────────────────────────────────────────────────────────
+/* PRINT STYLES
    Add this block to the bottom of your src/index.css
    It hides all UI chrome and prints only the report card cleanly
-─────────────────────────────────────────────────────────────────────────────── */
+  */
 
 @media print {
   /* Hide everything by default */

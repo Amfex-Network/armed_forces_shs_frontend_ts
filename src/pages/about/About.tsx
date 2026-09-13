@@ -66,7 +66,7 @@ const DEVELOPER = {
   tagline: "Building Digital Solutions for Education and Beyond",
   desc: "AMFEX NETWORK is a Ghanaian software development company specialising in building custom digital systems for schools, businesses and organisations. We design, develop and deploy modern web-based platforms that simplify operations, improve communication and bring institutions into the digital age.",
   desc2:
-    "From school management systems to business portals and custom web applications, AMFEX NETWORK delivers reliable, scalable and user-friendly software — built specifically for the Ghanaian context.",
+    "From school management systems to business portals and custom web applications, AMFEX NETWORK delivers reliable, scalable and user-friendly software - built specifically for the Ghanaian context.",
   website: "www.amfexnetwork.com",
   email: "info@amfexnetwork.com",
   phone: "+233 54 562 2044",
@@ -119,7 +119,7 @@ const DEVELOPER = {
       color: "var(--royal-blue)",
       bg: "#eef2ff",
       title: "School Management Systems",
-      desc: "End-to-end digital platforms for SHS, JHS and tertiary institutions — reports, results, attendance and more.",
+      desc: "End-to-end digital platforms for SHS, JHS and tertiary institutions - reports, results, attendance and more.",
     },
     {
       icon: FaMobileAlt,
@@ -147,7 +147,7 @@ const DEVELOPER = {
       color: "#b45309",
       bg: "#fefce8",
       title: "System Integration",
-      desc: "Connecting existing platforms — SMS gateways, payment systems, government databases and more.",
+      desc: "Connecting existing platforms - SMS gateways, payment systems, government databases and more.",
     },
     {
       icon: FaTools,
@@ -295,7 +295,7 @@ export default function About() {
                 style={{ color: "rgba(255,255,255,.7)", maxWidth: "600px" }}
               >
                 The AFSHTS Terminal Report System is a product of AMFEX NETWORK
-                — developed to serve the digital needs of Ghanaian Senior High
+                - developed to serve the digital needs of Ghanaian Senior High
                 Schools.
               </p>
             </Rev>
@@ -375,7 +375,7 @@ export default function About() {
           </div>
         </div>
 
-        {/* ══ 01 — THE DEVELOPER ══════════════════════════════════════════ */}
+        {/* ══ 01 - THE DEVELOPER ══════════════════════════════════════════ */}
         <section id="developer">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
             <Rev>
@@ -443,7 +443,7 @@ export default function About() {
                   </p>
                 </div>
 
-                {/* Contact strip — react-icons */}
+                {/* Contact strip - react-icons */}
                 <div
                   className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0"
                   style={{ borderTop: "1px solid var(--medium-gray)" }}
@@ -485,7 +485,7 @@ export default function About() {
               </div>
             </Rev>
 
-            {/* Services — react-icons */}
+            {/* Services - react-icons */}
             <Rev delay={100}>
               <h3
                 className="font-black text-base mb-5"
@@ -527,7 +527,7 @@ export default function About() {
               })}
             </div>
 
-            {/* Social links — react-icons */}
+            {/* Social links - react-icons */}
             <Rev delay={180}>
               <div className="flex flex-wrap gap-3">
                 {DEVELOPER.socials.map((s) => {
@@ -554,7 +554,7 @@ export default function About() {
           </div>
         </section>
 
-        {/*  02 — THE CLIENT  */}
+        {/*  02 - THE CLIENT  */}
         <section id="client" style={{ backgroundColor: "var(--light-gray)" }}>
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
             <Rev>
@@ -666,7 +666,7 @@ export default function About() {
               </div>
             </Rev>
 
-            {/* Core Values — react-icons */}
+            {/* Core Values - react-icons */}
             <Rev delay={100}>
               <h3
                 className="font-black text-base mb-5"

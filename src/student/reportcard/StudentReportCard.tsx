@@ -196,7 +196,7 @@ const StudentReportCard = () => {
             className="mt-3 inline-block px-4 py-1 rounded-full text-white font-black text-sm"
             style={{ backgroundColor: "var(--accent-red)" }}
           >
-            TERMINAL REPORT — {result.term.toUpperCase()} ·{" "}
+            TERMINAL REPORT - {result.term.toUpperCase()} ·{" "}
             {result.academicYear}
           </div>
         </div>
@@ -211,9 +211,9 @@ const StudentReportCard = () => {
               label: "Student Name",
               value: `${student.firstName || ""} ${student.lastName || ""}`,
             },
-            { label: "Student ID", value: student.studentId || "—" },
-            { label: "Class / Form", value: student.formClass || "—" },
-            { label: "Course", value: student.course || "—" },
+            { label: "Student ID", value: student.studentId || "-" },
+            { label: "Class / Form", value: student.formClass || "-" },
+            { label: "Course", value: student.course || "-" },
             { label: "Academic Year", value: result.academicYear },
             { label: "Term", value: result.term },
           ].map(({ label, value }) => (
@@ -327,7 +327,7 @@ const StudentReportCard = () => {
                 >
                   {result.position > 0
                     ? `${result.position} out of ${result.outOf} students`
-                    : "—"}
+                    : "-"}
                 </td>
               </tr>
             </tfoot>

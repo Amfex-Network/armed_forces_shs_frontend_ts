@@ -173,7 +173,7 @@ const ScoreReview = () => {
                 className="appearance-none pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2 outline-none cursor-pointer"
                 style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
               >
-                {sel.options.length === 0 && <option value="">—</option>}
+                {sel.options.length === 0 && <option value="">-</option>}
                 {sel.options.map((o) => (
                   <option key={o.v} value={o.v}>
                     {o.l}
@@ -191,8 +191,8 @@ const ScoreReview = () => {
         {[
           { label: "Entered", value: `${stats.entered}/${stats.total}`, color: "var(--royal-blue)", icon: CheckCircle2 },
           { label: "Pending", value: stats.pending, color: "var(--warning)", icon: Clock },
-          { label: "Class Average", value: stats.entered ? `${stats.avg}` : "—", color: "var(--success-dark)", icon: TrendingUp },
-          { label: "Pass Rate", value: stats.entered ? `${stats.passRate}%` : "—", color: "#7c3aed", icon: TrendingUp },
+          { label: "Class Average", value: stats.entered ? `${stats.avg}` : "-", color: "var(--success-dark)", icon: TrendingUp },
+          { label: "Pass Rate", value: stats.entered ? `${stats.passRate}%` : "-", color: "#7c3aed", icon: TrendingUp },
         ].map(({ label, value, color, icon: Icon }) => (
           <div key={label} className="bg-white rounded-xl border p-4 flex items-center gap-3 shadow-sm" style={{ borderColor: "var(--medium-gray)" }}>
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color + "18" }}>
@@ -235,10 +235,10 @@ const ScoreReview = () => {
                       <td className="px-4 py-3 font-medium" style={{ color: "var(--dark-gray)" }}>
                         {r.name}
                       </td>
-                      <td className="px-4 py-3 text-center">{r.ca ?? "—"}</td>
-                      <td className="px-4 py-3 text-center">{r.exam ?? "—"}</td>
+                      <td className="px-4 py-3 text-center">{r.ca ?? "-"}</td>
+                      <td className="px-4 py-3 text-center">{r.exam ?? "-"}</td>
                       <td className="px-4 py-3 text-center font-black" style={{ color: "var(--royal-blue)" }}>
-                        {r.total ?? "—"}
+                        {r.total ?? "-"}
                       </td>
                       <td className="px-4 py-3">
                         {r.grade ? (
@@ -246,7 +246,7 @@ const ScoreReview = () => {
                             {r.grade}
                           </span>
                         ) : (
-                          "—"
+                          "-"
                         )}
                       </td>
                       <td className="px-4 py-3">

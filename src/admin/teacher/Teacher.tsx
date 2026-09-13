@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { usersApi, type ManagedUser } from "../../api/users";
 import { departmentsApi } from "../../api/domains";
+import CredentialModal from "../../components/common/CredentialModal";
 
 const TITLES = ["Mr", "Mrs", "Miss", "Dr", "Prof", "Rev", "Capt", "Sgt"];
 const STATUSES = ["Active", "Inactive"];
@@ -393,7 +394,7 @@ const ProfileDrawer = ({ teacher, onEdit, onClose }: any) => {
               <div className="min-w-0">
                 <p className="text-xs text-gray-400">{label}</p>
                 <p className="text-sm font-semibold" style={{ color: "var(--dark-gray)" }}>
-                  {value || "—"}
+                  {value || "-"}
                 </p>
               </div>
             </div>
@@ -415,6 +416,11 @@ const Teacher = () => {
   const [editTeacher, setEditTeacher] = useState<ManagedUser | null>(null);
   const [deleteTeacher, setDeleteTeacher] = useState<ManagedUser | null>(null);
   const [viewTeacher, setViewTeacher] = useState<ManagedUser | null>(null);
+  const [credential, setCredential] = useState<{
+    name: string;
+    tempPassword?: string;
+    userId?: string;
+  } | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
 
   const showToast = (msg: string, type = "success") => {
@@ -477,9 +483,10 @@ const Teacher = () => {
           role: "teacher",
         });
         setTeachers((ts) => [user, ...ts]);
-        showToast(
-          `${user.firstName} registered · Temp password: ${tempPassword}`,
-        );
+        setCredential({
+          name: `${user.title || ""} ${user.firstName} ${user.lastName}`.trim(),
+          tempPassword,
+        });
       }
       setShowForm(false);
       setEditTeacher(null);
@@ -501,13 +508,11 @@ const Teacher = () => {
     }
   };
 
-  const handleResetPassword = async (teacher: ManagedUser) => {
-    try {
-      const tempPassword = await usersApi.resetPassword(teacher.id as string);
-      showToast(`New temp password for ${teacher.firstName}: ${tempPassword}`);
-    } catch (err: any) {
-      showToast(err?.message || "Failed to reset password", "error");
-    }
+  const handleResetPassword = (teacher: ManagedUser) => {
+    setCredential({
+      name: `${teacher.title || ""} ${teacher.firstName} ${teacher.lastName}`.trim(),
+      userId: teacher.id as string,
+    });
   };
 
   const total = teachers.length;
@@ -653,7 +658,7 @@ const Teacher = () => {
                     {loading
                       ? "Loading teachers…"
                       : teachers.length === 0
-                        ? "No teachers yet — click Add Teacher to register one"
+                        ? "No teachers yet - click Add Teacher to register one"
                         : "No teachers match your search"}
                   </td>
                 </tr>
@@ -671,13 +676,13 @@ const Teacher = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">
-                        {t.staffId || "—"}
+                        {t.staffId || "-"}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600">
-                        {t.department || "—"}
+                        {t.department || "-"}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600">
-                        {t.teacherRole || "—"}
+                        {t.teacherRole || "-"}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -762,6 +767,14 @@ const Teacher = () => {
             setShowForm(true);
           }}
           onClose={() => setViewTeacher(null)}
+        />
+      )}
+      {credential && (
+        <CredentialModal
+          name={credential.name}
+          tempPassword={credential.tempPassword}
+          userId={credential.userId}
+          onClose={() => setCredential(null)}
         />
       )}
     </div>

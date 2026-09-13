@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { usersApi } from "../../api/users";
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+// Config
 const ROLE_CONFIG = {
   admin: {
     label: "Admin",
@@ -77,7 +77,7 @@ const STATUS_STYLE = {
   Suspended: { bg: "#fffbeb", color: "var(--warning)", dot: "var(--warning)" },
 };
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+// Avatar
 const Avatar = ({ name, role, size = "md" }) => {
   const ini = (name || "?")
     .split(" ")
@@ -102,7 +102,7 @@ const Avatar = ({ name, role, size = "md" }) => {
   );
 };
 
-// ─── Reset Password Modal ─────────────────────────────────────────────────────
+// Reset Password Modal
 const ResetPasswordModal = ({ user, onClose }) => {
   const isNewAccount = !!user.tempPassword;
   const [copied, setCopied] = useState(false);
@@ -220,7 +220,7 @@ const ResetPasswordModal = ({ user, onClose }) => {
   );
 };
 
-// ─── Add User Modal ───────────────────────────────────────────────────────────
+// Add User Modal
 const ROLE_STEPS = {
   admin: ["personal"],
   teacher: ["personal", "academic"],
@@ -228,7 +228,7 @@ const ROLE_STEPS = {
   parent: ["personal", "children"],
 };
 
-// ─── Edit User Modal ──────────────────────────────────────────────────────────
+// Edit User Modal
 const EditUserModal = ({ user, onSave, onClose }) => {
   const [form, setForm] = useState({ ...user });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -418,9 +418,9 @@ const AddUserModal = ({ onSave, onClose }) => {
       firstName: form.firstName,
       lastName: form.lastName,
       email: form.email,
-      phone: form.phone || "—",
+      phone: form.phone || "-",
       status: "Active",
-      lastLogin: "—",
+      lastLogin: "-",
       joinDate: new Date().toISOString().split("T")[0],
       ...(role === "teacher"
         ? {
@@ -535,8 +535,8 @@ const AddUserModal = ({ onSave, onClose }) => {
               <p className="font-black">Add New User</p>
               <p className="text-blue-200 text-xs">
                 {step === "role"
-                  ? "Step 1 — Select a role"
-                  : `Step 2 — ${selectedRole?.label} details`}
+                  ? "Step 1 - Select a role"
+                  : `Step 2 - ${selectedRole?.label} details`}
               </p>
             </div>
           </div>
@@ -599,7 +599,7 @@ const AddUserModal = ({ onSave, onClose }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {/* ── Step 1: Role picker ── */}
+          {/* Step 1: Role picker */}
           {step === "role" && (
             <div className="space-y-3">
               <p className="text-sm text-gray-500 mb-4">
@@ -654,7 +654,7 @@ const AddUserModal = ({ onSave, onClose }) => {
             </div>
           )}
 
-          {/* ── Step 2: Form fields ── */}
+          {/* Step 2: Form fields */}
           {step === "form" && selectedRole && (
             <div className="space-y-5">
               {/* Role badge */}
@@ -977,7 +977,7 @@ const AddUserModal = ({ onSave, onClose }) => {
   );
 };
 
-// ─── Profile Drawer ───────────────────────────────────────────────────────────
+// Profile Drawer
 const ProfileDrawer = ({ user, onClose, onReset, onToggleStatus }) => {
   if (!user) return null;
   const rc = ROLE_CONFIG[user.role];
@@ -998,9 +998,9 @@ const ProfileDrawer = ({ user, onClose, onReset, onToggleStatus }) => {
             month: "long",
             year: "numeric",
           })
-        : "—",
+        : "-",
     },
-    { icon: User, label: "Last Login", value: user.lastLogin || "—" },
+    { icon: User, label: "Last Login", value: user.lastLogin || "-" },
     ...(user.role === "teacher"
       ? [
           { icon: User, label: "Staff ID", value: user.staffId },
@@ -1117,7 +1117,7 @@ const ProfileDrawer = ({ user, onClose, onReset, onToggleStatus }) => {
                     className="text-sm font-semibold"
                     style={{ color: "var(--dark-gray)" }}
                   >
-                    {value || "—"}
+                    {value || "-"}
                   </p>
                 </div>
               </div>
@@ -1194,7 +1194,7 @@ const ProfileDrawer = ({ user, onClose, onReset, onToggleStatus }) => {
   );
 };
 
-// ─── Main UserManagement ──────────────────────────────────────────────────────
+// Main UserManagement
 const UserManagement = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1259,7 +1259,7 @@ const UserManagement = () => {
     filtered.forEach((u) => {
       const name = [u.title, u.firstName, u.lastName].filter(Boolean).join(" ");
       rows.push(
-        `${u.role},${name},${u.email},${u.phone || "—"},${u.status},${u.joinDate || "—"}`,
+        `${u.role},${name},${u.email},${u.phone || "-"},${u.status},${u.joinDate || "-"}`,
       );
     });
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
@@ -1577,7 +1577,7 @@ const UserManagement = () => {
           )}
         </div>
 
-        {/* ── TABLE VIEW ──────────────────────────────────────────────── */}
+        {/* TABLE VIEW */}
         {viewMode === "table" && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[700px]">
@@ -1619,7 +1619,7 @@ const UserManagement = () => {
                       {loading
                         ? "Loading users…"
                         : users.length === 0
-                          ? "No users yet — click Add User to create one"
+                          ? "No users yet - click Add User to create one"
                           : "No users match your search"}
                     </td>
                   </tr>
@@ -1689,7 +1689,7 @@ const UserManagement = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">
-                          {u.lastLogin || "—"}
+                          {u.lastLogin || "-"}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
@@ -1753,7 +1753,7 @@ const UserManagement = () => {
           </div>
         )}
 
-        {/* ── CARDS VIEW ──────────────────────────────────────────────── */}
+        {/* CARDS VIEW */}
         {viewMode === "cards" && (
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.length === 0 ? (
@@ -1761,7 +1761,7 @@ const UserManagement = () => {
                 {loading
                   ? "Loading users…"
                   : users.length === 0
-                    ? "No users yet — click Add User to create one"
+                    ? "No users yet - click Add User to create one"
                     : "No users match your search"}
               </div>
             ) : (

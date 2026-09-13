@@ -28,7 +28,7 @@ import {
 import { useSettings } from "../context/SettingsContext";
 import logo from "../assets/logo.png";
 
-// ─── Nav item definitions ─────────────────────────────────────────────────────
+// Nav item definitions
 const N = {
   dashboard: {
     icon: FaTachometerAlt,
@@ -77,7 +77,7 @@ const N = {
   },
 };
 
-// ─── Sidebar config — 3 approved roles only ───────────────────────────────────
+// Sidebar config - 3 approved roles only
 const SIDEBAR_CONFIG = {
   "Subject Teacher": [
     {

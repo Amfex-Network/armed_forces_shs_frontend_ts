@@ -23,9 +23,9 @@ import {
   FaRegStar,
 } from "react-icons/fa";
 
-// ─── Initial comments ─────────────────────────────────────────────────────────
+// Initial comments
 const INITIAL_COMMENTS = [
-  // Subject Teacher — Excellent
+  // Subject Teacher - Excellent
   {
     id: 21,
     category: "subjectTeacher",
@@ -51,7 +51,7 @@ const INITIAL_COMMENTS = [
     favourite: true,
   },
 
-  // Subject Teacher — Good
+  // Subject Teacher - Good
   {
     id: 24,
     category: "subjectTeacher",
@@ -69,7 +69,7 @@ const INITIAL_COMMENTS = [
     favourite: true,
   },
 
-  // Subject Teacher — Average
+  // Subject Teacher - Average
   {
     id: 26,
     category: "subjectTeacher",
@@ -87,7 +87,7 @@ const INITIAL_COMMENTS = [
     favourite: false,
   },
 
-  // Subject Teacher — Needs Improvement
+  // Subject Teacher - Needs Improvement
   {
     id: 28,
     category: "subjectTeacher",
@@ -105,7 +105,7 @@ const INITIAL_COMMENTS = [
     favourite: false,
   },
 
-  // Form Teacher — Excellent
+  // Form Teacher - Excellent
   {
     id: 1,
     category: "formTeacher",
@@ -139,7 +139,7 @@ const INITIAL_COMMENTS = [
     favourite: false,
   },
 
-  // Form Teacher — Good
+  // Form Teacher - Good
   {
     id: 5,
     category: "formTeacher",
@@ -165,7 +165,7 @@ const INITIAL_COMMENTS = [
     favourite: true,
   },
 
-  // Form Teacher — Average
+  // Form Teacher - Average
   {
     id: 8,
     category: "formTeacher",
@@ -191,7 +191,7 @@ const INITIAL_COMMENTS = [
     favourite: false,
   },
 
-  // Form Teacher — Needs Improvement
+  // Form Teacher - Needs Improvement
   {
     id: 11,
     category: "formTeacher",
@@ -209,7 +209,7 @@ const INITIAL_COMMENTS = [
     favourite: false,
   },
 
-  // Headmaster — Excellent
+  // Headmaster - Excellent
   {
     id: 13,
     category: "headmaster",
@@ -222,12 +222,12 @@ const INITIAL_COMMENTS = [
     id: 14,
     category: "headmaster",
     performance: "excellent",
-    text: "Commendable performance. {name} embodies the values of Armed Forces SHTS — discipline, dedication and excellence.",
+    text: "Commendable performance. {name} embodies the values of Armed Forces SHTS - discipline, dedication and excellence.",
     tags: ["discipline", "values"],
     favourite: false,
   },
 
-  // Headmaster — Good
+  // Headmaster - Good
   {
     id: 15,
     category: "headmaster",
@@ -245,7 +245,7 @@ const INITIAL_COMMENTS = [
     favourite: true,
   },
 
-  // Headmaster — Average
+  // Headmaster - Average
   {
     id: 17,
     category: "headmaster",
@@ -263,7 +263,7 @@ const INITIAL_COMMENTS = [
     favourite: false,
   },
 
-  // Headmaster — Needs Improvement
+  // Headmaster - Needs Improvement
   {
     id: 19,
     category: "headmaster",
@@ -327,7 +327,7 @@ const EMPTY = {
   favourite: false,
 };
 
-// ─── Comment Card ─────────────────────────────────────────────────────────────
+// Comment Card
 const CommentCard = ({ comment, onEdit, onDelete, onToggleFav, onCopy }) => {
   const ps = PERF_STYLE[comment.performance];
   const [copied, setCopied] = useState(false);
@@ -427,7 +427,7 @@ const CommentCard = ({ comment, onEdit, onDelete, onToggleFav, onCopy }) => {
   );
 };
 
-// ─── Comment Form Modal ───────────────────────────────────────────────────────
+// Comment Form Modal
 const CommentModal = ({ comment, onSave, onClose }) => {
   const isEdit = !!comment?.id;
   const [form, setForm] = useState(comment || EMPTY);
@@ -762,7 +762,7 @@ const CommentModal = ({ comment, onSave, onClose }) => {
   );
 };
 
-// ─── CommentBank Main ─────────────────────────────────────────────────────────
+// CommentBank Main
 const CommentBank = () => {
   const [comments, setComments] = useState(INITIAL_COMMENTS);
   const [search, setSearch] = useState("");

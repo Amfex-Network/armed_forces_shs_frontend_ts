@@ -33,7 +33,7 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
         className="text-sm font-semibold mt-0.5"
         style={{ color: "var(--dark-gray)" }}
       >
-        {value || "—"}
+        {value || "-"}
       </p>
     </div>
   </div>
@@ -216,7 +216,7 @@ const StudentProfile = () => {
                     month: "long",
                     year: "numeric",
                   })
-                : "—"
+                : "-"
             }
             color="var(--info)"
           />

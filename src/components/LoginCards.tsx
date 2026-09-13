@@ -23,7 +23,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import logo from "../assets/logo.png";
 
-// ─── 5 teacher role combinations ─────────────────────────────────────────────
+// 5 teacher role combinations
 const TEACHER_ROLE_COMBOS = [
   {
     key: "Subject Teacher",
@@ -54,7 +54,7 @@ const TEACHER_ROLE_COMBOS = [
   },
 ];
 
-// ─── Other portal roles ───────────────────────────────────────────────────────
+// Other portal roles
 const OTHER_ROLES = [
   {
     key: "student",
@@ -85,7 +85,7 @@ const OTHER_ROLES = [
   },
 ];
 
-// ─── Teacher 2-step modal ─────────────────────────────────────────────────────
+// Teacher 2-step modal
 const TeacherModal = ({ onClose }) => {
   const navigate = useNavigate();
   const { login, loading, error } = useAuth();
@@ -226,7 +226,7 @@ const TeacherModal = ({ onClose }) => {
               </p>
               <p className="text-blue-200 text-xs">
                 {step === 1
-                  ? "Teacher Portal — Choose Your Role"
+                  ? "Teacher Portal - Choose Your Role"
                   : `Logging in as: ${chosenCombo?.label}`}
               </p>
             </div>
@@ -268,7 +268,7 @@ const TeacherModal = ({ onClose }) => {
         </div>
         <div className="h-1" style={{ backgroundColor: "var(--accent-red)" }} />
 
-        {/* Step 1 — Role picker */}
+        {/* Step 1 - Role picker */}
         {step === 1 && (
           <div className="p-6">
             <div className="text-center mb-5">
@@ -336,7 +336,7 @@ const TeacherModal = ({ onClose }) => {
           </div>
         )}
 
-        {/* Step 2 — Login form */}
+        {/* Step 2 - Login form */}
         {step === 2 && chosenCombo && (
           <div className="px-6 py-5 space-y-4">
             <div
@@ -529,7 +529,7 @@ const TeacherModal = ({ onClose }) => {
   );
 };
 
-// ─── Simple modal for other portals ──────────────────────────────────────────
+// Simple modal for other portals
 const SimpleLoginModal = ({ role, onClose }) => {
   const navigate = useNavigate();
   const { login, loading, error } = useAuth();
@@ -694,7 +694,7 @@ const SimpleLoginModal = ({ role, onClose }) => {
             </div>
           )}
           <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Student ID — only for student role */}
+            {/* Student ID - only for student role */}
             {isStudent && (
               <div>
                 <label
@@ -858,7 +858,7 @@ const SimpleLoginModal = ({ role, onClose }) => {
   );
 };
 
-// ─── LoginCards ───────────────────────────────────────────────────────────────
+// LoginCards
 const LoginCards = () => {
   const [activeModal, setActiveModal] = useState(null);
   return (

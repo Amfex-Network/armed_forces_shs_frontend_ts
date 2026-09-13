@@ -270,11 +270,11 @@ const SubjectManagement = () => {
         <div className="text-center py-12 text-sm text-gray-400">
           {loading
             ? "Loading subjects…"
-            : "No subjects yet — click Add Subject to create one"}
+            : "No subjects yet - click Add Subject to create one"}
         </div>
       )}
 
-      {/* ── CORE SUBJECTS — always shown, all courses ── */}
+      {/* CORE SUBJECTS - always shown, all courses */}
       <div
         className="bg-white rounded-2xl border shadow-sm overflow-hidden"
         style={{ borderColor: "var(--medium-gray)" }}
@@ -294,7 +294,7 @@ const SubjectManagement = () => {
               Core Subjects
             </p>
             <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>
-              Compulsory for all courses —{" "}
+              Compulsory for all courses -{" "}
               {subjects.filter((subject) => subject.type === "core").length}{" "}
               subjects
             </p>
@@ -398,7 +398,7 @@ const SubjectManagement = () => {
         </div>
       </div>
 
-      {/* ── ELECTIVE SUBJECTS ── */}
+      {/* ELECTIVE SUBJECTS */}
       <div className="flex items-center gap-3 pt-2">
         <div
           className="flex-1 h-px"

@@ -7,7 +7,7 @@
 //   BookOpen, TrendingUp, Archive
 // } from 'lucide-react';
 
-// // ─── Helpers ──────────────────────────────────────────────────────────────────
+// // Helpers
 // const diffWeeks = (start, end) => {
 //   const s = new Date(start), e = new Date(end);
 //   return Math.max(0, Math.round((e - s) / (7 * 24 * 60 * 60 * 1000)));
@@ -21,7 +21,7 @@
 //   return Math.round((today - s) / (7 * 24 * 60 * 60 * 1000));
 // };
 
-// const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+// const fmt = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 
 // const termStatus = (start, end) => {
 //   const today = new Date();
@@ -53,14 +53,14 @@
 //   notes: '',
 // };
 
-// // ─── Initial data ─────────────────────────────────────────────────────────────
+// // Initial data
 // const INITIAL_YEARS = [
 //   {
 //     id: 1, year: '2024/2025', status: 'active',
 //     term1: { start: '2024-09-02', end: '2024-12-13', trackAStart: '2024-09-02', trackBStart: '2024-12-16' },
 //     term2: { start: '2025-01-06', end: '2025-04-11', trackAStart: '2025-01-06', trackBStart: '2025-04-14' },
 //     term3: { start: '2025-04-14', end: '2025-07-25', trackAStart: '2025-04-14', trackBStart: '2025-07-28' },
-//     notes: 'Current academic year — WASSCE for Form 3 in May/June 2025',
+//     notes: 'Current academic year - WASSCE for Form 3 in May/June 2025',
 //   },
 //   {
 //     id: 2, year: '2023/2024', status: 'archived',
@@ -78,7 +78,7 @@
 //   },
 // ];
 
-// // ─── Year Form Modal ──────────────────────────────────────────────────────────
+// // Year Form Modal
 // const YearModal = ({ yearData, onSave, onClose }) => {
 //   const isEdit = !!yearData?.id;
 //   const [form, setForm] = useState(yearData || EMPTY_YEAR);
@@ -228,7 +228,7 @@
 //   );
 // };
 
-// // ─── Term Progress Bar ────────────────────────────────────────────────────────
+// // Term Progress Bar
 // const TermBar = ({ label, start, end, trackAStart, trackBStart }) => {
 //   if (!start || !end) {
 //     return (
@@ -281,7 +281,7 @@
 //   );
 // };
 
-// // ─── Main AcademicYear Component ──────────────────────────────────────────────
+// // Main AcademicYear Component
 // const AcademicYear = () => {
 //   const [years,    setYears]   = useState(INITIAL_YEARS);
 //   const [showModal,setModal]   = useState(false);
@@ -391,7 +391,7 @@
 //               <div className="flex flex-wrap gap-2 mt-3">
 //                 {[
 //                   { label: `📅 Term ${termNumber}`,              bg: 'rgba(255,255,255,0.15)' },
-//                   { label: `📆 ${fmt(activeTerm?.start)} — ${fmt(activeTerm?.end)}`, bg: 'rgba(255,255,255,0.12)' },
+//                   { label: `📆 ${fmt(activeTerm?.start)} - ${fmt(activeTerm?.end)}`, bg: 'rgba(255,255,255,0.12)' },
 //                 ].map(b => (
 //                   <span key={b.label} className="text-xs font-semibold px-2.5 py-1 rounded-full"
 //                     style={{ backgroundColor: b.bg }}>{b.label}</span>

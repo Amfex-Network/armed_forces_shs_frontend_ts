@@ -31,7 +31,7 @@ const InfoRow = ({
         className="text-sm font-semibold mt-0.5"
         style={{ color: "var(--dark-gray)" }}
       >
-        {value || "—"}
+        {value || "-"}
       </p>
     </div>
   </div>

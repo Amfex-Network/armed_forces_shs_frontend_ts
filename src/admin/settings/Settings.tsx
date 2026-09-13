@@ -18,7 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-// ─── Toggle Switch ────────────────────────────────────────────────────────────
+// Toggle Switch
 const ToggleSwitch = ({
   checked,
   onChange,
@@ -55,7 +55,7 @@ const ToggleSwitch = ({
   </div>
 );
 
-// ─── Section Card ─────────────────────────────────────────────────────────────
+// Section Card
 const SectionCard = ({
   icon: Icon,
   title,
@@ -93,7 +93,7 @@ const SectionCard = ({
   </div>
 );
 
-// ─── Field ────────────────────────────────────────────────────────────────────
+// Field
 const Field = ({ label, description, children }) => (
   <div
     className="py-3 border-b last:border-0"
@@ -148,9 +148,9 @@ const SelectField = ({ value, onChange, options }) => (
   </select>
 );
 
-// ─── Settings ────────────────────────────────────────────────────────────────
+// Settings
 const Settings = () => {
-  // ── School Info ──────────────────────────────────────────────────────────
+  // School Info
   const [school, setSchool] = useState({
     name: "Armed Forces Senior High Technical School",
     shortName: "AFSHTS",
@@ -165,7 +165,7 @@ const Settings = () => {
   });
   const setS = (k, v) => setSchool((s) => ({ ...s, [k]: v }));
 
-  // ── System Preferences ────────────────────────────────────────────────────
+  // System Preferences
   const [prefs, setPrefs] = useState({
     dateFormat: "DD/MM/YYYY",
     timeFormat: "24hr",
@@ -176,7 +176,7 @@ const Settings = () => {
   });
   const setP = (k, v) => setPrefs((p) => ({ ...p, [k]: v }));
 
-  // ── Security ──────────────────────────────────────────────────────────────
+  // Security
   const [security, setSecurity] = useState({
     sessionTimeout: 30,
     maxLoginAttempts: 3,
@@ -189,7 +189,7 @@ const Settings = () => {
   });
   const setSec = (k, v) => setSecurity((s) => ({ ...s, [k]: v }));
 
-  // ── Notifications ─────────────────────────────────────────────────────────
+  // Notifications
   const [notif, setNotif] = useState({
     emailAlerts: true,
     smsAlerts: true,
@@ -202,7 +202,7 @@ const Settings = () => {
   });
   const setN = (k, v) => setNotif((n) => ({ ...n, [k]: v }));
 
-  // ── Portal Access ─────────────────────────────────────────────────────────
+  // Portal Access
   const [portals, setPortals] = useState({
     adminPortal: true,
     teacherPortal: true,
@@ -215,7 +215,7 @@ const Settings = () => {
   });
   const setPo = (k, v) => setPortals((p) => ({ ...p, [k]: v }));
 
-  // ── Toast / Save ──────────────────────────────────────────────────────────
+  // Toast / Save
   const [toast, setToast] = useState(null);
   const [savedSections, setSavedSec] = useState({});
 
@@ -291,7 +291,7 @@ const Settings = () => {
         </p>
       </div>
 
-      {/* ── School Information ─────────────────────────────────────────── */}
+      {/* School Information */}
       <SectionCard
         icon={School}
         title="School Information"
@@ -381,7 +381,7 @@ const Settings = () => {
         <SaveButton section="School Info" />
       </SectionCard>
 
-      {/* ── System Preferences ────────────────────────────────────────── */}
+      {/* System Preferences */}
       <SectionCard
         icon={Globe}
         title="System Preferences"
@@ -433,7 +433,7 @@ const Settings = () => {
         <SaveButton section="Preferences" />
       </SectionCard>
 
-      {/* ── Security ──────────────────────────────────────────────────── */}
+      {/* Security */}
       <SectionCard
         icon={Shield}
         title="Security Settings"
@@ -518,7 +518,7 @@ const Settings = () => {
         <SaveButton section="Security" />
       </SectionCard>
 
-      {/* ── Notifications ─────────────────────────────────────────────── */}
+      {/* Notifications */}
       <SectionCard
         icon={Bell}
         title="Notification Settings"
@@ -617,7 +617,7 @@ const Settings = () => {
         <SaveButton section="Notifications" />
       </SectionCard>
 
-      {/* ── Portal Access ─────────────────────────────────────────────── */}
+      {/* Portal Access */}
       <SectionCard
         icon={Users}
         title="Portal Access Control"
@@ -685,7 +685,7 @@ const Settings = () => {
         <SaveButton section="Portal Access" />
       </SectionCard>
 
-      {/* ── Data & Backup ─────────────────────────────────────────────── */}
+      {/* Data & Backup */}
       <SectionCard
         icon={Database}
         title="Data & Backup"
@@ -741,7 +741,7 @@ const Settings = () => {
                 const a = document.createElement("a");
                 a.href = "#";
                 a.download = `${label.replace(/\s+/g, "_")}.csv`;
-                alert(`${label} — export would start here in the live system`);
+                alert(`${label} - export would start here in the live system`);
               }}
             >
               <Database

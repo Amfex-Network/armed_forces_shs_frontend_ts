@@ -1,5 +1,6 @@
 // src/admin/audit-logs/AuditLogs.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { auditApi, type AuditEntry } from "../../api/audit";
 import {
   Search,
   Filter,
@@ -22,417 +23,9 @@ import {
   Trash2,
 } from "lucide-react";
 
-// ─── Mock audit log data ──────────────────────────────────────────────────────
-const INITIAL_LOGS = [
-  // Admin actions
-  {
-    id: 1,
-    timestamp: "2025-03-17 14:32:10",
-    user: "System Administrator",
-    role: "admin",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Admin logged in from 192.168.1.10",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 2,
-    timestamp: "2025-03-17 14:35:22",
-    user: "System Administrator",
-    role: "admin",
-    action: "STUDENT_ADDED",
-    module: "Students",
-    details: "New student registered: Kwabena Acheampong (AFSHTS/2025/001)",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 3,
-    timestamp: "2025-03-17 14:40:05",
-    user: "System Administrator",
-    role: "admin",
-    action: "STUDENT_EDITED",
-    module: "Students",
-    details:
-      "Student record updated: Adwoa Mensah (AFSHTS/2025/002) — class changed to Form 1 Science A",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 4,
-    timestamp: "2025-03-17 14:45:18",
-    user: "System Administrator",
-    role: "admin",
-    action: "PARENT_ADDED",
-    module: "Parents",
-    details: "New parent registered: Mr Emmanuel Asante (e.asante@gmail.com)",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 5,
-    timestamp: "2025-03-17 14:50:33",
-    user: "System Administrator",
-    role: "admin",
-    action: "SMS_SENT",
-    module: "Communication",
-    details:
-      "Bulk SMS sent to All Parents (45 recipients) — Subject: Semester 1 Exam Notice",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 6,
-    timestamp: "2025-03-17 15:00:12",
-    user: "System Administrator",
-    role: "admin",
-    action: "REPORT_GENERATED",
-    module: "Reports",
-    details: "Report card generated for Form 3 Science A (42 students)",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 7,
-    timestamp: "2025-03-17 15:10:44",
-    user: "System Administrator",
-    role: "admin",
-    action: "TEACHER_ADDED",
-    module: "Teachers",
-    details:
-      "New teacher added: Dr Yaa Agyemang (AFSHTS/TCH/015) — Mathematics dept",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 8,
-    timestamp: "2025-03-17 15:20:09",
-    user: "System Administrator",
-    role: "admin",
-    action: "GRADING_UPDATED",
-    module: "Settings",
-    details: "Grading configuration updated — pass score changed from 45 to 50",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 9,
-    timestamp: "2025-03-17 15:30:55",
-    user: "System Administrator",
-    role: "admin",
-    action: "EVENT_ADDED",
-    module: "Calendar",
-    details: "Calendar event added: Semester 1 Exams Begin (2025-03-24)",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 10,
-    timestamp: "2025-03-17 15:45:22",
-    user: "System Administrator",
-    role: "admin",
-    action: "LOGOUT",
-    module: "Auth",
-    details: "Admin logged out",
-    status: "success",
-    ip: "192.168.1.10",
-  },
+// Mock audit log data
 
-  // Teacher actions
-  {
-    id: 11,
-    timestamp: "2025-03-17 08:05:33",
-    user: "Capt Kwabena Adjei",
-    role: "teacher",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Teacher logged in as Subject Teacher + Form Teacher",
-    status: "success",
-    ip: "192.168.1.22",
-  },
-  {
-    id: 12,
-    timestamp: "2025-03-17 08:15:44",
-    user: "Capt Kwabena Adjei",
-    role: "teacher",
-    action: "SCORES_ENTERED",
-    module: "Scores",
-    details:
-      "CA scores entered for Form 3 Science A — Core Mathematics (42 students)",
-    status: "success",
-    ip: "192.168.1.22",
-  },
-  {
-    id: 13,
-    timestamp: "2025-03-17 08:45:11",
-    user: "Capt Kwabena Adjei",
-    role: "teacher",
-    action: "SCORES_SAVED",
-    module: "Scores",
-    details:
-      "Exam scores saved for Form 2 Science A — Core Mathematics (40 students)",
-    status: "success",
-    ip: "192.168.1.22",
-  },
-  {
-    id: 14,
-    timestamp: "2025-03-17 09:10:05",
-    user: "Mrs Ama Eshun",
-    role: "teacher",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Teacher logged in as Subject Teacher",
-    status: "success",
-    ip: "192.168.1.25",
-  },
-  {
-    id: 15,
-    timestamp: "2025-03-17 09:20:18",
-    user: "Mrs Ama Eshun",
-    role: "teacher",
-    action: "SCORES_ENTERED",
-    module: "Scores",
-    details:
-      "CA scores entered for Form 2 Arts A — English Language (35 students)",
-    status: "success",
-    ip: "192.168.1.25",
-  },
-  {
-    id: 16,
-    timestamp: "2025-03-17 09:55:40",
-    user: "Dr Kofi Osei",
-    role: "teacher",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Teacher logged in as Subject Teacher + HOD",
-    status: "success",
-    ip: "192.168.1.30",
-  },
-  {
-    id: 17,
-    timestamp: "2025-03-17 10:05:22",
-    user: "Dr Kofi Osei",
-    role: "teacher",
-    action: "SCORES_SAVED",
-    module: "Scores",
-    details:
-      "Exam scores saved for Form 3 Science B — Integrated Science (41 students)",
-    status: "success",
-    ip: "192.168.1.30",
-  },
-  {
-    id: 18,
-    timestamp: "2025-03-17 10:30:14",
-    user: "Capt Kwabena Adjei",
-    role: "teacher",
-    action: "ATTENDANCE_MARKED",
-    module: "Attendance",
-    details:
-      "Attendance marked for Form 3 Science A — Monday March 17 (42 students)",
-    status: "success",
-    ip: "192.168.1.22",
-  },
-  {
-    id: 19,
-    timestamp: "2025-03-17 11:00:33",
-    user: "Mrs Abena Mensah",
-    role: "teacher",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Teacher logged in as Subject Teacher + Form Teacher",
-    status: "success",
-    ip: "192.168.1.31",
-  },
-  {
-    id: 20,
-    timestamp: "2025-03-17 11:15:09",
-    user: "Mrs Abena Mensah",
-    role: "teacher",
-    action: "REPORT_VIEWED",
-    module: "Reports",
-    details: "Report card viewed for Abena Frimpong (AFSHTS/2023/001)",
-    status: "success",
-    ip: "192.168.1.31",
-  },
-
-  // Student actions
-  {
-    id: 21,
-    timestamp: "2025-03-17 07:30:55",
-    user: "Kofi Asante",
-    role: "student",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Student logged in — AFSHTS/2024/001",
-    status: "success",
-    ip: "192.168.1.50",
-  },
-  {
-    id: 22,
-    timestamp: "2025-03-17 07:35:22",
-    user: "Kofi Asante",
-    role: "student",
-    action: "RESULTS_VIEWED",
-    module: "Results",
-    details: "Semester 1 results viewed by student",
-    status: "success",
-    ip: "192.168.1.50",
-  },
-  {
-    id: 23,
-    timestamp: "2025-03-17 07:40:11",
-    user: "Kofi Asante",
-    role: "student",
-    action: "REPORT_PRINTED",
-    module: "Reports",
-    details: "Report card printed/saved as PDF",
-    status: "success",
-    ip: "192.168.1.50",
-  },
-  {
-    id: 24,
-    timestamp: "2025-03-17 07:45:33",
-    user: "Akosua Bonsu",
-    role: "student",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Student logged in — AFSHTS/2024/010",
-    status: "success",
-    ip: "192.168.1.55",
-  },
-  {
-    id: 25,
-    timestamp: "2025-03-17 07:50:44",
-    user: "Akosua Bonsu",
-    role: "student",
-    action: "PROFILE_UPDATED",
-    module: "Profile",
-    details: "Student contact information updated — phone number changed",
-    status: "success",
-    ip: "192.168.1.55",
-  },
-
-  // Parent actions
-  {
-    id: 26,
-    timestamp: "2025-03-17 19:00:12",
-    user: "Mr Emmanuel Asante",
-    role: "parent",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Parent logged in — parent@afts.edu.gh",
-    status: "success",
-    ip: "192.168.2.10",
-  },
-  {
-    id: 27,
-    timestamp: "2025-03-17 19:05:33",
-    user: "Mr Emmanuel Asante",
-    role: "parent",
-    action: "RESULTS_VIEWED",
-    module: "Results",
-    details: "Child results viewed — Kofi Asante (AFSHTS/2024/001)",
-    status: "success",
-    ip: "192.168.2.10",
-  },
-  {
-    id: 28,
-    timestamp: "2025-03-17 19:10:18",
-    user: "Mr Emmanuel Asante",
-    role: "parent",
-    action: "REPORT_VIEWED",
-    module: "Reports",
-    details: "Child report card viewed — Kofi Asante (AFSHTS/2024/001)",
-    status: "success",
-    ip: "192.168.2.10",
-  },
-  {
-    id: 29,
-    timestamp: "2025-03-17 19:15:44",
-    user: "Mrs Grace Mensah",
-    role: "parent",
-    action: "LOGIN",
-    module: "Auth",
-    details: "Parent logged in — grace@afts.edu.gh",
-    status: "success",
-    ip: "192.168.2.15",
-  },
-  {
-    id: 30,
-    timestamp: "2025-03-17 19:20:55",
-    user: "Mrs Grace Mensah",
-    role: "parent",
-    action: "ATTENDANCE_VIEWED",
-    module: "Attendance",
-    details: "Child attendance viewed — Yaw Mensah (AFSHTS/2024/003)",
-    status: "success",
-    ip: "192.168.2.15",
-  },
-
-  // Failed/warning actions
-  {
-    id: 31,
-    timestamp: "2025-03-17 13:00:44",
-    user: "Unknown",
-    role: "unknown",
-    action: "LOGIN_FAILED",
-    module: "Auth",
-    details:
-      "Failed login attempt — email: unknown@test.com — invalid credentials",
-    status: "failed",
-    ip: "192.168.5.99",
-  },
-  {
-    id: 32,
-    timestamp: "2025-03-17 13:05:22",
-    user: "Unknown",
-    role: "unknown",
-    action: "LOGIN_FAILED",
-    module: "Auth",
-    details:
-      "Failed login attempt — email: admin@afts.edu.gh — wrong password (attempt 2/3)",
-    status: "failed",
-    ip: "192.168.5.99",
-  },
-  {
-    id: 33,
-    timestamp: "2025-03-16 16:30:11",
-    user: "System Administrator",
-    role: "admin",
-    action: "STUDENT_DELETED",
-    module: "Students",
-    details: "Student record deleted: Ekow Asare (AFSHTS/2024/009)",
-    status: "warning",
-    ip: "192.168.1.10",
-  },
-  {
-    id: 34,
-    timestamp: "2025-03-16 10:15:44",
-    user: "Capt Kwabena Adjei",
-    role: "teacher",
-    action: "SCORES_FAILED",
-    module: "Scores",
-    details:
-      "Score entry failed — invalid CA score (35/30) for student AFSHTS/2025/003",
-    status: "failed",
-    ip: "192.168.1.22",
-  },
-  {
-    id: 35,
-    timestamp: "2025-03-15 09:00:33",
-    user: "System Administrator",
-    role: "admin",
-    action: "EMAIL_SENT",
-    module: "Communication",
-    details:
-      "Bulk email sent to All Teachers (15 recipients) — Subject: Staff Meeting Notice",
-    status: "success",
-    ip: "192.168.1.10",
-  },
-];
-
-// ─── Config ───────────────────────────────────────────────────────────────────
+// Config
 const ACTION_CONFIG = {
   LOGIN: {
     label: "Login",
@@ -587,7 +180,7 @@ const MODULES = [
 ];
 const ROLES = ["All", "admin", "teacher", "student", "parent"];
 
-// ─── AuditLogs ────────────────────────────────────────────────────────────────
+// AuditLogs
 const AuditLogs = () => {
   const [search, setSearch] = useState("");
   const [filterModule, setFModule] = useState("All");
@@ -596,11 +189,21 @@ const AuditLogs = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [viewLog, setViewLog] = useState(null);
   const [page, setPage] = useState(1);
+  const [logs, setLogs] = useState<AuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const PER_PAGE = 15;
+
+  useEffect(() => {
+    auditApi
+      .list({ limit: 500 })
+      .then((res) => setLogs(res.items))
+      .catch(() => setLogs([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(
     () =>
-      INITIAL_LOGS.filter((log) => {
+      logs.filter((log) => {
         const q = search.toLowerCase();
         const matchSearch =
           !q ||
@@ -614,7 +217,7 @@ const AuditLogs = () => {
         const matchDate = !filterDate || log.timestamp.startsWith(filterDate);
         return matchSearch && matchModule && matchRole && matchDate;
       }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
-    [search, filterModule, filterRole, filterDate],
+    [logs, search, filterModule, filterRole, filterDate],
   );
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
@@ -639,7 +242,7 @@ const AuditLogs = () => {
   };
 
   const stats = {
-    total: INITIAL_LOGS.length,
+    total: logs.length,
   };
 
   return (
@@ -654,7 +257,7 @@ const AuditLogs = () => {
             Audit Logs
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            System activity log · {INITIAL_LOGS.length} total entries
+            System activity log · {logs.length} total entries
           </p>
         </div>
         <button

@@ -33,8 +33,8 @@ import { useSettings } from "../../context/SettingsContext";
 const TERM_INFO = {
   weeksGone: 0,
   weeksTotal: 14,
-  startDate: "—",
-  endDate: "—",
+  startDate: "-",
+  endDate: "-",
 };
 
 const getPerformanceBand = (pct: number) =>
@@ -151,7 +151,7 @@ const StudentHome = () => {
     (TERM_INFO.weeksGone / TERM_INFO.weeksTotal) * 100,
   );
 
-  // Chart data — subject scores for current term (shortened names)
+  // Chart data - subject scores for current term (shortened names)
   const subjectChartData = CURRENT_RESULTS.subjects.map((s) => ({
     name: s.name
       .replace("Integrated ", "Int. ")
@@ -303,7 +303,7 @@ const StudentHome = () => {
                 className="font-semibold text-sm"
                 style={{ color: "var(--dark-gray)" }}
               >
-                Subject Scores — {CURRENT_RESULTS.term}
+                Subject Scores - {CURRENT_RESULTS.term}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
                 Pass mark: 50 · Credit: 50+
@@ -596,7 +596,7 @@ const StudentHome = () => {
                   className="font-semibold text-sm"
                   style={{ color: "#78350f" }}
                 >
-                  Semester 1 — In Session
+                  Semester 1 - In Session
                 </span>
               </div>
               <p className="text-xs" style={{ color: "#92400e" }}>
@@ -630,7 +630,7 @@ const StudentHome = () => {
                   className="font-semibold text-sm"
                   style={{ color: "#14532d" }}
                 >
-                  Semester 2 — On Vacation
+                  Semester 2 - On Vacation
                 </span>
               </div>
               <p className="text-xs" style={{ color: "#166534" }}>

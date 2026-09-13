@@ -89,16 +89,16 @@ const PORTALS = [
     loginPath: "/adminLogin",
     headline: "Total Control of the School",
     audience: "System Administrators",
-    desc: "The administrative brain of the entire system. Manage every user, configure the academic structure, publish report cards and monitor school-wide performance — from one powerful dashboard.",
+    desc: "The administrative brain of the entire system. Manage every user, configure the academic structure, publish report cards and monitor school-wide performance - from one powerful dashboard.",
     features: [
-      "Manage all users — teachers, students, parents",
+      "Manage all users - teachers, students, parents",
       "Configure programmes, classes and subjects",
       "Set up grading scale and CA/exam weightings",
       "Manage academic years, terms and double-track dates",
       "View school-wide analytics and performance charts",
       "Send bulk messages to parents and staff",
       "Manage school calendar and key events",
-      "Full audit log — every action is tracked",
+      "Full audit log - every action is tracked",
       "Comment bank management for report cards",
       "Approve and publish terminal report cards",
     ],
@@ -133,7 +133,7 @@ const PORTALS = [
     loginPath: "/studentLogin",
     headline: "Your Academic Life, All in One Place",
     audience: "All enrolled Form 1, Form 2 and Form 3 students",
-    desc: "Students can check results, download report cards, view their timetable and track attendance — from any device, at any time. Clean, fast and built for young people.",
+    desc: "Students can check results, download report cards, view their timetable and track attendance - from any device, at any time. Clean, fast and built for young people.",
     features: [
       "View current and previous term subject results",
       "Download and print personal report card",
@@ -155,7 +155,7 @@ const PORTALS = [
     loginPath: "/parentLogin",
     headline: "Stay Connected to Your Child's Progress",
     audience: "Parents and Guardians of enrolled students",
-    desc: "Parents get real-time visibility into their child's academic journey without visiting the school. Results, report cards, attendance and school notices — accessible from any phone or computer.",
+    desc: "Parents get real-time visibility into their child's academic journey without visiting the school. Results, report cards, attendance and school notices - accessible from any phone or computer.",
     features: [
       "View child's results and grades per subject",
       "View and download child's report card",
@@ -171,7 +171,7 @@ const PORTALS = [
   },
 ];
 
-// ── Professional icons for each teacher role ──────────────────────────────────
+// Professional icons for each teacher role
 const TEACHER_ROLES = [
   {
     icon: FaBook,
@@ -201,7 +201,7 @@ const TEACHER_ROLES = [
     icon: FaClipboardList,
     color: "#a78bfa",
     r: "Form Teacher + HOD",
-    d: "Class welfare and department leadership — no direct score entry.",
+    d: "Class welfare and department leadership - no direct score entry.",
   },
   {
     icon: FaFileAlt,
@@ -265,11 +265,11 @@ const STEPS = [
 const FAQS = [
   {
     q: "Who uses the system and how do they log in?",
-    a: "There are 4 user types — Admin, Teacher, Student and Parent — each with their own separate login page and portal. Credentials are created by the admin and distributed to users.",
+    a: "There are 4 user types - Admin, Teacher, Student and Parent - each with their own separate login page and portal. Credentials are created by the admin and distributed to users.",
   },
   {
     q: "How are teacher roles assigned?",
-    a: "Admin assigns each teacher one of 6 roles when creating their account. The teacher's sidebar, dashboard and available tools automatically match their role — no further setup needed.",
+    a: "Admin assigns each teacher one of 6 roles when creating their account. The teacher's sidebar, dashboard and available tools automatically match their role - no further setup needed.",
   },
   {
     q: "How does the double track system work?",
@@ -277,7 +277,7 @@ const FAQS = [
   },
   {
     q: "Can a parent have more than one child in the system?",
-    a: "Yes. Parents with multiple enrolled children can switch between them using a child switcher in their portal — without logging out and back in.",
+    a: "Yes. Parents with multiple enrolled children can switch between them using a child switcher in their portal - without logging out and back in.",
   },
   {
     q: "How are WASSCE grades calculated?",
@@ -407,7 +407,7 @@ export default function Features() {
     <>
       <style>{STYLES}</style>
       <div style={{ backgroundColor: "#fff", overflowX: "hidden" }}>
-        {/* ── HERO ─────────────────────────────────────────────────────────── */}
+        {/* HERO */}
         <section
           className="relative w-full overflow-hidden py-8"
           style={{
@@ -582,7 +582,7 @@ export default function Features() {
           </div>
         </section>
 
-        {/* ── MARQUEE ──────────────────────────────────────────────────────── */}
+        {/* MARQUEE */}
         <div
           className="overflow-hidden py-3.5 border-y"
           style={{
@@ -607,7 +607,7 @@ export default function Features() {
         </div>
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          {/* ── PORTALS ──────────────────────────────────────────────────────── */}
+          {/* PORTALS */}
           <section id="portals" className="py-20">
             <Rev>
               <span
@@ -743,7 +743,7 @@ export default function Features() {
             )}
           </section>
 
-          {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
+          {/* HOW IT WORKS */}
           <section
             className="py-20 border-t"
             style={{ borderColor: "var(--medium-gray)" }}
@@ -773,7 +773,7 @@ export default function Features() {
                 className="text-sm mb-12 max-w-lg"
                 style={{ color: "#6b7280" }}
               >
-                The system follows the natural flow of a Ghanaian school term —
+                The system follows the natural flow of a Ghanaian school term -
                 from first configuration all the way to published results.
               </p>
             </Rev>
@@ -828,7 +828,7 @@ export default function Features() {
           </section>
         </div>
 
-        {/* ── TEACHER ROLES — full-bleed ───────────────────────────────────── */}
+        {/* TEACHER ROLES - full-bleed */}
         <section
           className="py-20 px-4 sm:px-6"
           style={{
@@ -864,7 +864,7 @@ export default function Features() {
                   style={{ color: "rgba(255,255,255,.6)" }}
                 >
                   Each teacher's dashboard and tools automatically match their
-                  assigned role — no manual configuration needed.
+                  assigned role - no manual configuration needed.
                 </p>
               </div>
             </Rev>
@@ -904,7 +904,7 @@ export default function Features() {
           </div>
         </section>
 
-        {/* ── DOUBLE TRACK ─────────────────────────────────────────────────── */}
+        {/* DOUBLE TRACK */}
         <section
           className="py-20 px-4 sm:px-6 border-b"
           style={{ borderColor: "var(--medium-gray)" }}
@@ -933,7 +933,7 @@ export default function Features() {
                 style={{ color: "#6b7280" }}
               >
                 Track A and Track B students coexist in one system with fully
-                separate calendars, term dates and results — aligned with GES
+                separate calendars, term dates and results - aligned with GES
                 policy.
               </p>
             </Rev>
@@ -1008,7 +1008,7 @@ export default function Features() {
           </div>
         </section>
 
-        {/* ── FAQ  */}
+        {/* FAQ */}
         <section className="py-20 px-4 sm:px-6">
           <div className="max-w-3xl mx-auto">
             <Rev>
@@ -1045,7 +1045,7 @@ export default function Features() {
           </div>
         </section>
 
-        {/* ── FOOTER CTA ───────────────────────────────────────────────────── */}
+        {/* FOOTER CTA */}
         <section
           className="py-20 px-4 sm:px-6"
           style={{
@@ -1081,7 +1081,7 @@ export default function Features() {
                 style={{ color: "rgba(255,255,255,.5)" }}
               >
                 Armed Forces Senior High Technical School now runs on a fully
-                digital academic management system — no more paper records, no
+                digital academic management system - no more paper records, no
                 more manual calculations.
               </p>
               <div className="flex flex-wrap justify-center gap-3">

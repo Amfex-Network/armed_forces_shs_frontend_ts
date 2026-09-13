@@ -61,7 +61,7 @@ import {
   Cog,
 } from "lucide-react";
 
-// ─── SHS Ghana Specific Constants ─────────────────────────────────────────────
+// SHS Ghana Specific Constants
 
 const ACADEMIC_YEARS = ["2023/2024", "2024/2025", "2025/2026"];
 const TERMS = ["Semester 1", "Semester 1", "Semester 2"];
@@ -493,7 +493,7 @@ const MILITARY_COMMENT_TEMPLATES = [
 
 const COMMENT_TEMPLATES = MILITARY_COMMENT_TEMPLATES;
 
-// ─── Shared input class ───────────────────────────────────────────────────────
+// Shared input class
 
 const inputCls = (error = false) =>
   `w-full px-3 py-2 text-sm rounded-lg border outline-none transition-all duration-150 ${
@@ -502,7 +502,7 @@ const inputCls = (error = false) =>
       : "border-gray-300 bg-gray-50 text-gray-700"
   }`;
 
-// ─── Reusable Components ──────────────────────────────────────────────────────
+// Reusable Components
 
 const SectionCard = ({ icon: Icon, title, description, badge, children }) => (
   <div
@@ -646,7 +646,7 @@ const ColorPicker = ({ value, onChange, label }) => (
   </div>
 );
 
-// ─── Live Preview Component ───────────────────────────────────────────────────
+// Live Preview Component
 
 const LiveReportPreview = ({ settings, sections, student }) => {
   if (!student || !student.subjects) {
@@ -877,14 +877,14 @@ const LiveReportPreview = ({ settings, sections, student }) => {
                 </thead>
                 <tbody>
                   {coreSubjects.map((subject, idx) => (
-                    // FIX 1: was </table> — corrected to </tr>
+                    // FIX 1: was </table> - corrected to </tr>
                     <tr key={idx} className="hover:bg-gray-50">
                       {settings.subjectTable.columns.includes("subject") && (
                         <td className="p-2 border font-medium">
                           {subject.name}
                         </td>
                       )}
-                      {/* FIX 2: was <tr> — corrected to </td> */}
+                      {/* FIX 2: was <tr> - corrected to </td> */}
                       {settings.subjectTable.columns.includes("teacher") && (
                         <td className="p-2 border">{subject.teacher}</td>
                       )}
@@ -1223,7 +1223,7 @@ const LiveReportPreview = ({ settings, sections, student }) => {
   );
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// Main Component
 
 const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
   const currentStudent = propSelectedStudent || SAMPLE_SHS_STUDENT;
@@ -1454,7 +1454,7 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges]);
 
-  // FIX: keyboard shortcuts — handleSave and handleUndo are now stable refs listed in deps
+  // FIX: keyboard shortcuts - handleSave and handleUndo are now stable refs listed in deps
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
@@ -1470,7 +1470,7 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave, handleUndo]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // Handlers
 
   const handleTemplateChange = (field, value) => {
     setTemplate((prev) => ({ ...prev, [field]: value }));
@@ -1537,7 +1537,7 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
     markUnsaved();
   };
 
-  // FIX: color field must NOT go through parseInt — it would produce NaN → 0
+  // FIX: color field must NOT go through parseInt - it would produce NaN → 0
   const handlePerformanceBandChange = (index, field, value) => {
     setPerformance((prev) => ({
       ...prev,
@@ -1616,7 +1616,7 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
 
   const sortedSections = [...sections].sort((a, b) => a.order - b.order);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // Render
 
   return (
     <div
@@ -1714,7 +1714,7 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
           {/* Settings Panel */}
           <div className="flex-1 min-w-0">
             <div className="space-y-6">
-              {/* ── TAB 1: GENERAL SETTINGS ── */}
+              {/* TAB 1: GENERAL SETTINGS */}
               {activeTab === "general" && (
                 <>
                   <SectionCard
@@ -1947,7 +1947,7 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
                 </>
               )}
 
-              {/* ── TAB 2: SUBJECTS & TABLE ── */}
+              {/* TAB 2: SUBJECTS & TABLE */}
               {activeTab === "subjects" && (
                 <>
                   <SectionCard
@@ -2207,8 +2207,8 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
                 </>
               )}
 
-              {/* ── TAB 3: GRADING ── */}
-              {/* ── TAB 4: COMMENTS ── */}
+              {/* TAB 3: GRADING */}
+              {/* TAB 4: COMMENTS */}
               {activeTab === "comments" && (
                 <>
                   <SectionCard
@@ -2355,7 +2355,7 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
                 </>
               )}
 
-              {/* ── TAB 5: SECTION ORDER ── */}
+              {/* TAB 5: SECTION ORDER */}
               {activeTab === "sections" && (
                 <SectionCard
                   icon={Layout}

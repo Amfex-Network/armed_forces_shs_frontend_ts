@@ -212,7 +212,7 @@ const TeacherAttendance = () => {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
           <p className="text-sm font-semibold text-gray-700">
-            {selectedClass?.name || "—"} — {students.length} students
+            {selectedClass?.name || "-"} - {students.length} students
           </p>
         </div>
 
@@ -221,7 +221,7 @@ const TeacherAttendance = () => {
             {loading
               ? "Loading…"
               : classes.length === 0
-                ? "No classes yet — an admin needs to create classes."
+                ? "No classes yet - an admin needs to create classes."
                 : "No students in this class yet."}
           </div>
         ) : (

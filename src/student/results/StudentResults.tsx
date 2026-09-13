@@ -84,17 +84,17 @@ const BarTooltip = ({ active, payload, label }) => {
         <p style={{ color: "#6b7280" }}>
           CA:{" "}
           <strong>
-            {payload.find((p) => p.dataKey === "ca")?.value ?? "—"}
+            {payload.find((p) => p.dataKey === "ca")?.value ?? "-"}
           </strong>
         </p>
         <p style={{ color: "var(--royal-blue)" }}>
           Exam:{" "}
           <strong>
-            {payload.find((p) => p.dataKey === "exam")?.value ?? "—"}
+            {payload.find((p) => p.dataKey === "exam")?.value ?? "-"}
           </strong>
         </p>
         <p style={{ color: "var(--accent-red)", fontWeight: 700 }}>
-          Total: {payload.find((p) => p.dataKey === "total")?.value ?? "—"}
+          Total: {payload.find((p) => p.dataKey === "total")?.value ?? "-"}
         </p>
       </div>
     );
@@ -102,7 +102,7 @@ const BarTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-// ─── Report not yet published gate ───────────────────────────────────────────
+// Report not yet published gate
 
 const NotPublished = ({ type = "report" }) => (
   <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -220,7 +220,7 @@ const StudentResults = () => {
   const totalPoints = active.aggregate;
   const band = getPerformanceBand(parseFloat(percentage));
 
-  // Bar chart — CA vs Exam vs Total per subject
+  // Bar chart - CA vs Exam vs Total per subject
   const barData = active.subjects.map((s) => ({
     name: s.name
       .replace("Integrated ", "Int. ")
@@ -231,7 +231,7 @@ const StudentResults = () => {
     total: s.total,
   }));
 
-  // Radar chart — subject totals as percentage of 100
+  // Radar chart - subject totals as percentage of 100
   const radarData = active.subjects.map((s) => ({
     subject: s.name
       .replace("Integrated ", "Int. ")
@@ -397,7 +397,7 @@ const StudentResults = () => {
         ))}
       </div>
 
-      {/* ── Table view ── */}
+      {/* Table view */}
       {activeTab === "table" && (
         <div
           className="bg-white rounded-xl border shadow-sm overflow-hidden"
@@ -631,7 +631,7 @@ const StudentResults = () => {
         </div>
       )}
 
-      {/* ── Charts view ── */}
+      {/* Charts view */}
       {activeTab === "charts" && (
         <div className="space-y-6">
           {/* CA vs Exam vs Total bar chart */}
@@ -643,7 +643,7 @@ const StudentResults = () => {
               className="font-semibold text-sm mb-1"
               style={{ color: "var(--dark-gray)" }}
             >
-              CA vs Exam vs Total — {active.term}
+              CA vs Exam vs Total - {active.term}
             </h3>
             <p className="text-xs text-gray-400 mb-4">
               Breakdown of your scores per subject

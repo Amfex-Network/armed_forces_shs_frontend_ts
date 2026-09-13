@@ -18,14 +18,14 @@ import {
 import SchoolProfileSetup from "./SchoolProfileSetup";
 import GradingConfig from "../academic-setup/GradingConfig";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 const fmt = (d) => {
-  if (!d || d === "—") return "—";
+  if (!d || d === "-") return "-";
   const [y, m, day] = d.split("-");
   return `${day}/${m}/${y}`;
 };
 
-// ─── Data Model ───────────────────────────────────────────────────────────────
+// Data Model
 // Transitional System:
 //   - 3 Year Groups: Form 1, Form 2, Form 3
 //   - Always 2 in school (active), 1 in the house (inactive)
@@ -81,7 +81,7 @@ const STATUS_CFG = {
   upcoming: { bg: "#eef2ff", color: "var(--royal-blue)", label: "Upcoming" },
 };
 
-// ─── Date Field ───────────────────────────────────────────────────────────────
+// Date Field
 const DateField = ({ label, value, onChange }) => (
   <div>
     <label
@@ -102,18 +102,18 @@ const DateField = ({ label, value, onChange }) => (
   </div>
 );
 
-// ─── Year Group Toggle ────────────────────────────────────────────────────────
+// Year Group Toggle
 const YearGroupToggle = ({ inSchool, inHouse, onChange }) => {
   const toggle = (id) => {
     let newInSchool = [...inSchool];
     let newInHouse = [...inHouse];
     if (newInSchool.includes(id)) {
-      // move to house — only if there are 2 in school (keep min 1)
+      // move to house - only if there are 2 in school (keep min 1)
       if (newInSchool.length <= 1) return;
       newInSchool = newInSchool.filter((x) => x !== id);
       newInHouse = [...newInHouse, id];
     } else {
-      // move to school — only if there are < 2 in school
+      // move to school - only if there are < 2 in school
       if (newInSchool.length >= 2) return;
       newInHouse = newInHouse.filter((x) => x !== id);
       newInSchool = [...newInSchool, id];
@@ -197,7 +197,7 @@ const YearGroupToggle = ({ inSchool, inHouse, onChange }) => {
   );
 };
 
-// ─── Year Modal ───────────────────────────────────────────────────────────────
+// Year Modal
 const YearModal = ({ yearData, onSave, onClose, allYears = [] }) => {
   const isEdit = !!yearData?.id;
   const [form, setForm] = useState(
@@ -262,7 +262,7 @@ const YearModal = ({ yearData, onSave, onClose, allYears = [] }) => {
               className="text-xs mt-0.5"
               style={{ color: "rgba(255,255,255,.6)" }}
             >
-              Transitional system — set semesters & year group status
+              Transitional system - set semesters & year group status
             </p>
           </div>
           <button
@@ -293,7 +293,7 @@ const YearModal = ({ yearData, onSave, onClose, allYears = [] }) => {
                 type="text"
                 value={yearSearch}
                 onChange={(e) => setYearSearch(e.target.value)}
-                placeholder="e.g. 2023/2024 — click to load its dates"
+                placeholder="e.g. 2023/2024 - click to load its dates"
                 className="w-full pl-8 pr-3 py-2 text-sm border-2 rounded-xl outline-none"
                 style={{ borderColor: "var(--medium-gray)" }}
                 onFocus={(e) =>
@@ -548,7 +548,7 @@ const YearModal = ({ yearData, onSave, onClose, allYears = [] }) => {
   );
 };
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// Main Component
 const AcademicYearAndTrack = () => {
   const [years, setYears] = useState(INITIAL_YEARS);
   const [showModal, setModal] = useState(false);
@@ -635,7 +635,7 @@ const AcademicYearAndTrack = () => {
             className="font-black text-base"
             style={{ color: "var(--dark-gray)" }}
           >
-            Academic Year — Transitional System
+            Academic Year - Transitional System
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
             Manage academic years, semesters and year group in-school / in-house
@@ -655,7 +655,7 @@ const AcademicYearAndTrack = () => {
         </button>
       </div>
 
-      {/* Info banner — Transitional System explanation */}
+      {/* Info banner - Transitional System explanation */}
       <div
         className="rounded-xl border p-4 flex items-start gap-3"
         style={{ borderColor: "#bfdbfe", backgroundColor: "#eff6ff" }}
@@ -726,7 +726,7 @@ const AcademicYearAndTrack = () => {
         ))}
       </div>
 
-      {/* Active year — year group status overview */}
+      {/* Active year - year group status overview */}
       {activeYear && (
         <div
           className="bg-white rounded-2xl border shadow-sm p-5"
@@ -736,7 +736,7 @@ const AcademicYearAndTrack = () => {
             className="font-black text-sm mb-3"
             style={{ color: "var(--dark-gray)" }}
           >
-            Current Year Group Status — {activeYear.year}
+            Current Year Group Status - {activeYear.year}
           </p>
           <div className="grid grid-cols-3 gap-3">
             {YEAR_GROUPS.map((yg) => {
@@ -1076,7 +1076,7 @@ const AcademicYearAndTrack = () => {
   );
 };
 
-// ─── Steps ────────────────────────────────────────────────────────────────────
+// Steps
 const STEPS = [
   { id: 1, title: "School Profile", desc: "Identity & contacts" },
   { id: 2, title: "Grading & Academic", desc: "Year, term & A1–F9 scale" },
