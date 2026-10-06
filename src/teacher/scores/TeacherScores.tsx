@@ -1,5 +1,6 @@
 // src/teacher/scores/TeacherScores.tsx
 import React, { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Save,
   CheckCircle2,
@@ -13,6 +14,7 @@ import { classesApi, subjectsApi } from "../../api/domains";
 import { studentsApi } from "../../api/students";
 import { scoresApi } from "../../api/scores";
 import { useSettings } from "../../context/SettingsContext";
+import { sameClass } from "../../utils/classNames";
 
 // submission status per class: null | 'saved' | 'submitted' | 'approved' | 'rejected'
 const SUBMIT_STATUS = {
@@ -30,16 +32,14 @@ const SUBMIT_STATUS = {
   },
 };
 
-const gradeFromTotal = (total) => {
-  if (total >= 80) return "A1";
-  if (total >= 70) return "B2";
-  if (total >= 65) return "B3";
-  if (total >= 60) return "C4";
-  if (total >= 55) return "C5";
-  if (total >= 50) return "C6";
-  if (total >= 45) return "D7";
-  if (total >= 40) return "E8";
-  return "F9";
+// Mirrors the server: the highest band whose min score the total reaches.
+const gradeFromTotal = (
+  total: number,
+  scale: { grade: string; minScore: number }[],
+) => {
+  const ordered = [...scale].sort((a, b) => b.minScore - a.minScore);
+  const band = ordered.find((b) => total >= b.minScore);
+  return (band || ordered[ordered.length - 1])?.grade || "F9";
 };
 
 const GRADE_COLORS = {
@@ -56,6 +56,9 @@ const GRADE_COLORS = {
 
 const TeacherScores = () => {
   const { settings } = useSettings();
+  const location = useLocation();
+  const wantedClassId = (location.state as { classId?: string } | null)
+    ?.classId;
   const TERMS = settings.terms;
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -84,7 +87,8 @@ const TeacherScores = () => {
         ]);
         setClasses(cls);
         setSubjects(subs);
-        if (cls.length) setSelectedClass(cls[0]);
+        if (cls.length)
+          setSelectedClass(cls.find((c) => c.id === wantedClassId) || cls[0]);
         if (subs.length) setSelectedSubject(subs[0].name);
       } catch {
         /* ignore */
@@ -112,7 +116,9 @@ const TeacherScores = () => {
           }),
         ]);
         if (!active) return;
-        const inClass = studs.filter((s) => s.formClass === selectedClass.name);
+        const inClass = studs.filter((s) =>
+          sameClass(s.formClass, selectedClass.name),
+        );
         const scoreByStudent: Record<string, any> = {};
         scores.forEach((sc) => {
           const sid =
@@ -293,16 +299,13 @@ const TeacherScores = () => {
                 "  • Exam Score : End of Semester Examination - maximum 70 marks",
                 "  • Total      : CA + Exam = 100 marks (calculated automatically)",
                 "",
-                "GRADING SCALE:",
-                "  A1  : 80 – 100  (Excellent)",
-                "  B2  : 70 – 79   (Very Good)",
-                "  B3  : 65 – 69   (Good)",
-                "  C4  : 60 – 64   (Credit)",
-                "  C5  : 55 – 59   (Credit)",
-                "  C6  : 50 – 54   (Credit)",
-                "  D7  : 45 – 49   (Pass)",
-                "  E8  : 40 – 44   (Pass)",
-                "  F9  : 0  – 39   (Fail)",
+                "GRADING SCALE (current school settings):",
+                ...[...settings.gradingScale]
+                  .sort((a, b) => b.minScore - a.minScore)
+                  .map(
+                    (b) =>
+                      `  ${b.grade.padEnd(3)} : from ${b.minScore}  (${b.label || "-"})`,
+                  ),
                 "",
                 "SUBMISSION RULES:",
                 "  1. Enter scores for ALL students before submitting.",
@@ -412,6 +415,32 @@ const TeacherScores = () => {
           }}
         >
           <CheckCircle2 size={16} /> Scores saved for {selectedClass?.name}
+        </div>
+      )}
+
+      {!loading && (classes.length === 0 || subjects.length === 0) && (
+        <div
+          className="p-4 rounded-xl text-sm"
+          style={{
+            backgroundColor: "#fffbeb",
+            color: "#92400e",
+            border: "1px solid #fde68a",
+          }}
+        >
+          {classes.length === 0 && (
+            <p>
+              <strong>No classes are assigned to you yet.</strong> Ask the
+              administrator to tick your classes under Teachers → Edit → Classes
+              Taught.
+            </p>
+          )}
+          {subjects.length === 0 && (
+            <p className={classes.length === 0 ? "mt-1" : ""}>
+              <strong>No subjects are assigned to you yet.</strong> Ask the
+              administrator to tick your subjects under Teachers → Edit →
+              Subjects Taught.
+            </p>
+          )}
         </div>
       )}
 
@@ -646,7 +675,10 @@ const TeacherScores = () => {
             >
               {filtered.map((s, i) => {
                 const total = getTotal(s);
-                const grade = total !== null ? gradeFromTotal(total) : null;
+                const grade =
+                  total !== null
+                    ? gradeFromTotal(total, settings.gradingScale)
+                    : null;
                 const caErr = errors[`${s.id}_ca`];
                 const exErr = errors[`${s.id}_exam`];
                 return (
@@ -788,9 +820,13 @@ const TeacherScores = () => {
               color: pending > 0 ? "var(--warning)" : "var(--success-dark)",
             }}
           >
-            {pending > 0
-              ? `${pending} student(s) still need scores`
-              : "All scores entered"}
+            {students.length === 0
+              ? selectedClass
+                ? `No students are enrolled in ${selectedClass.name} yet`
+                : "Select a class"
+              : pending > 0
+                ? `${pending} student(s) still need scores`
+                : "All scores entered"}
           </p>
           <button
             type="button"

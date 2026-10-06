@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import ChangePasswordForm from "../../components/common/ChangePasswordForm";
 
 const Field = ({ label, children }) => (
   <div>
@@ -132,13 +133,6 @@ export default function StudentSettings() {
   });
 
   // Password
-  const [pw, setPw] = useState({ current: "", newPw: "", confirm: "" });
-  const [showPw, setShowPw] = useState({
-    current: false,
-    newPw: false,
-    confirm: false,
-  });
-  const [pwErrors, setPwErrors] = useState({});
 
   // Notifications
   const [notif, setNotif] = useState({
@@ -151,19 +145,6 @@ export default function StudentSettings() {
 
   const handleSaveContact = () =>
     show("Contact information updated successfully");
-
-  const handleChangePassword = () => {
-    const e = {};
-    if (!pw.current.trim()) e.current = "Enter your current password";
-    if (!pw.newPw.trim()) e.newPw = "Enter a new password";
-    else if (pw.newPw.length < 6) e.newPw = "Minimum 6 characters";
-    if (pw.newPw !== pw.confirm) e.confirm = "Passwords do not match";
-    setPwErrors(e);
-    if (Object.keys(e).length) return;
-    show("Password changed successfully");
-    setPw({ current: "", newPw: "", confirm: "" });
-    setPwErrors({});
-  };
 
   const handleLogout = () => {
     logout();
@@ -300,61 +281,7 @@ export default function StudentSettings() {
         desc="Keep your account secure"
         color="var(--accent-red)"
       >
-        <div className="space-y-4">
-          {[
-            {
-              key: "current",
-              label: "Current Password",
-              placeholder: "Enter current password",
-            },
-            {
-              key: "newPw",
-              label: "New Password",
-              placeholder: "At least 6 characters",
-            },
-            {
-              key: "confirm",
-              label: "Confirm Password",
-              placeholder: "Re-enter new password",
-            },
-          ].map(({ key, label, placeholder }) => (
-            <Field key={key} label={label}>
-              <div className="relative">
-                <Input
-                  type={showPw[key] ? "text" : "password"}
-                  value={pw[key]}
-                  onChange={(e) => setPw({ ...pw, [key]: e.target.value })}
-                  placeholder={placeholder}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw({ ...showPw, [key]: !showPw[key] })}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPw[key] ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-              {pwErrors[key] && (
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: "var(--accent-red)" }}
-                >
-                  {pwErrors[key]}
-                </p>
-              )}
-            </Field>
-          ))}
-          <div className="flex justify-end pt-1">
-            <button
-              type="button"
-              onClick={handleChangePassword}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl"
-              style={{ backgroundColor: "var(--accent-red)" }}
-            >
-              <Shield size={14} /> Update Password
-            </button>
-          </div>
-        </div>
+        <ChangePasswordForm submitLabel="Update Password" />
       </Card>
 
       {/* Notifications */}

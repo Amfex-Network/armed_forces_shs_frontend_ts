@@ -1,5 +1,6 @@
 // src/admin/academic-structure2/AcademicStructure2.jsx
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
 import ClassStreamSetup from "./ClassStreamSetup";
 import SubjectManagement from "./SubjectManagement";
@@ -12,6 +13,7 @@ const STEPS = [
 ];
 
 const AcademicStructure2 = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [visited, setVisited] = useState(new Set([1]));
 
@@ -45,7 +47,8 @@ const AcademicStructure2 = () => {
           School Organisation Setup
         </h1>
         <p className="text-xs text-gray-400 mt-0.5">
-          Departments, classes and subjects
+          Departments, classes and subjects · every add, edit and delete is
+          saved immediately
         </p>
       </div>
 
@@ -133,10 +136,12 @@ const AcademicStructure2 = () => {
         ) : (
           <button
             type="button"
+            onClick={() => navigate("/dashboard")}
+            title="Everything here is already saved - this returns to the dashboard"
             className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-xl"
             style={{ backgroundColor: "var(--success-dark)" }}
           >
-            <CheckCircle2 size={14} /> Save All
+            <CheckCircle2 size={14} /> Done - All Saved
           </button>
         )}
       </div>

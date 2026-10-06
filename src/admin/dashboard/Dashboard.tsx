@@ -35,6 +35,7 @@ import {
   Area,
 } from "recharts";
 import { useAuth } from "../../context/AuthContext";
+import { useSettings } from "../../context/SettingsContext";
 import { statsApi } from "../../api/stats";
 
 const PROGRAM_COLORS = [
@@ -287,6 +288,7 @@ const Card = ({
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { settings } = useSettings();
   const [stats, setStats] = React.useState({
     students: 0,
     teachers: 0,
@@ -350,8 +352,8 @@ const Dashboard = () => {
           {/* Info badges */}
           <div className="flex flex-col gap-2 flex-shrink-0">
             {[
-              { label: "Academic Year", value: "2024 / 2025" },
-              { label: "Current Semester", value: "Semester 1" },
+              { label: "Academic Year", value: settings.currentAcademicYear },
+              { label: "Current Term", value: settings.currentTerm },
               { label: "System", value: "Transitional" },
               { label: "Location", value: "Kumasi, Ghana" },
             ].map(({ label, value }) => (

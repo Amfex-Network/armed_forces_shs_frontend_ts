@@ -28,6 +28,7 @@ export interface BulkImportResult {
   created: number;
   skipped: number;
   total: number;
+  classesCreated?: string[];
   errors: { row: number; studentId?: string; reason: string }[];
 }
 
@@ -96,6 +97,20 @@ export const studentsApi = {
   remove(id: string) {
     return api.del<{ success: boolean; message: string }>(
       `/api/students/${id}`,
+    );
+  },
+
+  bulkDelete(ids: string[]) {
+    return api.post<{ success: boolean; deleted: number }>(
+      "/api/students/bulk-delete",
+      { ids },
+    );
+  },
+
+  bulkUpdate(updates: { id: string; set: Partial<Student> }[]) {
+    return api.post<{ success: boolean; updated: number }>(
+      "/api/students/bulk-update",
+      { updates },
     );
   },
 };

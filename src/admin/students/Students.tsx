@@ -33,8 +33,11 @@ import {
 import { KeyRound } from "lucide-react";
 import * as XLSX from "xlsx";
 import { studentsApi, type BulkImportResult } from "../../api/students";
+import { parseStudentFile } from "../../utils/studentImport";
 import { usersApi, type ManagedUser } from "../../api/users";
 import CredentialModal from "../../components/common/CredentialModal";
+import { classesApi } from "../../api/domains";
+import { downloadCsv } from "../../utils/csv";
 
 const PROGRAMS = [
   "General Science",
@@ -48,6 +51,16 @@ const YEAR_GROUPS = ["Form 1", "Form 2", "Form 3"];
 const HOUSES = ["Warrior", "Eagle", "Phoenix", "Valor"];
 const STATUSES = ["Active", "Inactive", "Suspended"];
 
+// Year group may live in yearGroup, in year (older records) or only in the
+// form class name ("Form 2 Science A").
+const levelOf = (s) => {
+  const pick = (v) => {
+    const m = /form\s*([1-3])/i.exec(String(v || ""));
+    return m ? `Form ${m[1]}` : "";
+  };
+  return pick(s.yearGroup) || pick(s.year) || pick(s.formClass);
+};
+
 const EMPTY = {
   studentId: "",
   firstName: "",
@@ -57,7 +70,7 @@ const EMPTY = {
   course: "General Science",
   year: "Form 1",
   formClass: "",
-  yearGroup: "form1",
+  yearGroup: "Form 1",
   house: "Warrior",
   status: "Active",
   attendance: 0,
@@ -72,7 +85,8 @@ const getParentInfo = (parentId, parents = []) => {
   const p = parents.find((x) => x.id === parentId);
   if (!p) return { parentName: "-", parentPhone: "-" };
   return {
-    parentName: `${p.title ? p.title + " " : ""}${p.firstName} ${p.lastName}`.trim(),
+    parentName:
+      `${p.title ? p.title + " " : ""}${p.firstName} ${p.lastName}`.trim(),
     parentPhone: p.phone || "-",
   };
 };
@@ -188,9 +202,22 @@ const FInput = ({
 );
 
 // Add / Edit Student Modal
-const StudentFormModal = ({ student, onSave, onClose, parents = [] }) => {
+const StudentFormModal = ({
+  student,
+  onSave,
+  onClose,
+  parents = [],
+  classNames = [],
+}) => {
   const isEdit = !!student?.id;
   const [form, setForm] = useState(student || EMPTY);
+  const classOptions = [
+    "",
+    ...(form.formClass && !classNames.includes(form.formClass)
+      ? [form.formClass]
+      : []),
+    ...classNames,
+  ];
   const [errors, setErrors] = useState({});
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -334,8 +361,9 @@ const StudentFormModal = ({ student, onSave, onClose, parents = [] }) => {
               />
               <FInput
                 label="Form Class"
-                value={form.formClass}
+                value={form.formClass || ""}
                 onChange={(v) => set("formClass", v)}
+                options={classOptions}
               />
               <FInput
                 label="House"
@@ -683,9 +711,9 @@ const Students = () => {
     userId?: string;
   } | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<BulkImportResult | null>(
-    null,
-  );
+  const [importResult, setImportResult] = useState<
+    (BulkImportResult & { ignoredColumns?: string[] }) | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCourse, setFP] = useState("All");
@@ -699,6 +727,9 @@ const Students = () => {
   const [viewStudent, setViewStu] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [classNames, setClassNames] = useState<string[]>([]);
   const [toast, setToast] = useState(null);
 
   const showToast = (msg, type = "success") => {
@@ -717,8 +748,21 @@ const Students = () => {
     }
   };
 
+  const loadClassNames = () =>
+    classesApi
+      .list()
+      .then((cls) =>
+        setClassNames(
+          cls
+            .map((c) => c.name)
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+        ),
+      )
+      .catch(() => setClassNames([]));
+
   useEffect(() => {
     loadStudents();
+    loadClassNames();
     usersApi
       .list()
       .then((all) => {
@@ -740,11 +784,12 @@ const Students = () => {
           !q ||
           s.firstName.toLowerCase().includes(q) ||
           s.lastName.toLowerCase().includes(q) ||
-          s.studentId.toLowerCase().includes(q) ||
-          s.email.toLowerCase().includes(q);
+          (s.studentId || "").toLowerCase().includes(q) ||
+          (s.email || "").toLowerCase().includes(q) ||
+          (s.formClass || "").toLowerCase().includes(q);
         const matchCourse = filterCourse === "All" || s.course === filterCourse;
         const matchYearGroup =
-          filterYearGroup === "All" || s.year === filterYearGroup;
+          filterYearGroup === "All" || levelOf(s) === filterYearGroup;
         const matchStatus = filterStatus === "All" || s.status === filterStatus;
         return matchSearch && matchCourse && matchYearGroup && matchStatus;
       }),
@@ -844,16 +889,26 @@ const Students = () => {
     }
   };
 
+  // One request for the whole selection; firing one DELETE per student
+  // tripped the API rate limit and surfaced as a "network error".
   const handleBulkDelete = async () => {
+    if (!confirmBulkDelete) {
+      setConfirmBulkDelete(true);
+      return;
+    }
     try {
-      await Promise.all(selected.map((id) => studentsApi.remove(id)));
-      setStudents((ss) => ss.filter((s) => !selected.includes(s.id)));
-      showToast(`${selected.length} student(s) removed`, "error");
+      setBulkBusy(true);
+      const { deleted } = await studentsApi.bulkDelete(selected);
+      const gone = new Set(selected);
+      setStudents((ss) => ss.filter((s) => !gone.has(s.id)));
+      showToast(`${deleted} student(s) removed`);
       setSelected([]);
+      setShowBulk(false);
     } catch (err) {
       showToast(err?.message || "Failed to delete students", "error");
     } finally {
-      setShowBulk(false);
+      setBulkBusy(false);
+      setConfirmBulkDelete(false);
     }
   };
 
@@ -864,76 +919,126 @@ const Students = () => {
       "Form 3": "Form 3",
     };
     try {
-      const toPromote = students.filter(
-        (s) =>
-          selected.includes(s.id) &&
-          yearMap[s.year] &&
-          yearMap[s.year] !== s.year,
-      );
-      await Promise.all(
-        toPromote.map((s) =>
-          studentsApi.update(s.id, { year: yearMap[s.year] }),
-        ),
-      );
+      setBulkBusy(true);
+      const chosen = new Set(selected);
+      const changes = students
+        .filter((s) => chosen.has(s.id))
+        .map((s) => {
+          const level = levelOf(s);
+          const next = yearMap[level];
+          if (!next || next === level) return null;
+          const set: Record<string, string> = { yearGroup: next };
+          if (/form\s*[1-3]/i.test(String(s.year || ""))) set.year = next;
+          return { id: s.id, set };
+        })
+        .filter(Boolean);
+      if (changes.length === 0) {
+        showToast("No selected student can be promoted", "info");
+        return;
+      }
+      await studentsApi.bulkUpdate(changes);
+      const bySid = new Map(changes.map((c) => [c.id, c.set]));
       setStudents((ss) =>
-        ss.map((s) =>
-          selected.includes(s.id)
-            ? { ...s, year: yearMap[s.year] || s.year }
-            : s,
-        ),
+        ss.map((s) => (bySid.has(s.id) ? { ...s, ...bySid.get(s.id) } : s)),
       );
-      showToast(`${selected.length} student(s) promoted`);
+      showToast(`${changes.length} student(s) promoted`);
       setSelected([]);
     } catch (err) {
       showToast(err?.message || "Failed to promote students", "error");
     } finally {
+      setBulkBusy(false);
       setShowBulk(false);
     }
   };
 
   const handleSampleGuide = () => {
-    const lines = [
-      "============================================",
-      "AFSHTS STUDENT IMPORT - SAMPLE GUIDE",
-      "============================================",
-      "",
-      "CSV FORMAT (first row must be the header):",
-      "firstName,lastName,gender,email,studentId,year,formClass,course,track,status,parentId",
-      "",
-      "EXAMPLE ROWS:",
-      "Kofi,Asante,Male,k.asante@afshts.edu.gh,AFSHTS/2025/001,2025,Form 1 Science A,General Science,A,Active,P001",
-      "Ama,Mensah,Female,a.mensah@afshts.edu.gh,AFSHTS/2025/002,2025,Form 2 Arts B,General Arts,B,Active,P002",
-      "",
-      "COURSE OPTIONS:",
-      "  - General Science",
-      "  - General Arts",
-      "  - Business",
-      "  - Technical",
-      "",
-      "TRACK OPTIONS:  A  or  B",
-      "",
-      "STATUS OPTIONS:  Active  or  Inactive",
-      "",
-      "STUDENT ID FORMAT:  AFSHTS/YEAR/NUMBER",
-      "  e.g.  AFSHTS/2025/001",
-      "",
-      "NOTES:",
-      "  - studentId, firstName and lastName are required.",
-      "  - Rows with a studentId that already exists are skipped.",
-      "  - The parentId column is ignored on import - link parents",
-      "    afterwards from the Parents page.",
-      "  - Import creates student records only. Give a student a login",
-      "    later with the key icon on their row.",
-      "  - Accepts .csv, .xlsx and .xls files.",
-      "============================================",
+    const header = [
+      "firstName",
+      "lastName",
+      "gender",
+      "email",
+      "studentId",
+      "year",
+      "formClass",
+      "course",
+      "track",
+      "status",
+      "parentId",
     ];
-    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "AFSHTS_Student_Sample_Guide.txt";
-    a.click();
-    showToast("Student sample guide downloaded");
+    const exampleClasses = classNames.length
+      ? classNames
+      : ["Form 1 Science A", "Form 2 Arts B"];
+    const rows = [
+      header,
+      [
+        "Kofi",
+        "Asante",
+        "Male",
+        "k.asante@afshts.edu.gh",
+        "AFSHTS/2025/001",
+        "2025",
+        exampleClasses[0],
+        "General Science",
+        "A",
+        "Active",
+        "",
+      ],
+      [
+        "Ama",
+        "Mensah",
+        "Female",
+        "a.mensah@afshts.edu.gh",
+        "AFSHTS/2025/002",
+        "2025",
+        exampleClasses[1] || exampleClasses[0],
+        "General Arts",
+        "B",
+        "Active",
+        "",
+      ],
+    ];
+    const guide = [
+      ["AFSHTS STUDENT IMPORT - GUIDE"],
+      [""],
+      ["Fill in the 'Students' sheet. Keep the header row exactly as it is."],
+      ["Required columns: studentId, firstName, lastName."],
+      ["formClass must match a class name (see the 'Classes' sheet)."],
+      [
+        "A formClass that does not exist yet is created automatically on import.",
+      ],
+      ["course: General Science, General Arts, Business or Technical."],
+      ["track: A or B.   status: Active, Inactive or Suspended."],
+      ["Rows whose studentId already exists are skipped."],
+      ["parentId is ignored - link parents afterwards from the Parents page."],
+      [
+        "Import creates student records only. Create a login later with the key icon.",
+      ],
+      ["Accepted files: .xlsx, .xls and .csv."],
+    ];
+    const wb = XLSX.utils.book_new();
+    const studentsSheet = XLSX.utils.aoa_to_sheet(rows);
+    studentsSheet["!cols"] = header.map((h) => ({
+      wch: Math.max(12, h.length + 4),
+    }));
+    XLSX.utils.book_append_sheet(wb, studentsSheet, "Students");
+    const guideSheet = XLSX.utils.aoa_to_sheet(guide);
+    guideSheet["!cols"] = [{ wch: 90 }];
+    XLSX.utils.book_append_sheet(wb, guideSheet, "Guide");
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet([
+        ["Existing class names"],
+        ...(classNames.length
+          ? classNames.map((c) => [c])
+          : [["(no classes created yet)"]]),
+      ]),
+      "Classes",
+    );
+    XLSX.writeFile(wb, "AFSHTS_Student_Import_Template.xlsx");
+    showToast("Excel import template downloaded");
   };
+
+  const [importProgress, setImportProgress] = useState("");
 
   const handleImport = async (e) => {
     const file = e.target.files[0];
@@ -941,43 +1046,91 @@ const Students = () => {
     e.target.value = "";
     try {
       setImporting(true);
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-        defval: "",
-        raw: false,
-      });
-      if (rows.length === 0) {
-        showToast("The file has no data rows.", "error");
+      setImportProgress("Reading file…");
+      const parsed = await parseStudentFile(file);
+      if (parsed.rows.length === 0) {
+        showToast("The file has a header row but no student rows.", "error");
         return;
       }
-      const result = await studentsApi.bulkCreate(rows);
-      setImportResult(result);
-      if (result.created > 0) await loadStudents();
+      // Batches keep each upload small and give visible progress on big files.
+      const BATCH = 500;
+      const total: BulkImportResult = {
+        success: true,
+        created: 0,
+        skipped: 0,
+        total: 0,
+        classesCreated: [],
+        errors: [],
+      };
+      for (let i = 0; i < parsed.rows.length; i += BATCH) {
+        setImportProgress(
+          `Importing ${Math.min(i + BATCH, parsed.rows.length)} of ${parsed.rows.length}…`,
+        );
+        const part = await studentsApi.bulkCreate(
+          parsed.rows.slice(i, i + BATCH),
+        );
+        total.created += part.created;
+        total.skipped += part.skipped;
+        total.total += part.total;
+        total.classesCreated.push(...(part.classesCreated || []));
+        if (total.errors.length < 100) {
+          total.errors.push(...part.errors.slice(0, 100 - total.errors.length));
+        }
+      }
+      setImportResult({ ...total, ignoredColumns: parsed.ignoredColumns });
+      if (total.created > 0) await loadStudents();
+      if (total.classesCreated.length) loadClassNames();
     } catch (err) {
       showToast(err?.message || "Failed to import file", "error");
     } finally {
       setImporting(false);
+      setImportProgress("");
     }
   };
 
-  const handleExport = () => {
-    const rows = [
-      "Student ID,First Name,Last Name,Gender,Course,Year,Form Class,Year Group,Status,Email,Parent",
+  const handleExport = (onlySelected = false) => {
+    // Headers are understood by the importer, so an export can be edited
+    // and imported back.
+    const rows: unknown[][] = [
+      [
+        "Student ID",
+        "First Name",
+        "Last Name",
+        "Gender",
+        "Course",
+        "Year",
+        "Form Class",
+        "Year Group",
+        "Track",
+        "Status",
+        "Email",
+        "Parent",
+      ],
     ];
-    filtered.forEach((s) => {
-      const { parentName } = getParentInfo(s.parentId);
-      rows.push(
-        `${s.studentId},${s.firstName},${s.lastName},${s.gender},${s.course || s.program},${s.year},${s.formClass},${s.yearGroup},${s.status},${s.email},${parentName}`,
-      );
+    const chosen = new Set(selected);
+    const source =
+      onlySelected === true
+        ? students.filter((s) => chosen.has(s.id))
+        : filtered;
+    source.forEach((s) => {
+      const { parentName } = getParentInfo(s.parentId, parents);
+      rows.push([
+        s.studentId,
+        s.firstName,
+        s.lastName,
+        s.gender,
+        s.course || s.program,
+        s.year,
+        s.formClass,
+        levelOf(s) || s.yearGroup,
+        s.track,
+        s.status,
+        s.email,
+        parentName === "-" ? "" : parentName,
+      ]);
     });
-    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "AFTS_Students.csv";
-    a.click();
-    showToast("Student list exported as CSV");
+    downloadCsv("AFTS_Students.csv", rows);
+    showToast(`${source.length} student(s) exported as CSV`);
   };
 
   const toggleSelect = (id) =>
@@ -1057,7 +1210,8 @@ const Students = () => {
               backgroundColor: "#eef2ff",
             }}
           >
-            <Upload size={13} /> {importing ? "Importing…" : "Import CSV/Excel"}
+            <Upload size={13} />{" "}
+            {importing ? importProgress || "Importing…" : "Import CSV/Excel"}
             <input
               type="file"
               accept=".csv,.xlsx,.xls"
@@ -1067,7 +1221,7 @@ const Students = () => {
             />
           </label>
           <button
-            onClick={handleExport}
+            onClick={() => handleExport(false)}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition"
             style={{
               borderColor: "var(--medium-gray)",
@@ -1639,7 +1793,10 @@ const Students = () => {
                 {selected.length > 1 ? "s" : ""}
               </h3>
               <button
-                onClick={() => setShowBulk(false)}
+                onClick={() => {
+                  setShowBulk(false);
+                  setConfirmBulkDelete(false);
+                }}
                 style={{ color: "var(--dark-gray)" }}
               >
                 <X size={18} />
@@ -1666,12 +1823,13 @@ const Students = () => {
                     Promote Students
                   </p>
                   <p className="text-xs text-gray-500">
-                    Move Form 1 → Form 2, Form 2 → Form 3
+                    Move Form 1 → Form 2, Form 2 → Form 3 (year group only -
+                    change form classes separately)
                   </p>
                 </div>
               </button>
               <button
-                onClick={handleExport}
+                onClick={() => handleExport(true)}
                 className="w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition hover:shadow-sm"
                 style={{
                   borderColor: "var(--success-dark)",
@@ -1691,29 +1849,53 @@ const Students = () => {
               </button>
               <button
                 onClick={handleBulkDelete}
-                className="w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition hover:shadow-sm"
+                disabled={bulkBusy}
+                className="w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition hover:shadow-sm disabled:opacity-60"
                 style={{
                   borderColor: "var(--accent-red)",
-                  backgroundColor: "#fff1f2",
+                  backgroundColor: confirmBulkDelete
+                    ? "var(--accent-red)"
+                    : "#fff1f2",
                 }}
               >
-                <Trash2 size={20} style={{ color: "var(--accent-red)" }} />
+                <Trash2
+                  size={20}
+                  style={{
+                    color: confirmBulkDelete ? "white" : "var(--accent-red)",
+                  }}
+                />
                 <div>
                   <p
                     className="text-sm font-bold"
-                    style={{ color: "var(--accent-red)" }}
+                    style={{
+                      color: confirmBulkDelete ? "white" : "var(--accent-red)",
+                    }}
                   >
-                    Delete Selected
+                    {bulkBusy
+                      ? "Deleting…"
+                      : confirmBulkDelete
+                        ? `Click again to delete ${selected.length} student${selected.length > 1 ? "s" : ""}`
+                        : "Delete Selected"}
                   </p>
-                  <p className="text-xs text-gray-500">
-                    Permanently remove {selected.length} student
-                    {selected.length > 1 ? "s" : ""}
+                  <p
+                    className="text-xs"
+                    style={{
+                      color: confirmBulkDelete
+                        ? "rgba(255,255,255,.85)"
+                        : "#6b7280",
+                    }}
+                  >
+                    Permanently removes the student records with their scores,
+                    attendance and comments. This cannot be undone.
                   </p>
                 </div>
               </button>
             </div>
             <button
-              onClick={() => setShowBulk(false)}
+              onClick={() => {
+                setShowBulk(false);
+                setConfirmBulkDelete(false);
+              }}
               className="w-full mt-4 py-2 text-sm font-semibold rounded-xl border"
               style={{
                 borderColor: "var(--medium-gray)",
@@ -1731,6 +1913,7 @@ const Students = () => {
         <StudentFormModal
           student={editStudent}
           parents={parents}
+          classNames={classNames}
           onSave={handleSave}
           onClose={() => {
             setShowForm(false);
@@ -1813,6 +1996,27 @@ const Students = () => {
                 </div>
               </div>
 
+              {(importResult.ignoredColumns?.length ?? 0) > 0 && (
+                <p className="text-xs text-gray-500">
+                  Columns not imported: {importResult.ignoredColumns.join(", ")}
+                </p>
+              )}
+
+              {(importResult.classesCreated?.length ?? 0) > 0 && (
+                <div
+                  className="text-xs p-3 rounded-xl"
+                  style={{ backgroundColor: "#eef2ff", color: "#3730a3" }}
+                >
+                  <strong>
+                    {importResult.classesCreated.length} new class(es)
+                  </strong>{" "}
+                  created from the file:{" "}
+                  {importResult.classesCreated.slice(0, 6).join(", ")}
+                  {importResult.classesCreated.length > 6 ? ", …" : ""}. Assign
+                  teachers to them under Teachers.
+                </div>
+              )}
+
               {importResult.errors.length > 0 && (
                 <div>
                   <p
@@ -1827,7 +2031,10 @@ const Students = () => {
                   >
                     {importResult.errors.map((e, i) => (
                       <div key={i} className="px-3 py-2 text-xs">
-                        <span className="font-semibold" style={{ color: "var(--dark-gray)" }}>
+                        <span
+                          className="font-semibold"
+                          style={{ color: "var(--dark-gray)" }}
+                        >
                           {e.studentId || (e.row ? `Row ${e.row}` : "Row")}
                         </span>
                         <span className="text-gray-500"> - {e.reason}</span>

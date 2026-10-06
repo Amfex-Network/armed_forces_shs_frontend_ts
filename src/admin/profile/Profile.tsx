@@ -20,6 +20,7 @@ import {
   Key,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import ChangePasswordForm from "../../components/common/ChangePasswordForm";
 
 const TITLES = ["Mr", "Mrs", "Miss", "Dr", "Prof", "Rev"];
 const POSITIONS = [
@@ -78,14 +79,6 @@ const Profile = () => {
 
   // Password state
   const [pwSection, setPwSection] = useState(false);
-  const [oldPw, setOldPw] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [showOld, setShowOld] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConf, setShowConf] = useState(false);
-  const [pwErrors, setPwErrors] = useState({});
-  const [pwSuccess, setPwSuccess] = useState(false);
 
   // Toast
   const [toast, setToast] = useState(null);
@@ -111,45 +104,6 @@ const Profile = () => {
   const handleCancelEdit = () => {
     setDraft({ ...info });
     setEditMode(false);
-  };
-
-  // Password strength
-  const pwStrength = (pw) => {
-    let score = 0;
-    if (pw.length >= 8) score++;
-    if (/[A-Z]/.test(pw)) score++;
-    if (/[0-9]/.test(pw)) score++;
-    if (/[^A-Za-z0-9]/.test(pw)) score++;
-    return score;
-  };
-  const strength = pwStrength(newPw);
-  const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][strength];
-  const strengthColor = [
-    "",
-    "var(--accent-red)",
-    "var(--warning)",
-    "var(--info)",
-    "var(--success-dark)",
-  ][strength];
-
-  const handleChangePassword = () => {
-    const e = {};
-    if (!oldPw) e.oldPw = "Enter your current password";
-    if (newPw.length < 8) e.newPw = "Must be at least 8 characters";
-    if (newPw !== confirmPw) e.confirmPw = "Passwords do not match";
-    if (oldPw === newPw) e.newPw = "New password must differ from current";
-    setPwErrors(e);
-    if (Object.keys(e).length === 0) {
-      setPwSuccess(true);
-      setOldPw("");
-      setNewPw("");
-      setConfirmPw("");
-      showToast("Password changed successfully");
-      setTimeout(() => {
-        setPwSuccess(false);
-        setPwSection(false);
-      }, 2000);
-    }
   };
 
   const initials = `${info.firstName[0]}${info.lastName[0]}`.toUpperCase();
@@ -547,10 +501,7 @@ const Profile = () => {
           >
             <button
               type="button"
-              onClick={() => {
-                setPwSection((s) => !s);
-                setPwErrors({});
-              }}
+              onClick={() => setPwSection((s) => !s)}
               className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition"
               style={{
                 borderBottom: pwSection
@@ -583,164 +534,8 @@ const Profile = () => {
             </button>
 
             {pwSection && (
-              <div className="p-5 space-y-4">
-                {pwSuccess && (
-                  <div
-                    className="flex items-center gap-2 p-3 rounded-xl text-sm font-semibold"
-                    style={{
-                      backgroundColor: "#f0fdf4",
-                      color: "var(--success-dark)",
-                    }}
-                  >
-                    <CheckCircle2 size={15} /> Password changed successfully!
-                  </div>
-                )}
-
-                {/* Current password */}
-                {[
-                  {
-                    label: "Current Password",
-                    val: oldPw,
-                    set: setOldPw,
-                    show: showOld,
-                    toggle: () => setShowOld((s) => !s),
-                    err: pwErrors.oldPw,
-                  },
-                  {
-                    label: "New Password",
-                    val: newPw,
-                    set: setNewPw,
-                    show: showNew,
-                    toggle: () => setShowNew((s) => !s),
-                    err: pwErrors.newPw,
-                  },
-                  {
-                    label: "Confirm Password",
-                    val: confirmPw,
-                    set: setConfirmPw,
-                    show: showConf,
-                    toggle: () => setShowConf((s) => !s),
-                    err: pwErrors.confirmPw,
-                  },
-                ].map(({ label, val, set, show, toggle, err }) => (
-                  <div key={label}>
-                    <label
-                      className="text-xs font-bold uppercase tracking-wider block mb-1.5"
-                      style={{ color: "var(--dark-gray)" }}
-                    >
-                      {label}
-                    </label>
-                    <div className="relative">
-                      <Lock
-                        size={13}
-                        className="absolute left-3 top-1/2 -translate-y-1/2"
-                        style={{ color: "var(--royal-blue-light)" }}
-                      />
-                      <input
-                        type={show ? "text" : "password"}
-                        value={val}
-                        onChange={(e) => set(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full pl-9 pr-10 py-2.5 text-sm rounded-xl border-2 outline-none"
-                        style={{
-                          borderColor: err
-                            ? "var(--accent-red)"
-                            : "var(--medium-gray)",
-                          color: "var(--dark-gray)",
-                        }}
-                        onFocus={(e) =>
-                          (e.target.style.borderColor = "var(--royal-blue)")
-                        }
-                        onBlur={(e) =>
-                          (e.target.style.borderColor = err
-                            ? "var(--accent-red)"
-                            : "var(--medium-gray)")
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={toggle}
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
-                        style={{ color: "var(--royal-blue-light)" }}
-                      >
-                        {show ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </div>
-                    {err && (
-                      <p
-                        className="text-xs mt-1"
-                        style={{ color: "var(--accent-red)" }}
-                      >
-                        {err}
-                      </p>
-                    )}
-                  </div>
-                ))}
-
-                {/* Strength meter */}
-                {newPw && (
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-400">Password strength</span>
-                      <span
-                        className="font-bold"
-                        style={{ color: strengthColor }}
-                      >
-                        {strengthLabel}
-                      </span>
-                    </div>
-                    <div
-                      className="h-2 rounded-full overflow-hidden"
-                      style={{ backgroundColor: "var(--medium-gray)" }}
-                    >
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${(strength / 4) * 100}%`,
-                          backgroundColor: strengthColor,
-                        }}
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {[
-                        { check: newPw.length >= 8, label: "8+ chars" },
-                        { check: /[A-Z]/.test(newPw), label: "Uppercase" },
-                        { check: /[0-9]/.test(newPw), label: "Number" },
-                        {
-                          check: /[^A-Za-z0-9]/.test(newPw),
-                          label: "Special char",
-                        },
-                      ].map(({ check, label }) => (
-                        <span
-                          key={label}
-                          className="text-xs flex items-center gap-1 font-semibold"
-                          style={{
-                            color: check ? "var(--success-dark)" : "#9ca3af",
-                          }}
-                        >
-                          {check ? "✓" : "○"} {label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleChangePassword}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-white rounded-xl"
-                  style={{ backgroundColor: "var(--accent-red)" }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      "var(--accent-red-dark)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      "var(--accent-red)")
-                  }
-                >
-                  <Key size={14} /> Update Password
-                </button>
+              <div className="p-5">
+                <ChangePasswordForm submitLabel="Update Password" />
               </div>
             )}
           </div>

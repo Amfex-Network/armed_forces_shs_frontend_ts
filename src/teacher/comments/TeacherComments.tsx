@@ -13,6 +13,7 @@ import { studentsApi } from "../../api/students";
 import { commentsApi } from "../../api/comments";
 import { useSettings } from "../../context/SettingsContext";
 import { Avatar, PageHeader } from "../components/TeacherUI";
+import { sameClass } from "../../utils/classNames";
 
 const TEMPLATES = [
   "An excellent and hardworking student. Keep it up.",
@@ -90,13 +91,12 @@ const TeacherComments = () => {
             .catch(() => []),
         ]);
         if (!active) return;
-        const inClass = studs.filter(
-          (s) => s.formClass === selectedClass.name,
+        const inClass = studs.filter((s) =>
+          sameClass(s.formClass, selectedClass.name),
         );
         const byStudent: Record<string, any> = {};
         comments.forEach((c) => {
-          const sid =
-            typeof c.student === "object" ? c.student._id : c.student;
+          const sid = typeof c.student === "object" ? c.student._id : c.student;
           byStudent[sid] = c;
         });
         setRows(
@@ -317,19 +317,23 @@ const TeacherComments = () => {
               <button
                 onClick={selectAll}
                 className="text-xs font-semibold px-2.5 py-1 rounded-lg"
-                style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
+                style={{
+                  backgroundColor: "#eef2ff",
+                  color: "var(--royal-blue)",
+                }}
               >
                 {selected.length === rows.length ? "Clear" : "Select all"}
               </button>
             )}
           </div>
 
-          <div className="divide-y" style={{ borderColor: "var(--medium-gray)" }}>
+          <div
+            className="divide-y"
+            style={{ borderColor: "var(--medium-gray)" }}
+          >
             {rows.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-gray-400">
-                {loading
-                  ? "Loading…"
-                  : "No students in this class yet."}
+                {loading ? "Loading…" : "No students in this class yet."}
               </p>
             ) : (
               rows.map((r) => {

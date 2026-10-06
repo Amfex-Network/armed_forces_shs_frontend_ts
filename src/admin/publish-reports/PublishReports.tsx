@@ -15,6 +15,7 @@ import { studentsApi } from "../../api/students";
 import { scoresApi } from "../../api/scores";
 import { publicationsApi } from "../../api/publications";
 import { useSettings } from "../../context/SettingsContext";
+import { sameClass } from "../../utils/classNames";
 
 interface ClassRow {
   formClass: string;
@@ -48,9 +49,7 @@ const PublishReports = () => {
       const [classes, students, scores, pubs] = await Promise.all([
         classesApi.list(),
         studentsApi.list(),
-        scoresApi
-          .list({ term, academicYear: ACADEMIC_YEAR })
-          .catch(() => []),
+        scoresApi.list({ term, academicYear: ACADEMIC_YEAR }).catch(() => []),
         publicationsApi
           .list({ term, academicYear: ACADEMIC_YEAR })
           .catch(() => []),
@@ -71,7 +70,7 @@ const PublishReports = () => {
       });
 
       const built: ClassRow[] = classes.map((c: any) => {
-        const inClass = students.filter((s) => s.formClass === c.name);
+        const inClass = students.filter((s) => sameClass(s.formClass, c.name));
         return {
           formClass: c.name,
           course: c.course || c.program,
@@ -108,9 +107,7 @@ const PublishReports = () => {
       });
       setRows((rs) =>
         rs.map((r) =>
-          r.formClass === row.formClass
-            ? { ...r, published: !r.published }
-            : r,
+          r.formClass === row.formClass ? { ...r, published: !r.published } : r,
         ),
       );
       showToast(
@@ -160,7 +157,10 @@ const PublishReports = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+          <h1
+            className="text-xl font-black"
+            style={{ color: "var(--dark-gray)" }}
+          >
             Publish Reports
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -226,7 +226,10 @@ const PublishReports = () => {
               <Icon size={18} style={{ color }} />
             </div>
             <div>
-              <p className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+              <p
+                className="text-xl font-black"
+                style={{ color: "var(--dark-gray)" }}
+              >
                 {value}
               </p>
               <p className="text-xs text-gray-500">{label}</p>
@@ -250,7 +253,10 @@ const PublishReports = () => {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search class or course…"
             className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border-2 outline-none"
-            style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+            style={{
+              borderColor: "var(--medium-gray)",
+              color: "var(--dark-gray)",
+            }}
           />
         </div>
       </div>
@@ -270,22 +276,33 @@ const PublishReports = () => {
               }}
             >
               <tr>
-                {["Class", "Course", "Students", "Scores Entered", "Status", "Action"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500"
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
+                {[
+                  "Class",
+                  "Course",
+                  "Students",
+                  "Scores Entered",
+                  "Status",
+                  "Action",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y" style={{ borderColor: "var(--medium-gray)" }}>
+            <tbody
+              className="divide-y"
+              style={{ borderColor: "var(--medium-gray)" }}
+            >
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-12 text-center text-gray-400"
+                  >
                     {loading
                       ? "Loading…"
                       : rows.length === 0
@@ -297,7 +314,10 @@ const PublishReports = () => {
                 filtered.map((r) => {
                   const complete = r.students > 0 && r.scored >= r.students;
                   return (
-                    <tr key={r.formClass} className="hover:bg-gray-50 transition">
+                    <tr
+                      key={r.formClass}
+                      className="hover:bg-gray-50 transition"
+                    >
                       <td
                         className="px-4 py-3 font-semibold"
                         style={{ color: "var(--dark-gray)" }}
@@ -329,7 +349,9 @@ const PublishReports = () => {
                         <span
                           className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded"
                           style={{
-                            backgroundColor: r.published ? "#f0fdf4" : "#f3f4f6",
+                            backgroundColor: r.published
+                              ? "#f0fdf4"
+                              : "#f3f4f6",
                             color: r.published
                               ? "var(--success-dark)"
                               : "#6b7280",
@@ -387,9 +409,9 @@ const PublishReports = () => {
           className="flex-shrink-0 mt-0.5"
         />
         <p style={{ color: "#1e40af" }}>
-          Students and parents can only see a term's report card and results once
-          the class is <strong>Published</strong>. Unpublishing hides them again
-          instantly. Teachers and admins can always preview.
+          Students and parents can only see a term's report card and results
+          once the class is <strong>Published</strong>. Unpublishing hides them
+          again instantly. Teachers and admins can always preview.
         </p>
       </div>
     </div>

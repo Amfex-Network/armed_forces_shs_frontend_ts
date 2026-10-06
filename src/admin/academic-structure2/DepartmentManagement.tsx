@@ -111,12 +111,17 @@ const DepartmentManagement = () => {
   };
 
   const getTeacher = (teacherId) =>
-    teachers.find(
-      (teacher) =>
-        teacher.id === teacherId || teacher.id === parseInt(teacherId),
-    );
+    teacherId
+      ? teachers.find((teacher) => String(teacher.id) === String(teacherId))
+      : undefined;
   const getDepartmentTeachers = (departmentName) =>
-    teachers.filter((teacher) => teacher.department === departmentName);
+    teachers.filter(
+      (teacher) =>
+        (teacher.department || "").trim().toLowerCase() ===
+        (departmentName || "").trim().toLowerCase(),
+    );
+  const displayName = (name = "") =>
+    /department$/i.test(name.trim()) ? name : `${name} Department`;
 
   return (
     <div className="space-y-5">
@@ -268,7 +273,7 @@ const DepartmentManagement = () => {
                       className="font-black text-sm"
                       style={{ color: "var(--dark-gray)" }}
                     >
-                      {department.name} Department
+                      {displayName(department.name)}
                     </p>
                     <p className="text-xs text-gray-400">
                       {staff.length} staff · {department.subjects.length}{" "}
@@ -377,7 +382,8 @@ const DepartmentManagement = () => {
                                 {teacher.lastName}
                               </span>
                               <div className="flex gap-1 flex-wrap justify-end">
-                                {department.hodId === teacher.id && (
+                                {String(department.hodId) ===
+                                  String(teacher.id) && (
                                   <span
                                     className="text-xs px-1.5 py-0.5 rounded font-bold"
                                     style={{
@@ -498,9 +504,7 @@ const DepartmentManagement = () => {
                 </label>
                 <select
                   value={form.hodId || ""}
-                  onChange={(e) =>
-                    updateField("hodId", parseInt(e.target.value) || "")
-                  }
+                  onChange={(e) => updateField("hodId", e.target.value)}
                   className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none bg-white"
                   style={{ borderColor: "var(--medium-gray)" }}
                 >

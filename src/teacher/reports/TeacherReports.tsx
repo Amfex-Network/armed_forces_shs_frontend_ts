@@ -4,6 +4,7 @@ import { classesApi } from "../../api/domains";
 import { studentsApi, type Student } from "../../api/students";
 import { resultsApi, type ReportResult } from "../../api/results";
 import { useSettings } from "../../context/SettingsContext";
+import { sameClass } from "../../utils/classNames";
 
 const GRADE_COLOR: Record<string, string> = {
   A1: "text-green-700 bg-green-50",
@@ -35,7 +36,10 @@ const ReportView = ({
           className="flex items-center justify-between px-5 py-3 no-print"
           style={{ backgroundColor: "var(--light-gray)" }}
         >
-          <p className="text-sm font-bold" style={{ color: "var(--dark-gray)" }}>
+          <p
+            className="text-sm font-bold"
+            style={{ color: "var(--dark-gray)" }}
+          >
             Report Preview
           </p>
           <div className="flex items-center gap-2">
@@ -75,7 +79,10 @@ const ReportView = ({
             { l: "Name", v: `${s.firstName} ${s.lastName}` },
             { l: "Student ID", v: s.studentId || "-" },
             { l: "Class", v: s.formClass || "-" },
-            { l: "Position", v: result.position ? `${result.position}/${result.outOf}` : "-" },
+            {
+              l: "Position",
+              v: result.position ? `${result.position}/${result.outOf}` : "-",
+            },
             { l: "Aggregate", v: result.aggregate },
             { l: "Overall", v: `${pct}%` },
           ].map(({ l, v }) => (
@@ -85,7 +92,10 @@ const ReportView = ({
               style={{ borderColor: "var(--medium-gray)" }}
             >
               <p className="text-xs text-gray-400 uppercase">{l}</p>
-              <p className="text-sm font-bold" style={{ color: "var(--dark-gray)" }}>
+              <p
+                className="text-sm font-bold"
+                style={{ color: "var(--dark-gray)" }}
+              >
                 {v}
               </p>
             </div>
@@ -96,25 +106,37 @@ const ReportView = ({
           <table className="w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "var(--light-gray)" }}>
-                {["Subject", "CA", "Exam", "Total", "Grade", "Remark"].map((h) => (
-                  <th
-                    key={h}
-                    className="px-3 py-2 text-left text-xs font-black uppercase text-gray-500"
-                  >
-                    {h}
-                  </th>
-                ))}
+                {["Subject", "CA", "Exam", "Total", "Grade", "Remark"].map(
+                  (h) => (
+                    <th
+                      key={h}
+                      className="px-3 py-2 text-left text-xs font-black uppercase text-gray-500"
+                    >
+                      {h}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
               {result.subjects.map((sub, i) => (
-                <tr key={i} className="border-b" style={{ borderColor: "var(--medium-gray)" }}>
-                  <td className="px-3 py-2 font-medium" style={{ color: "var(--dark-gray)" }}>
+                <tr
+                  key={i}
+                  className="border-b"
+                  style={{ borderColor: "var(--medium-gray)" }}
+                >
+                  <td
+                    className="px-3 py-2 font-medium"
+                    style={{ color: "var(--dark-gray)" }}
+                  >
                     {sub.name}
                   </td>
                   <td className="px-3 py-2 text-center">{sub.ca}</td>
                   <td className="px-3 py-2 text-center">{sub.exam}</td>
-                  <td className="px-3 py-2 text-center font-black" style={{ color: "var(--royal-blue)" }}>
+                  <td
+                    className="px-3 py-2 text-center font-black"
+                    style={{ color: "var(--royal-blue)" }}
+                  >
                     {sub.total}
                   </td>
                   <td className="px-3 py-2">
@@ -124,14 +146,19 @@ const ReportView = ({
                       {sub.grade}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-xs text-gray-500">{sub.remarks}</td>
+                  <td className="px-3 py-2 text-xs text-gray-500">
+                    {sub.remarks}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        <div className="p-4 text-xs text-gray-500 border-t" style={{ borderColor: "var(--medium-gray)" }}>
+        <div
+          className="p-4 text-xs text-gray-500 border-t"
+          style={{ borderColor: "var(--medium-gray)" }}
+        >
           <p>
             <strong>Form Teacher:</strong>{" "}
             {result.comments?.formTeacher || "No comment recorded."}
@@ -187,7 +214,7 @@ const TeacherReports = () => {
     if (!selectedClass) return [];
     const q = search.toLowerCase();
     return students
-      .filter((s) => s.formClass === selectedClass.name)
+      .filter((s) => sameClass(s.formClass, selectedClass.name))
       .filter(
         (s) =>
           !q ||
@@ -220,7 +247,9 @@ const TeacherReports = () => {
   };
 
   if (loading)
-    return <div className="py-20 text-center text-sm text-gray-400">Loading…</div>;
+    return (
+      <div className="py-20 text-center text-sm text-gray-400">Loading…</div>
+    );
 
   return (
     <div className="space-y-5">
@@ -235,7 +264,10 @@ const TeacherReports = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+          <h1
+            className="text-xl font-black"
+            style={{ color: "var(--dark-gray)" }}
+          >
             Report Cards
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -247,10 +279,16 @@ const TeacherReports = () => {
             <select
               value={selectedClass?.id || ""}
               onChange={(e) =>
-                setSelectedClass(classes.find((c) => c.id === e.target.value) || null)
+                setSelectedClass(
+                  classes.find((c) => c.id === e.target.value) || null,
+                )
               }
               className="appearance-none pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2 outline-none cursor-pointer"
-              style={{ borderColor: "var(--royal-blue)", color: "var(--royal-blue)", backgroundColor: "#eef2ff" }}
+              style={{
+                borderColor: "var(--royal-blue)",
+                color: "var(--royal-blue)",
+                backgroundColor: "#eef2ff",
+              }}
             >
               {classes.length === 0 && <option value="">No classes</option>}
               {classes.map((c) => (
@@ -259,14 +297,21 @@ const TeacherReports = () => {
                 </option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--royal-blue)" }} />
+            <ChevronDown
+              size={14}
+              className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: "var(--royal-blue)" }}
+            />
           </div>
           <div className="relative">
             <select
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               className="appearance-none pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2 outline-none cursor-pointer"
-              style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+              style={{
+                borderColor: "var(--medium-gray)",
+                color: "var(--dark-gray)",
+              }}
             >
               {TERMS.map((t) => (
                 <option key={t} value={t}>
@@ -274,60 +319,104 @@ const TeacherReports = () => {
                 </option>
               ))}
             </select>
-            <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+            <ChevronDown
+              size={14}
+              className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+            />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm p-4" style={{ borderColor: "var(--medium-gray)" }}>
+      <div
+        className="bg-white rounded-xl border shadow-sm p-4"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search student…"
             className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border-2 outline-none"
-            style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+            style={{
+              borderColor: "var(--medium-gray)",
+              color: "var(--dark-gray)",
+            }}
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--medium-gray)" }}>
+      <div
+        className="bg-white rounded-xl border shadow-sm overflow-hidden"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[520px]">
-            <thead className="border-b" style={{ backgroundColor: "var(--light-gray)", borderColor: "var(--medium-gray)" }}>
+            <thead
+              className="border-b"
+              style={{
+                backgroundColor: "var(--light-gray)",
+                borderColor: "var(--medium-gray)",
+              }}
+            >
               <tr>
                 {["Student", "Student ID", "Class", "Report"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500">
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500"
+                  >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y" style={{ borderColor: "var(--medium-gray)" }}>
+            <tbody
+              className="divide-y"
+              style={{ borderColor: "var(--medium-gray)" }}
+            >
               {classStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-gray-400">
-                    <FileText size={28} className="mx-auto mb-2 text-gray-300" />
+                  <td
+                    colSpan={4}
+                    className="px-4 py-12 text-center text-gray-400"
+                  >
+                    <FileText
+                      size={28}
+                      className="mx-auto mb-2 text-gray-300"
+                    />
                     No students in this class.
                   </td>
                 </tr>
               ) : (
                 classStudents.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold" style={{ color: "var(--dark-gray)" }}>
+                    <td
+                      className="px-4 py-3 font-semibold"
+                      style={{ color: "var(--dark-gray)" }}
+                    >
                       {s.firstName} {s.lastName}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{s.studentId}</td>
-                    <td className="px-4 py-3 text-xs text-gray-600">{s.formClass}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                      {s.studentId}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600">
+                      {s.formClass}
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => viewReport(s)}
                         disabled={busyId === s.id}
                         className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg disabled:opacity-50"
-                        style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
+                        style={{
+                          backgroundColor: "#eef2ff",
+                          color: "var(--royal-blue)",
+                        }}
                       >
-                        <Eye size={13} /> {busyId === s.id ? "Loading…" : "View / Print"}
+                        <Eye size={13} />{" "}
+                        {busyId === s.id ? "Loading…" : "View / Print"}
                       </button>
                     </td>
                   </tr>

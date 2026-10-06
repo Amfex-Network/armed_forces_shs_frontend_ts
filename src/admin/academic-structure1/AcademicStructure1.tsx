@@ -1,5 +1,5 @@
 // src/admin/academic-structure1/AcademicStructure1.jsx
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   CheckCircle2,
   Plus,
@@ -16,7 +16,10 @@ import {
   Search,
 } from "lucide-react";
 import SchoolProfileSetup from "./SchoolProfileSetup";
-import GradingConfig from "../academic-setup/GradingConfig";
+import GradingConfig, {
+  type SettingsCollector,
+} from "../academic-setup/GradingConfig";
+import { useSettings } from "../../context/SettingsContext";
 
 // Helpers
 const fmt = (d) => {
@@ -1085,6 +1088,50 @@ const STEPS = [
 const AcademicStructure1 = () => {
   const [step, setStep] = useState(1);
   const [visited, setVisited] = useState(new Set([1]));
+  const { save } = useSettings();
+  const profileCollect = useRef<SettingsCollector | null>(null);
+  const gradingCollect = useRef<SettingsCollector | null>(null);
+  const profileDirty = useRef(false);
+  const gradingDirty = useRef(false);
+  const [savingAll, setSavingAll] = useState(false);
+  const [notice, setNotice] = useState<{ msg: string; ok: boolean } | null>(
+    null,
+  );
+
+  const flash = (msg: string, ok: boolean) => {
+    setNotice({ msg, ok });
+    setTimeout(() => setNotice(null), 3500);
+  };
+
+  // Both steps stay mounted, so Save All can gather both forms and write
+  // them in a single request.
+  const handleSaveAll = async () => {
+    const profile = profileCollect.current?.() || {};
+    if (profile.error) {
+      goTo(1);
+      flash(profile.error, false);
+      return;
+    }
+    const grading = gradingCollect.current?.() || {};
+    if (grading.error) {
+      goTo(2);
+      flash(grading.error, false);
+      return;
+    }
+    try {
+      setSavingAll(true);
+      profileDirty.current = false;
+      gradingDirty.current = false;
+      await save({ ...(profile.payload || {}), ...(grading.payload || {}) });
+      flash("School profile, grading and academic period saved", true);
+    } catch (e: any) {
+      profileDirty.current = true;
+      gradingDirty.current = true;
+      flash(e?.message || "Failed to save", false);
+    } finally {
+      setSavingAll(false);
+    }
+  };
 
   const goTo = (s) => {
     setStep(s);
@@ -1093,19 +1140,21 @@ const AcademicStructure1 = () => {
   const next = () => goTo(Math.min(step + 1, STEPS.length));
   const prev = () => goTo(Math.max(step - 1, 1));
 
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return <SchoolProfileSetup />;
-      case 2:
-        return <GradingConfig />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <div className="space-y-5">
+      {notice && (
+        <div
+          className="fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl shadow-xl text-white text-sm font-semibold flex items-center gap-2"
+          style={{
+            backgroundColor: notice.ok
+              ? "var(--success-dark)"
+              : "var(--accent-red)",
+          }}
+        >
+          {notice.ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+          {notice.msg}
+        </div>
+      )}
       <div>
         <h1
           className="text-xl font-black"
@@ -1168,7 +1217,20 @@ const AcademicStructure1 = () => {
             );
           })}
         </div>
-        <div className="p-5">{renderStep()}</div>
+        <div className="p-5">
+          <div className={step === 1 ? "" : "hidden"}>
+            <SchoolProfileSetup
+              collectRef={profileCollect}
+              dirtyRef={profileDirty}
+            />
+          </div>
+          <div className={step === 2 ? "" : "hidden"}>
+            <GradingConfig
+              collectRef={gradingCollect}
+              dirtyRef={gradingDirty}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center justify-between">
@@ -1200,10 +1262,12 @@ const AcademicStructure1 = () => {
         ) : (
           <button
             type="button"
-            className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-xl"
+            onClick={handleSaveAll}
+            disabled={savingAll}
+            className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-xl disabled:opacity-60"
             style={{ backgroundColor: "var(--success-dark)" }}
           >
-            <CheckCircle2 size={14} /> Save All
+            <CheckCircle2 size={14} /> {savingAll ? "Saving…" : "Save All"}
           </button>
         )}
       </div>

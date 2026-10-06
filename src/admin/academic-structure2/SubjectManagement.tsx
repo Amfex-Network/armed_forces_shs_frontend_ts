@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Search,
   BookOpen,
+  AlertCircle,
 } from "lucide-react";
 import { subjectsApi, departmentsApi } from "../../api/domains";
 
@@ -52,6 +53,7 @@ const SubjectManagement = () => {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterDepartment, setFilterDepartment] = useState("all");
+  const [formError, setFormError] = useState("");
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -105,16 +107,36 @@ const SubjectManagement = () => {
   );
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.code.trim()) return;
+    if (!form.name.trim() || !form.code.trim()) {
+      setFormError("Subject name and code are required.");
+      return;
+    }
+    if (!form.department) {
+      setFormError("Choose the department this subject belongs to.");
+      return;
+    }
+    if (form.type === "elective" && form.courses.length === 0) {
+      setFormError("Select at least one course that offers this elective.");
+      return;
+    }
+    // Core subjects are taken by every course.
+    const payload = {
+      ...form,
+      type: form.type as "core" | "elective",
+      name: form.name.trim(),
+      code: form.code.trim(),
+      courses: form.type === "core" ? [...COURSES] : form.courses,
+    };
+    setFormError("");
     try {
       if (editingSubject) {
-        const saved = await subjectsApi.update(editingSubject.id, form);
+        const saved = await subjectsApi.update(editingSubject.id, payload);
         setSubjects((prev) =>
           prev.map((subject) => (subject.id === saved.id ? saved : subject)),
         );
         showToast(`${saved.name} updated`);
       } else {
-        const saved = await subjectsApi.create(form);
+        const saved = await subjectsApi.create(payload);
         setSubjects((prev) => [...prev, saved]);
         showToast(`${saved.name} added`);
       }
@@ -122,8 +144,34 @@ const SubjectManagement = () => {
       setEditingSubject(null);
       setForm({ ...EMPTY_SUBJECT });
     } catch (err) {
-      showToast(err?.message || "Failed to save subject", "error");
+      setFormError(err?.message || "Failed to save subject");
     }
+  };
+
+  const handleToggleActive = async (subject, value) => {
+    setSubjects((prev) =>
+      prev.map((item) =>
+        item.id === subject.id ? { ...item, active: value } : item,
+      ),
+    );
+    try {
+      await subjectsApi.update(subject.id, { active: value });
+      showToast(`${subject.name} ${value ? "activated" : "deactivated"}`);
+    } catch (err) {
+      setSubjects((prev) =>
+        prev.map((item) =>
+          item.id === subject.id ? { ...item, active: !value } : item,
+        ),
+      );
+      showToast(err?.message || "Failed to update subject", "error");
+    }
+  };
+
+  const openEdit = (subject) => {
+    setEditingSubject(subject);
+    setForm({ ...subject, courses: [...(subject.courses || [])] });
+    setFormError("");
+    setShowForm(true);
   };
 
   const handleDelete = async (subject) => {
@@ -172,6 +220,7 @@ const SubjectManagement = () => {
           onClick={() => {
             setEditingSubject(null);
             setForm({ ...EMPTY_SUBJECT });
+            setFormError("");
             setShowForm(true);
           }}
           className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white"
@@ -332,7 +381,18 @@ const SubjectManagement = () => {
               className="divide-y"
               style={{ borderColor: "var(--medium-gray)" }}
             >
-              {subjects
+              {filtered.filter((subject) => subject.type === "core").length ===
+                0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-8 text-center text-gray-400"
+                  >
+                    No core subjects match your filter
+                  </td>
+                </tr>
+              )}
+              {filtered
                 .filter((subject) => subject.type === "core")
                 .map((subject) => (
                   <tr
@@ -355,29 +415,14 @@ const SubjectManagement = () => {
                     <td className="px-4 py-3">
                       <Toggle
                         checked={subject.active}
-                        onChange={(value) =>
-                          setSubjects((prev) =>
-                            prev.map((item) =>
-                              item.id === subject.id
-                                ? { ...item, active: value }
-                                : item,
-                            ),
-                          )
-                        }
+                        onChange={(value) => handleToggleActive(subject, value)}
                       />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1.5">
                         <button
                           type="button"
-                          onClick={() => {
-                            setEditingSubject(subject);
-                            setForm({
-                              ...subject,
-                              courses: [...subject.courses],
-                            });
-                            setShowForm(true);
-                          }}
+                          onClick={() => openEdit(subject)}
                           style={{ color: "var(--warning)" }}
                         >
                           <Edit3 size={14} />
@@ -498,7 +543,7 @@ const SubjectManagement = () => {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
-                          {subject.courses.slice(0, 2).map((course) => (
+                          {(subject.courses || []).slice(0, 2).map((course) => (
                             <span
                               key={course}
                               className="text-xs px-1.5 py-0.5 rounded"
@@ -510,7 +555,7 @@ const SubjectManagement = () => {
                               {course.replace("General ", "")}
                             </span>
                           ))}
-                          {subject.courses.length > 2 && (
+                          {(subject.courses || []).length > 2 && (
                             <span className="text-xs text-gray-400">
                               +{subject.courses.length - 2}
                             </span>
@@ -521,13 +566,7 @@ const SubjectManagement = () => {
                         <Toggle
                           checked={subject.active}
                           onChange={(value) =>
-                            setSubjects((prev) =>
-                              prev.map((item) =>
-                                item.id === subject.id
-                                  ? { ...item, active: value }
-                                  : item,
-                              ),
-                            )
+                            handleToggleActive(subject, value)
                           }
                         />
                       </td>
@@ -535,14 +574,7 @@ const SubjectManagement = () => {
                         <div className="flex gap-1.5">
                           <button
                             type="button"
-                            onClick={() => {
-                              setEditingSubject(subject);
-                              setForm({
-                                ...subject,
-                                courses: [...subject.courses],
-                              });
-                              setShowForm(true);
-                            }}
+                            onClick={() => openEdit(subject)}
                             style={{ color: "var(--warning)" }}
                           >
                             <Edit3 size={14} />
@@ -594,6 +626,17 @@ const SubjectManagement = () => {
               style={{ backgroundColor: "var(--accent-red)" }}
             />
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {formError && (
+                <div
+                  className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: "#fff1f2",
+                    color: "var(--accent-red)",
+                  }}
+                >
+                  <AlertCircle size={13} /> {formError}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: "Subject Name *", field: "name", cls: "col-span-2" },
@@ -647,13 +690,27 @@ const SubjectManagement = () => {
                       {label}
                     </label>
                     <select
-                      value={form[field]}
+                      value={form[field] || ""}
                       onChange={(e) => updateField(field, e.target.value)}
                       className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none bg-white"
                       style={{ borderColor: "var(--medium-gray)" }}
                     >
-                      {options.map((option) => (
-                        <option key={option}>{option}</option>
+                      {field === "department" && (
+                        <option value="">
+                          {options.length
+                            ? "-- Select department --"
+                            : "No departments yet"}
+                        </option>
+                      )}
+                      {(field === "department" &&
+                      form.department &&
+                      !options.includes(form.department)
+                        ? [form.department, ...options]
+                        : options
+                      ).map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -688,27 +745,41 @@ const SubjectManagement = () => {
                 >
                   Courses
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {COURSES.map((course) => (
-                    <button
-                      key={course}
-                      type="button"
-                      onClick={() => toggleCourse(course)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold"
-                      style={{
-                        backgroundColor: form.courses.includes(course)
-                          ? "var(--royal-blue)"
-                          : "white",
-                        color: form.courses.includes(course)
-                          ? "white"
-                          : "var(--dark-gray)",
-                        border: "1px solid var(--medium-gray)",
-                      }}
-                    >
-                      {course.replace("General ", "")}
-                    </button>
-                  ))}
-                </div>
+                {form.type === "core" ? (
+                  <p className="text-xs text-gray-500">
+                    Core subjects are taken by all courses (
+                    {COURSES.map((c) => c.replace("General ", "")).join(", ")}).
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      {COURSES.map((course) => {
+                        const on = form.courses.includes(course);
+                        return (
+                          <button
+                            key={course}
+                            type="button"
+                            onClick={() => toggleCourse(course)}
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold"
+                            style={{
+                              backgroundColor: on
+                                ? "var(--royal-blue)"
+                                : "white",
+                              color: on ? "white" : "var(--dark-gray)",
+                              border: "1px solid var(--medium-gray)",
+                            }}
+                          >
+                            {on ? "✓ " : ""}
+                            {course.replace("General ", "")}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      Tap each course that offers this elective.
+                    </p>
+                  </>
+                )}
               </div>
               <div className="flex items-center justify-between">
                 <label

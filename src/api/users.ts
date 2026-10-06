@@ -18,6 +18,8 @@ export interface ManagedUser {
   teacherRole?: string;
   formClass?: string;
   course?: string;
+  assignedClasses?: string[];
+  assignedSubjects?: string[];
   [key: string]: unknown;
 }
 
@@ -38,6 +40,8 @@ interface ApiUser {
   teacherRole?: string;
   formClass?: string;
   course?: string;
+  assignedClasses?: string[];
+  assignedSubjects?: string[];
 }
 
 function toUi(u: ApiUser): ManagedUser {
@@ -58,6 +62,8 @@ function toUi(u: ApiUser): ManagedUser {
     teacherRole: u.teacherRole || "",
     formClass: u.formClass || "",
     course: u.course || "",
+    assignedClasses: u.assignedClasses || [],
+    assignedSubjects: u.assignedSubjects || [],
   };
 }
 
@@ -81,6 +87,13 @@ function toApi(u: Partial<ManagedUser>): Record<string, unknown> {
   for (const [uiKey, apiKey] of Object.entries(map)) {
     const value = u[uiKey as keyof ManagedUser];
     if (value !== undefined && value !== null) body[apiKey] = value;
+  }
+  if (Array.isArray(u.assignedClasses))
+    body.assignedClasses = u.assignedClasses;
+  if (Array.isArray(u.assignedSubjects))
+    body.assignedSubjects = u.assignedSubjects;
+  for (const key of ["year", "house", "track", "gender"]) {
+    if (typeof u[key] === "string" && u[key]) body[key] = u[key];
   }
   if (u.status !== undefined) body.active = u.status === "Active";
   return body;

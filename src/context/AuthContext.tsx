@@ -1,7 +1,12 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { authApi, type ApiUser, type Role } from "../api/auth";
-import { ApiError } from "../api/client";
+import { ApiError, AUTH_EVENTS } from "../api/client";
+
+export const CHANGE_PASSWORD_PATH = "/changePassword";
+
+export const PASSWORD_RULES =
+  "At least 10 characters, with an uppercase letter, a lowercase letter and a number.";
 
 // Redirect map per role
 const REDIRECT: Record<Role, string> = {
@@ -39,7 +44,19 @@ function normalize(u: ApiUser, studentId = ""): AppUser {
     email: u.email,
     phone: u.phone,
     picture: u.picture,
-    redirectTo: REDIRECT[u.role] || "/dashboard",
+    title: u.title || "",
+    staffId: u.staffId || "",
+    department: u.department || "",
+    teacherRole: u.teacherRole || "",
+    formClass: u.formClass || "",
+    course: u.course || "",
+    assignedClasses: u.assignedClasses || [],
+    assignedSubjects: u.assignedSubjects || [],
+    mustChangePassword: !!u.mustChangePassword,
+    homePath: REDIRECT[u.role] || "/dashboard",
+    redirectTo: u.mustChangePassword
+      ? CHANGE_PASSWORD_PATH
+      : REDIRECT[u.role] || "/dashboard",
     ...(u.role === "student" && studentId ? { studentId } : {}),
   };
 }
@@ -69,21 +86,54 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const res = await authApi.me();
-        if (!cancelled && res?.success && res.user) {
-          setUser(normalize(res.user));
+      // A flaky connection or a busy server must not log the user out:
+      // only a real 401/403 means the session is gone.
+      for (let attempt = 0; attempt < 4 && !cancelled; attempt++) {
+        try {
+          const res = await authApi.me();
+          if (!cancelled && res?.success && res.user) {
+            setUser(normalize(res.user));
+          }
+          break;
+        } catch (err) {
+          const status = err instanceof ApiError ? err.status : 0;
+          if (status === 401 || status === 403 || status === 404) break;
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          }
         }
-      } catch {
-        /* ignore */
-      } finally {
-        if (!cancelled) setInitializing(false);
       }
+      if (!cancelled) setInitializing(false);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Another request found the session gone (expired, revoked, or the
+  // account was deactivated): drop the user so routes send them to sign in.
+  useEffect(() => {
+    const onExpired = () => setUser(null);
+    const onMustChange = () =>
+      setUser((u) =>
+        u
+          ? { ...u, mustChangePassword: true, redirectTo: CHANGE_PASSWORD_PATH }
+          : u,
+      );
+    window.addEventListener(AUTH_EVENTS.expired, onExpired);
+    window.addEventListener(AUTH_EVENTS.passwordChange, onMustChange);
+    return () => {
+      window.removeEventListener(AUTH_EVENTS.expired, onExpired);
+      window.removeEventListener(AUTH_EVENTS.passwordChange, onMustChange);
+    };
+  }, []);
+
+  const changePassword = async (current: string, next: string) => {
+    const res = await authApi.changePassword(current, next);
+    const normalized = normalize(res.user);
+    setUser(normalized);
+    return normalized;
+  };
 
   const setTeacherRole = (role: Role, chosenTeacherRole: string) => {
     const locked =
@@ -157,6 +207,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         error,
         login,
         logout,
+        changePassword,
         isLoggedIn: !!user,
         isAdmin: user?.role === "admin",
         isTeacher: user?.role === "teacher",

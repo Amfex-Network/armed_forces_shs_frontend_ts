@@ -6,6 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { settingsApi, AppSettings, GradeBand } from "../api/settings";
+import { useAuth } from "./AuthContext";
 
 export const DEFAULT_GRADING_SCALE: GradeBand[] = [
   { grade: "A1", minScore: 80, label: "Excellent", points: 1 },
@@ -80,9 +81,13 @@ export const SettingsProvider = ({
     return merged;
   }, []);
 
+  const { user } = useAuth();
+  const userId = user?.id;
+
+  // Settings need an authenticated request, so load them again on sign-in.
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [refresh, userId]);
 
   return (
     <SettingsContext.Provider value={{ settings, loading, refresh, save }}>

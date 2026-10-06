@@ -5,6 +5,7 @@ import { classesApi } from "../../api/domains";
 import { studentsApi } from "../../api/students";
 import { attendanceApi } from "../../api/attendance";
 import { Avatar, PageHeader } from "../components/TeacherUI";
+import { sameClass } from "../../utils/classNames";
 
 const STATUS_STYLES = {
   present: {
@@ -63,7 +64,7 @@ const TeacherAttendance = () => {
         ]);
         if (!active) return;
         const inClass = studs
-          .filter((s) => s.formClass === selectedClass.name)
+          .filter((s) => sameClass(s.formClass, selectedClass.name))
           .map((s) => ({
             id: s.id,
             studentId: s.studentId,

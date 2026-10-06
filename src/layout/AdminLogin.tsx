@@ -1,11 +1,11 @@
-// src/layout/ParentLogin.jsx
+// src/layout/AdminLogin.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { FaUsers, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaUserShield, FaEye, FaEyeSlash } from "react-icons/fa";
 import logo from "../assets/logo.png";
 
-export default function ParentLogin() {
+export default function AdminLogin() {
   const navigate = useNavigate();
   const { login, loading, error } = useAuth();
   const [email, setEmail] = useState("");
@@ -20,14 +20,14 @@ export default function ParentLogin() {
       setLocalErr("Please enter both email and password.");
       return;
     }
-    const res = await login(email, pw, "parent");
-    if (res.success) navigate(res.redirectTo || "/parent", { replace: true });
+    const res = await login(email, pw, "admin");
+    if (res.success) navigate(res.redirectTo || "/dashboard", { replace: true });
   };
 
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: "linear-gradient(135deg,#4c1d95,#5b21b6,#6d28d9)" }}
+      style={{ background: "linear-gradient(135deg,#0b2b4a,#123a63,#1e4e7c)" }}
     >
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
         <img
@@ -45,7 +45,6 @@ export default function ParentLogin() {
 
       <div className="relative z-10 w-full max-w-sm">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          {/* Close */}
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -65,26 +64,22 @@ export default function ParentLogin() {
             </svg>
           </button>
 
-          {/* Header */}
           <div
             className="px-8 pt-8 pb-6 text-center"
-            style={{ background: "linear-gradient(135deg,#4c1d95,#5b21b6)" }}
+            style={{ background: "linear-gradient(135deg,#0b2b4a,#123a63)" }}
           >
             <div
               className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
               style={{ backgroundColor: "rgba(255,255,255,.15)" }}
             >
-              <FaUsers size={28} color="#fbbf24" />
+              <FaUserShield size={28} color="#fbbf24" />
             </div>
             <h1 className="text-lg font-black text-white">ARMED FORCES SHTS</h1>
-            <p
-              className="text-xs mt-1"
-              style={{ color: "rgba(255,255,255,.55)" }}
-            >
-              Parent / Guardian Portal
+            <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,.55)" }}>
+              Administrator Portal
             </p>
           </div>
-          <div className="h-1" style={{ background: "#7c3aed" }} />
+          <div className="h-1" style={{ background: "#1e4e7c" }} />
 
           <div className="px-6 py-6 space-y-4">
             {(localErr || error) && (
@@ -116,8 +111,8 @@ export default function ParentLogin() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    placeholder="parent@email.com"
-                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-700"
+                    placeholder="admin@email.com"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-800"
                   />
                 </div>
               </div>
@@ -145,7 +140,7 @@ export default function ParentLogin() {
                     onChange={(e) => setPw(e.target.value)}
                     required
                     placeholder="Enter your password"
-                    className="w-full pl-9 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-700"
+                    className="w-full pl-9 pr-10 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-800"
                   />
                   <button
                     type="button"
@@ -157,19 +152,6 @@ export default function ParentLogin() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
-                  <input type="checkbox" className="rounded" /> Remember me
-                </label>
-                <button
-                  type="button"
-                  className="text-xs font-semibold"
-                  style={{ color: "#7c3aed" }}
-                >
-                  Forgot Password?
-                </button>
-              </div>
-
               <button
                 type="submit"
                 disabled={loading}
@@ -177,7 +159,7 @@ export default function ParentLogin() {
                 style={{
                   background: loading
                     ? "#9ca3af"
-                    : "linear-gradient(135deg,#4c1d95,#5b21b6)",
+                    : "linear-gradient(135deg,#0b2b4a,#123a63)",
                 }}
               >
                 {loading ? (
@@ -196,7 +178,7 @@ export default function ParentLogin() {
                     Signing In…
                   </>
                 ) : (
-                  "Sign In as Parent →"
+                  "Sign In as Admin →"
                 )}
               </button>
             </form>

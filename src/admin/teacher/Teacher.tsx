@@ -21,6 +21,8 @@ import {
 import { usersApi, type ManagedUser } from "../../api/users";
 import { departmentsApi } from "../../api/domains";
 import CredentialModal from "../../components/common/CredentialModal";
+import MultiPick from "../../components/common/MultiPick";
+import { useSchoolLists } from "../../hooks/useSchoolLists";
 
 const TITLES = ["Mr", "Mrs", "Miss", "Dr", "Prof", "Rev", "Capt", "Sgt"];
 const STATUSES = ["Active", "Inactive"];
@@ -48,6 +50,8 @@ const EMPTY: Partial<ManagedUser> = {
   department: "",
   teacherRole: "Subject Teacher",
   formClass: "",
+  assignedClasses: [],
+  assignedSubjects: [],
   status: "Active",
   role: "teacher",
 };
@@ -138,7 +142,18 @@ const TeacherFormModal = ({ teacher, onSave, onClose, departments }: any) => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
+  const lists = useSchoolLists();
   const deptOptions = ["", ...departments.map((d: any) => d.name)];
+  if (form.department && !deptOptions.includes(form.department)) {
+    deptOptions.splice(1, 0, form.department);
+  }
+  const classOptions = [
+    "",
+    ...(form.formClass && !lists.classes.includes(form.formClass)
+      ? [form.formClass]
+      : []),
+    ...lists.classes,
+  ];
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -244,9 +259,30 @@ const TeacherFormModal = ({ teacher, onSave, onClose, departments }: any) => {
               options={TEACHER_ROLES}
             />
             <FInput
-              label="Form Class (if any)"
-              value={form.formClass}
+              label="Form Class (if form teacher)"
+              value={form.formClass || ""}
               onChange={(v: string) => set("formClass", v)}
+              options={classOptions}
+            />
+          </div>
+          <div
+            className="rounded-xl border p-4 space-y-4"
+            style={{ borderColor: "var(--medium-gray)" }}
+          >
+            <MultiPick
+              label="Classes Taught"
+              options={lists.classes}
+              value={(form.assignedClasses as string[]) || []}
+              onChange={(v) => set("assignedClasses", v)}
+              emptyText="No classes yet - create them under Structure - Part 2."
+            />
+            <MultiPick
+              label="Subjects Taught"
+              options={lists.subjects}
+              value={(form.assignedSubjects as string[]) || []}
+              onChange={(v) => set("assignedSubjects", v)}
+              emptyText="No subjects yet - create them under Structure - Part 2."
+              hint="In score entry the teacher only sees these classes (plus their form class) and these subjects. With no subjects ticked, the subjects of their department are used."
             />
           </div>
         </div>
@@ -293,7 +329,10 @@ const DeleteConfirm = ({ teacher, onConfirm, onClose }: any) => (
       >
         <Trash2 size={24} style={{ color: "var(--accent-red)" }} />
       </div>
-      <h3 className="font-black text-lg mb-1" style={{ color: "var(--dark-gray)" }}>
+      <h3
+        className="font-black text-lg mb-1"
+        style={{ color: "var(--dark-gray)" }}
+      >
         Delete Teacher?
       </h3>
       <p className="text-sm text-gray-500 mb-1">
@@ -309,7 +348,10 @@ const DeleteConfirm = ({ teacher, onConfirm, onClose }: any) => (
         <button
           onClick={onClose}
           className="px-5 py-2 text-sm font-semibold rounded-xl border"
-          style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+          style={{
+            borderColor: "var(--medium-gray)",
+            color: "var(--dark-gray)",
+          }}
         >
           Cancel
         </button>
@@ -348,17 +390,29 @@ const ProfileDrawer = ({ teacher, onEdit, onClose }: any) => {
             >
               <Edit3 size={12} /> Edit
             </button>
-            <button onClick={onClose} className="text-white hover:text-blue-200">
+            <button
+              onClick={onClose}
+              className="text-white hover:text-blue-200"
+            >
               <X size={18} />
             </button>
           </div>
         </div>
-        <div className="h-1 flex-shrink-0" style={{ backgroundColor: "var(--accent-red)" }} />
+        <div
+          className="h-1 flex-shrink-0"
+          style={{ backgroundColor: "var(--accent-red)" }}
+        />
         <div className="flex-1 p-5 space-y-5">
           <div className="flex items-center gap-4">
-            <Avatar name={`${teacher.firstName} ${teacher.lastName}`} size="lg" />
+            <Avatar
+              name={`${teacher.firstName} ${teacher.lastName}`}
+              size="lg"
+            />
             <div>
-              <h2 className="font-black text-lg" style={{ color: "var(--dark-gray)" }}>
+              <h2
+                className="font-black text-lg"
+                style={{ color: "var(--dark-gray)" }}
+              >
                 {teacher.title} {teacher.firstName} {teacher.lastName}
               </h2>
               <p className="text-xs font-mono text-gray-400">
@@ -379,6 +433,19 @@ const ProfileDrawer = ({ teacher, onEdit, onClose }: any) => {
             { icon: Phone, label: "Phone", value: teacher.phone },
             { icon: IdCard, label: "Staff ID", value: teacher.staffId },
             { icon: Users, label: "Form Class", value: teacher.formClass },
+            {
+              icon: Users,
+              label: "Classes Taught",
+              value:
+                (teacher.assignedClasses || []).join(", ") || "None assigned",
+            },
+            {
+              icon: Briefcase,
+              label: "Subjects Taught",
+              value:
+                (teacher.assignedSubjects || []).join(", ") ||
+                "None assigned (uses department subjects)",
+            },
           ].map(({ icon: Icon, label, value }) => (
             <div
               key={label}
@@ -393,7 +460,10 @@ const ProfileDrawer = ({ teacher, onEdit, onClose }: any) => {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-gray-400">{label}</p>
-                <p className="text-sm font-semibold" style={{ color: "var(--dark-gray)" }}>
+                <p
+                  className="text-sm font-semibold"
+                  style={{ color: "var(--dark-gray)" }}
+                >
                   {value || "-"}
                 </p>
               </div>
@@ -421,7 +491,9 @@ const Teacher = () => {
     tempPassword?: string;
     userId?: string;
   } | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: string } | null>(
+    null,
+  );
 
   const showToast = (msg: string, type = "success") => {
     setToast({ msg, type });
@@ -464,8 +536,7 @@ const Teacher = () => {
           t.email.toLowerCase().includes(q) ||
           (t.staffId || "").toLowerCase().includes(q);
         const matchDept = filterDept === "All" || t.department === filterDept;
-        const matchStatus =
-          filterStatus === "All" || t.status === filterStatus;
+        const matchStatus = filterStatus === "All" || t.status === filterStatus;
         return matchSearch && matchDept && matchStatus;
       }),
     [teachers, search, filterDept, filterStatus],
@@ -500,7 +571,10 @@ const Teacher = () => {
     try {
       await usersApi.remove(deleteTeacher.id as string);
       setTeachers((ts) => ts.filter((t) => t.id !== deleteTeacher.id));
-      showToast(`${deleteTeacher.firstName} ${deleteTeacher.lastName} removed`, "error");
+      showToast(
+        `${deleteTeacher.firstName} ${deleteTeacher.lastName} removed`,
+        "error",
+      );
     } catch (err: any) {
       showToast(err?.message || "Failed to delete teacher", "error");
     } finally {
@@ -541,7 +615,10 @@ const Teacher = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+          <h1
+            className="text-xl font-black"
+            style={{ color: "var(--dark-gray)" }}
+          >
             Teachers / Staff
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -562,8 +639,18 @@ const Teacher = () => {
 
       <div className="grid grid-cols-2 gap-4">
         {[
-          { label: "Total Teachers", value: total, color: "var(--royal-blue)", icon: Users },
-          { label: "Active", value: active, color: "var(--success-dark)", icon: UserCheck },
+          {
+            label: "Total Teachers",
+            value: total,
+            color: "var(--royal-blue)",
+            icon: Users,
+          },
+          {
+            label: "Active",
+            value: active,
+            color: "var(--success-dark)",
+            icon: UserCheck,
+          },
         ].map(({ label, value, color, icon: Icon }) => (
           <div
             key={label}
@@ -577,7 +664,10 @@ const Teacher = () => {
               <Icon size={18} style={{ color }} />
             </div>
             <div>
-              <p className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+              <p
+                className="text-xl font-black"
+                style={{ color: "var(--dark-gray)" }}
+              >
                 {value}
               </p>
               <p className="text-xs text-gray-500">{label}</p>
@@ -600,14 +690,20 @@ const Teacher = () => {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, email or staff ID…"
             className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border-2 outline-none"
-            style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+            style={{
+              borderColor: "var(--medium-gray)",
+              color: "var(--dark-gray)",
+            }}
           />
         </div>
         <select
           value={filterDept}
           onChange={(e) => setFilterDept(e.target.value)}
           className="px-3 py-2 text-sm rounded-xl border-2 outline-none bg-white"
-          style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+          style={{
+            borderColor: "var(--medium-gray)",
+            color: "var(--dark-gray)",
+          }}
         >
           {deptNames.map((d) => (
             <option key={d}>{d}</option>
@@ -617,7 +713,10 @@ const Teacher = () => {
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           className="px-3 py-2 text-sm rounded-xl border-2 outline-none bg-white"
-          style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+          style={{
+            borderColor: "var(--medium-gray)",
+            color: "var(--dark-gray)",
+          }}
         >
           {["All", ...STATUSES].map((s) => (
             <option key={s}>{s}</option>
@@ -639,22 +738,33 @@ const Teacher = () => {
               }}
             >
               <tr>
-                {["Teacher", "Staff ID", "Department", "Role", "Status", "Actions"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500"
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
+                {[
+                  "Teacher",
+                  "Staff ID",
+                  "Department",
+                  "Role",
+                  "Status",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y" style={{ borderColor: "var(--medium-gray)" }}>
+            <tbody
+              className="divide-y"
+              style={{ borderColor: "var(--medium-gray)" }}
+            >
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-12 text-center text-gray-400"
+                  >
                     {loading
                       ? "Loading teachers…"
                       : teachers.length === 0
@@ -669,8 +779,14 @@ const Teacher = () => {
                     <tr key={t.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <Avatar name={`${t.firstName} ${t.lastName}`} size="sm" />
-                          <p className="font-semibold" style={{ color: "var(--dark-gray)" }}>
+                          <Avatar
+                            name={`${t.firstName} ${t.lastName}`}
+                            size="sm"
+                          />
+                          <p
+                            className="font-semibold"
+                            style={{ color: "var(--dark-gray)" }}
+                          >
                             {t.title} {t.firstName} {t.lastName}
                           </p>
                         </div>

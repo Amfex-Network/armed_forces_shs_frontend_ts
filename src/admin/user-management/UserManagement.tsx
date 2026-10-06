@@ -1,5 +1,5 @@
 // src/admin/user-management/UserManagement.jsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useContext } from "react";
 import {
   Search,
   Plus,
@@ -30,6 +30,10 @@ import {
   Copy,
 } from "lucide-react";
 import { usersApi } from "../../api/users";
+import { statsApi } from "../../api/stats";
+import { useSchoolLists } from "../../hooks/useSchoolLists";
+import MultiPick from "../../components/common/MultiPick";
+import { downloadCsv } from "../../utils/csv";
 
 // Config
 const ROLE_CONFIG = {
@@ -232,22 +236,50 @@ const ROLE_STEPS = {
 const EditUserModal = ({ user, onSave, onClose }) => {
   const [form, setForm] = useState({ ...user });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const lists = useSchoolLists();
 
-  const fields = [
+  const withCurrent = (options: string[], current?: string) =>
+    current && !options.includes(current) ? [current, ...options] : options;
+
+  const fields: {
+    key: string;
+    label: string;
+    type?: string;
+    options?: string[];
+    readOnly?: boolean;
+  }[] = [
     { key: "firstName", label: "First Name" },
     { key: "lastName", label: "Last Name" },
-    { key: "email", label: "Email", type: "email" },
+    {
+      key: "email",
+      label: "Email (cannot be changed)",
+      type: "email",
+      readOnly: true,
+    },
     { key: "phone", label: "Phone" },
     ...(user.role === "teacher"
       ? [
-          { key: "department", label: "Department" },
+          {
+            key: "department",
+            label: "Department",
+            options: withCurrent(lists.departments, user.department),
+          },
           { key: "staffId", label: "Staff ID" },
+          {
+            key: "formClass",
+            label: "Form Class (if form teacher)",
+            options: withCurrent(lists.classes, user.formClass),
+          },
         ]
       : []),
     ...(user.role === "student"
       ? [
           { key: "studentId", label: "Student ID" },
-          { key: "formClass", label: "Form Class" },
+          {
+            key: "formClass",
+            label: "Form Class",
+            options: withCurrent(lists.classes, user.formClass),
+          },
         ]
       : []),
   ];
@@ -289,7 +321,7 @@ const EditUserModal = ({ user, onSave, onClose }) => {
 
         {/* Form */}
         <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
-          {fields.map(({ key, label, type = "text" }) => (
+          {fields.map(({ key, label, type = "text", options, readOnly }) => (
             <div key={key}>
               <label
                 className="block text-xs font-bold uppercase tracking-wider mb-1.5"
@@ -297,15 +329,54 @@ const EditUserModal = ({ user, onSave, onClose }) => {
               >
                 {label}
               </label>
-              <input
-                type={type}
-                value={form[key] || ""}
-                onChange={(e) => set(key, e.target.value)}
-                className="w-full px-3 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                style={{ borderColor: "var(--medium-gray)" }}
-              />
+              {options ? (
+                <select
+                  value={form[key] || ""}
+                  onChange={(e) => set(key, e.target.value)}
+                  className="w-full px-3 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{ borderColor: "var(--medium-gray)" }}
+                >
+                  <option value="">-- None --</option>
+                  {options.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={type}
+                  value={form[key] || ""}
+                  readOnly={readOnly}
+                  onChange={(e) => set(key, e.target.value)}
+                  className="w-full px-3 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    borderColor: "var(--medium-gray)",
+                    backgroundColor: readOnly ? "var(--light-gray)" : "white",
+                  }}
+                />
+              )}
             </div>
           ))}
+          {user.role === "teacher" && (
+            <>
+              <MultiPick
+                label="Classes Taught"
+                options={lists.classes}
+                value={form.assignedClasses || []}
+                onChange={(v) => set("assignedClasses", v)}
+                emptyText="No classes yet - create them under Structure - Part 2."
+              />
+              <MultiPick
+                label="Subjects Taught"
+                options={lists.subjects}
+                value={form.assignedSubjects || []}
+                onChange={(v) => set("assignedSubjects", v)}
+                emptyText="No subjects yet - create them under Structure - Part 2."
+                hint="The teacher only sees these classes and subjects in score entry."
+              />
+            </>
+          )}
           {/* Status */}
           <div>
             <label
@@ -356,7 +427,83 @@ const EditUserModal = ({ user, onSave, onClose }) => {
   );
 };
 
+// Defined at module level: a component declared inside the modal would be
+// re-created on every keystroke, unmounting the input and dropping focus.
+const AddUserFormContext = React.createContext<any>(null);
+
+const FInput = ({
+  label,
+  field,
+  placeholder,
+  type = "text",
+  options,
+  required,
+}: any) => {
+  const { form, errors, set } = useContext(AddUserFormContext);
+  return (
+    <div className="flex flex-col gap-1">
+      <label
+        className="text-xs font-bold uppercase tracking-wider"
+        style={{ color: "var(--dark-gray)" }}
+      >
+        {label}
+        {required && <span style={{ color: "var(--accent-red)" }}> *</span>}
+      </label>
+      {options ? (
+        <select
+          value={form[field] || ""}
+          onChange={(e) => set(field, e.target.value)}
+          className="px-3 py-2.5 text-sm rounded-xl border-2 outline-none bg-white"
+          style={{
+            borderColor: errors[field]
+              ? "var(--accent-red)"
+              : "var(--medium-gray)",
+            color: "var(--dark-gray)",
+          }}
+          onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
+          onBlur={(e) =>
+            (e.target.style.borderColor = errors[field]
+              ? "var(--accent-red)"
+              : "var(--medium-gray)")
+          }
+        >
+          <option value="">-- Select --</option>
+          {options.map((o) => (
+            <option key={o}>{o}</option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type}
+          value={form[field] || ""}
+          onChange={(e) => set(field, e.target.value)}
+          placeholder={placeholder}
+          className="px-3 py-2.5 text-sm rounded-xl border-2 outline-none"
+          style={{
+            borderColor: errors[field]
+              ? "var(--accent-red)"
+              : "var(--medium-gray)",
+            color: "var(--dark-gray)",
+          }}
+          onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
+          onBlur={(e) =>
+            (e.target.style.borderColor = errors[field]
+              ? "var(--accent-red)"
+              : "var(--medium-gray)")
+          }
+        />
+      )}
+      {errors[field] && (
+        <span className="text-xs" style={{ color: "var(--accent-red)" }}>
+          {errors[field]}
+        </span>
+      )}
+    </div>
+  );
+};
+
 const AddUserModal = ({ onSave, onClose }) => {
+  const lists = useSchoolLists();
   const [step, setStep] = useState("role"); // 'role' | 'form'
   const [role, setRole] = useState(null);
   const [form, setForm] = useState({});
@@ -425,16 +572,21 @@ const AddUserModal = ({ onSave, onClose }) => {
       ...(role === "teacher"
         ? {
             staffId: form.staffId,
-            department: form.department || "Mathematics",
+            department: form.department || "",
             teacherRole: form.teacherRole || "Subject Teacher",
             formClass: form.formClass || "",
+            assignedClasses: form.assignedClasses || [],
+            assignedSubjects: form.assignedSubjects || [],
           }
         : {}),
       ...(role === "student"
         ? {
             studentId: form.studentId,
             formClass: form.formClass || "",
-            course: form.course || "General Science",
+            course: form.course || "",
+            year: form.year || "",
+            house: form.house || "",
+            track: form.track || "",
           }
         : {}),
       ...(role === "parent" ? { childrenCount: 0 } : {}),
@@ -442,538 +594,484 @@ const AddUserModal = ({ onSave, onClose }) => {
     onSave(newUser);
   };
 
-  const FInput = ({
-    label,
-    field,
-    placeholder,
-    type = "text",
-    options,
-    required,
-  }) => (
-    <div className="flex flex-col gap-1">
-      <label
-        className="text-xs font-bold uppercase tracking-wider"
-        style={{ color: "var(--dark-gray)" }}
-      >
-        {label}
-        {required && <span style={{ color: "var(--accent-red)" }}> *</span>}
-      </label>
-      {options ? (
-        <select
-          value={form[field] || ""}
-          onChange={(e) => set(field, e.target.value)}
-          className="px-3 py-2.5 text-sm rounded-xl border-2 outline-none bg-white"
-          style={{
-            borderColor: errors[field]
-              ? "var(--accent-red)"
-              : "var(--medium-gray)",
-            color: "var(--dark-gray)",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
-          onBlur={(e) =>
-            (e.target.style.borderColor = errors[field]
-              ? "var(--accent-red)"
-              : "var(--medium-gray)")
-          }
-        >
-          <option value="">-- Select --</option>
-          {options.map((o) => (
-            <option key={o}>{o}</option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          value={form[field] || ""}
-          onChange={(e) => set(field, e.target.value)}
-          placeholder={placeholder}
-          className="px-3 py-2.5 text-sm rounded-xl border-2 outline-none"
-          style={{
-            borderColor: errors[field]
-              ? "var(--accent-red)"
-              : "var(--medium-gray)",
-            color: "var(--dark-gray)",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
-          onBlur={(e) =>
-            (e.target.style.borderColor = errors[field]
-              ? "var(--accent-red)"
-              : "var(--medium-gray)")
-          }
-        />
-      )}
-      {errors[field] && (
-        <span className="text-xs" style={{ color: "var(--accent-red)" }}>
-          {errors[field]}
-        </span>
-      )}
-    </div>
-  );
-
   const selectedRole = role ? ROLE_OPTIONS.find((r) => r.key === role) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-6 py-4 flex-shrink-0"
-          style={{
-            background:
-              "linear-gradient(135deg,var(--royal-blue),var(--royal-blue-dark))",
-            borderRadius: "1rem 1rem 0 0",
-          }}
-        >
-          <div className="flex items-center gap-3 text-white">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
-            >
-              <Plus size={16} />
-            </div>
-            <div>
-              <p className="font-black">Add New User</p>
-              <p className="text-blue-200 text-xs">
-                {step === "role"
-                  ? "Step 1 - Select a role"
-                  : `Step 2 - ${selectedRole?.label} details`}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-white hover:text-blue-200"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        <div
-          className="h-1 flex-shrink-0"
-          style={{ backgroundColor: "var(--accent-red)" }}
-        />
-
-        {/* Progress dots */}
-        <div
-          className="flex items-center justify-center gap-2 py-3 border-b"
-          style={{ borderColor: "var(--medium-gray)" }}
-        >
-          {["role", "form"].map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black"
-                style={{
-                  backgroundColor:
-                    step === s
-                      ? "var(--royal-blue)"
-                      : step === "form" && s === "role"
-                        ? "var(--success-dark)"
-                        : "var(--medium-gray)",
-                  color:
-                    step === s || (step === "form" && s === "role")
-                      ? "white"
-                      : "#9ca3af",
-                }}
-              >
-                {step === "form" && s === "role" ? "✓" : i + 1}
-              </div>
-              <span
-                className="text-xs font-semibold"
-                style={{ color: step === s ? "var(--royal-blue)" : "#9ca3af" }}
-              >
-                {s === "role" ? "Choose Role" : "Fill Details"}
-              </span>
-              {i === 0 && (
-                <div
-                  className="w-8 h-0.5"
-                  style={{
-                    backgroundColor:
-                      step === "form"
-                        ? "var(--success-dark)"
-                        : "var(--medium-gray)",
-                  }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Step 1: Role picker */}
-          {step === "role" && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-500 mb-4">
-                What type of user do you want to add?
-              </p>
-              {ROLE_OPTIONS.map((r) => {
-                const Icon = r.icon;
-                return (
-                  <button
-                    key={r.key}
-                    type="button"
-                    onClick={() => {
-                      setRole(r.key);
-                      setStep("form");
-                      setForm({});
-                      setErrors({});
-                    }}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md"
-                    style={{
-                      borderColor: r.color + "40",
-                      backgroundColor: r.bg,
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.borderColor = r.color)
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.borderColor = r.color + "40")
-                    }
-                  >
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: r.color + "20" }}
-                    >
-                      <Icon size={22} style={{ color: r.color }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className="font-black text-base"
-                        style={{ color: "var(--dark-gray)" }}
-                      >
-                        {r.label}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-0.5">{r.desc}</p>
-                    </div>
-                    <ChevronRight
-                      size={16}
-                      style={{ color: r.color, flexShrink: 0 }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Step 2: Form fields */}
-          {step === "form" && selectedRole && (
-            <div className="space-y-5">
-              {/* Role badge */}
-              <div
-                className="flex items-center gap-3 p-3 rounded-xl"
-                style={{ backgroundColor: selectedRole.bg }}
-              >
-                <selectedRole.icon
-                  size={18}
-                  style={{ color: selectedRole.color }}
-                />
-                <div>
-                  <p
-                    className="text-sm font-bold"
-                    style={{ color: selectedRole.color }}
-                  >
-                    Adding a {selectedRole.label}
-                  </p>
-                  <p className="text-xs text-gray-400">{selectedRole.desc}</p>
-                </div>
-              </div>
-
-              {/* Personal info */}
-              <div>
-                <p
-                  className="text-xs font-black uppercase tracking-widest mb-3"
-                  style={{ color: "var(--royal-blue)", opacity: 0.7 }}
-                >
-                  Personal Information
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {role !== "student" && (
-                    <FInput
-                      label="Title"
-                      field="title"
-                      options={[
-                        "Mr",
-                        "Mrs",
-                        "Miss",
-                        "Dr",
-                        "Prof",
-                        "Rev",
-                        "Capt",
-                        "Lt",
-                        "Sgt",
-                      ]}
-                    />
-                  )}
-                  <FInput
-                    label="First Name"
-                    field="firstName"
-                    placeholder="e.g. Kofi"
-                    required
-                  />
-                  <FInput
-                    label="Last Name"
-                    field="lastName"
-                    placeholder="e.g. Asante"
-                    required
-                  />
-                  <FInput
-                    label="Email"
-                    field="email"
-                    placeholder="user@afts.edu.gh"
-                    type="email"
-                    required
-                  />
-                  <FInput label="Phone" field="phone" placeholder="0244..." />
-                  <FInput
-                    label="Status"
-                    field="status"
-                    options={["Active", "Inactive"]}
-                  />
-                </div>
-              </div>
-
-              {/* Role-specific fields */}
-              {role === "teacher" && (
-                <div>
-                  <p
-                    className="text-xs font-black uppercase tracking-widest mb-3"
-                    style={{ color: "var(--royal-blue)", opacity: 0.7 }}
-                  >
-                    School Information
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FInput
-                      label="Staff ID"
-                      field="staffId"
-                      placeholder="e.g. AFSHTS/TCH/016"
-                      required
-                    />
-                    <FInput
-                      label="Department"
-                      field="department"
-                      options={[
-                        "Mathematics",
-                        "English",
-                        "Science",
-                        "Social Studies",
-                        "Technical",
-                        "Business",
-                        "Arts",
-                        "Physical Education",
-                      ]}
-                    />
-                    <FInput
-                      label="Subject Taught"
-                      field="subject"
-                      placeholder="e.g. Core Mathematics"
-                    />
-                    <FInput
-                      label="Employment"
-                      field="employmentType"
-                      options={[
-                        "Full-time",
-                        "Part-time",
-                        "Contract",
-                        "National Service",
-                      ]}
-                    />
-                    <div className="sm:col-span-2">
-                      <FInput
-                        label="Teacher Role"
-                        field="teacherRole"
-                        options={[
-                          "Subject Teacher",
-                          "Subject Teacher + Form Teacher",
-                          "Subject Teacher + HOD",
-                          "Subject Teacher + Form Teacher + HOD",
-                          "Form Teacher + HOD",
-                          "Examiner",
-                        ]}
-                      />
-                    </div>
-                    {(form.teacherRole || "").includes("Form Teacher") && (
-                      <div className="sm:col-span-2">
-                        <FInput
-                          label="Form Class (assigned)"
-                          field="formClass"
-                          placeholder="e.g. Form 2 Science A"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {role === "student" && (
-                <div>
-                  <p
-                    className="text-xs font-black uppercase tracking-widest mb-3"
-                    style={{ color: "var(--royal-blue)", opacity: 0.7 }}
-                  >
-                    Academic Information
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FInput
-                      label="Student ID"
-                      field="studentId"
-                      placeholder="e.g. AFSHTS/2025/050"
-                      required
-                    />
-                    <FInput
-                      label="Year Group"
-                      field="year"
-                      options={["Form 1", "Form 2", "Form 3"]}
-                    />
-                    <FInput
-                      label="Course"
-                      field="course"
-                      options={[
-                        "General Science",
-                        "General Arts",
-                        "Business",
-                        "Technical",
-                      ]}
-                    />
-                    <FInput label="Track" field="track" options={["A", "B"]} />
-                    <FInput
-                      label="Form Class"
-                      field="formClass"
-                      placeholder="e.g. Form 1 Science A"
-                    />
-                    <FInput
-                      label="House"
-                      field="house"
-                      options={["Warrior", "Eagle", "Phoenix", "Valor"]}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {role === "parent" && (
-                <div>
-                  <p
-                    className="text-xs font-black uppercase tracking-widest mb-3"
-                    style={{ color: "var(--royal-blue)", opacity: 0.7 }}
-                  >
-                    Additional Details
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FInput
-                      label="Occupation"
-                      field="occupation"
-                      placeholder="e.g. Engineer"
-                    />
-                    <FInput
-                      label="Address"
-                      field="address"
-                      placeholder="e.g. Bantama, Kumasi"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {role === "admin" && (
-                <div>
-                  <p
-                    className="text-xs font-black uppercase tracking-widest mb-3"
-                    style={{ color: "var(--royal-blue)", opacity: 0.7 }}
-                  >
-                    Admin Details
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FInput
-                      label="Position"
-                      field="position"
-                      options={[
-                        "Headmaster",
-                        "Assistant Headmaster",
-                        "Admin Officer",
-                        "Bursar",
-                        "Academic Director",
-                        "System Administrator",
-                      ]}
-                    />
-                    <FInput
-                      label="Staff ID"
-                      field="staffId"
-                      placeholder="e.g. AFSHTS/ADM/002"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Temp password info */}
-              <div
-                className="p-3 rounded-xl border"
-                style={{ backgroundColor: "#eef2ff", borderColor: "#c7d2fe" }}
-              >
-                <p
-                  className="text-xs font-semibold"
-                  style={{ color: "var(--royal-blue)" }}
-                >
-                  A temporary password will be auto-generated. You can reset it
-                  from the user's profile.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        {step === "form" && (
+    <AddUserFormContext.Provider value={{ form, errors, set }}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
+          {/* Header */}
           <div
-            className="flex items-center justify-between gap-3 px-6 py-4 border-t flex-shrink-0"
+            className="flex items-center justify-between px-6 py-4 flex-shrink-0"
             style={{
-              borderColor: "var(--medium-gray)",
-              backgroundColor: "var(--light-gray)",
-              borderRadius: "0 0 1rem 1rem",
+              background:
+                "linear-gradient(135deg,var(--royal-blue),var(--royal-blue-dark))",
+              borderRadius: "1rem 1rem 0 0",
             }}
           >
+            <div className="flex items-center gap-3 text-white">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+              >
+                <Plus size={16} />
+              </div>
+              <div>
+                <p className="font-black">Add New User</p>
+                <p className="text-blue-200 text-xs">
+                  {step === "role"
+                    ? "Step 1 - Select a role"
+                    : `Step 2 - ${selectedRole?.label} details`}
+                </p>
+              </div>
+            </div>
             <button
               type="button"
-              onClick={() => {
-                setStep("role");
-                setErrors({});
-              }}
-              className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl border"
+              onClick={onClose}
+              className="text-white hover:text-blue-200"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <div
+            className="h-1 flex-shrink-0"
+            style={{ backgroundColor: "var(--accent-red)" }}
+          />
+
+          {/* Progress dots */}
+          <div
+            className="flex items-center justify-center gap-2 py-3 border-b"
+            style={{ borderColor: "var(--medium-gray)" }}
+          >
+            {["role", "form"].map((s, i) => (
+              <div key={s} className="flex items-center gap-2">
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black"
+                  style={{
+                    backgroundColor:
+                      step === s
+                        ? "var(--royal-blue)"
+                        : step === "form" && s === "role"
+                          ? "var(--success-dark)"
+                          : "var(--medium-gray)",
+                    color:
+                      step === s || (step === "form" && s === "role")
+                        ? "white"
+                        : "#9ca3af",
+                  }}
+                >
+                  {step === "form" && s === "role" ? "✓" : i + 1}
+                </div>
+                <span
+                  className="text-xs font-semibold"
+                  style={{
+                    color: step === s ? "var(--royal-blue)" : "#9ca3af",
+                  }}
+                >
+                  {s === "role" ? "Choose Role" : "Fill Details"}
+                </span>
+                {i === 0 && (
+                  <div
+                    className="w-8 h-0.5"
+                    style={{
+                      backgroundColor:
+                        step === "form"
+                          ? "var(--success-dark)"
+                          : "var(--medium-gray)",
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* Step 1: Role picker */}
+            {step === "role" && (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500 mb-4">
+                  What type of user do you want to add?
+                </p>
+                {ROLE_OPTIONS.map((r) => {
+                  const Icon = r.icon;
+                  return (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() => {
+                        setRole(r.key);
+                        setStep("form");
+                        setForm({});
+                        setErrors({});
+                      }}
+                      className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md"
+                      style={{
+                        borderColor: r.color + "40",
+                        backgroundColor: r.bg,
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.borderColor = r.color)
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.borderColor = r.color + "40")
+                      }
+                    >
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: r.color + "20" }}
+                      >
+                        <Icon size={22} style={{ color: r.color }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="font-black text-base"
+                          style={{ color: "var(--dark-gray)" }}
+                        >
+                          {r.label}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">{r.desc}</p>
+                      </div>
+                      <ChevronRight
+                        size={16}
+                        style={{ color: r.color, flexShrink: 0 }}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Step 2: Form fields */}
+            {step === "form" && selectedRole && (
+              <div className="space-y-5">
+                {/* Role badge */}
+                <div
+                  className="flex items-center gap-3 p-3 rounded-xl"
+                  style={{ backgroundColor: selectedRole.bg }}
+                >
+                  <selectedRole.icon
+                    size={18}
+                    style={{ color: selectedRole.color }}
+                  />
+                  <div>
+                    <p
+                      className="text-sm font-bold"
+                      style={{ color: selectedRole.color }}
+                    >
+                      Adding a {selectedRole.label}
+                    </p>
+                    <p className="text-xs text-gray-400">{selectedRole.desc}</p>
+                  </div>
+                </div>
+
+                {/* Personal info */}
+                <div>
+                  <p
+                    className="text-xs font-black uppercase tracking-widest mb-3"
+                    style={{ color: "var(--royal-blue)", opacity: 0.7 }}
+                  >
+                    Personal Information
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {role !== "student" && (
+                      <FInput
+                        label="Title"
+                        field="title"
+                        options={[
+                          "Mr",
+                          "Mrs",
+                          "Miss",
+                          "Dr",
+                          "Prof",
+                          "Rev",
+                          "Capt",
+                          "Lt",
+                          "Sgt",
+                        ]}
+                      />
+                    )}
+                    <FInput
+                      label="First Name"
+                      field="firstName"
+                      placeholder="e.g. Kofi"
+                      required
+                    />
+                    <FInput
+                      label="Last Name"
+                      field="lastName"
+                      placeholder="e.g. Asante"
+                      required
+                    />
+                    <FInput
+                      label="Email"
+                      field="email"
+                      placeholder="user@afts.edu.gh"
+                      type="email"
+                      required
+                    />
+                    <FInput label="Phone" field="phone" placeholder="0244..." />
+                    <FInput
+                      label="Status"
+                      field="status"
+                      options={["Active", "Inactive"]}
+                    />
+                  </div>
+                </div>
+
+                {/* Role-specific fields */}
+                {role === "teacher" && (
+                  <div>
+                    <p
+                      className="text-xs font-black uppercase tracking-widest mb-3"
+                      style={{ color: "var(--royal-blue)", opacity: 0.7 }}
+                    >
+                      School Information
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FInput
+                        label="Staff ID"
+                        field="staffId"
+                        placeholder="e.g. AFSHTS/TCH/016"
+                        required
+                      />
+                      <FInput
+                        label="Department"
+                        field="department"
+                        options={lists.departments}
+                      />
+                      <FInput
+                        label="Employment"
+                        field="employmentType"
+                        options={[
+                          "Full-time",
+                          "Part-time",
+                          "Contract",
+                          "National Service",
+                        ]}
+                      />
+                      <div className="sm:col-span-2">
+                        <FInput
+                          label="Teacher Role"
+                          field="teacherRole"
+                          options={[
+                            "Subject Teacher",
+                            "Subject Teacher + Form Teacher",
+                            "Subject Teacher + HOD",
+                            "Subject Teacher + Form Teacher + HOD",
+                            "Form Teacher + HOD",
+                            "Examiner",
+                          ]}
+                        />
+                      </div>
+                      {(form.teacherRole || "").includes("Form Teacher") && (
+                        <div className="sm:col-span-2">
+                          <FInput
+                            label="Form Class (assigned)"
+                            field="formClass"
+                            options={lists.classes}
+                          />
+                        </div>
+                      )}
+                      <div className="sm:col-span-2">
+                        <MultiPick
+                          label="Classes Taught"
+                          options={lists.classes}
+                          value={form.assignedClasses || []}
+                          onChange={(v) => set("assignedClasses", v)}
+                          emptyText="No classes yet - create them under Structure - Part 2."
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <MultiPick
+                          label="Subjects Taught"
+                          options={lists.subjects}
+                          value={form.assignedSubjects || []}
+                          onChange={(v) => set("assignedSubjects", v)}
+                          emptyText="No subjects yet - create them under Structure - Part 2."
+                          hint="The teacher only sees these classes and subjects in score entry."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {role === "student" && (
+                  <div>
+                    <p
+                      className="text-xs font-black uppercase tracking-widest mb-3"
+                      style={{ color: "var(--royal-blue)", opacity: 0.7 }}
+                    >
+                      Academic Information
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FInput
+                        label="Student ID"
+                        field="studentId"
+                        placeholder="e.g. AFSHTS/2025/050"
+                        required
+                      />
+                      <FInput
+                        label="Year Group"
+                        field="year"
+                        options={["Form 1", "Form 2", "Form 3"]}
+                      />
+                      <FInput
+                        label="Course"
+                        field="course"
+                        options={[
+                          "General Science",
+                          "General Arts",
+                          "Business",
+                          "Technical",
+                        ]}
+                      />
+                      <FInput
+                        label="Track"
+                        field="track"
+                        options={["A", "B"]}
+                      />
+                      <FInput
+                        label="Form Class"
+                        field="formClass"
+                        options={lists.classes}
+                      />
+                      <FInput
+                        label="House"
+                        field="house"
+                        options={["Warrior", "Eagle", "Phoenix", "Valor"]}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {role === "parent" && (
+                  <div>
+                    <p
+                      className="text-xs font-black uppercase tracking-widest mb-3"
+                      style={{ color: "var(--royal-blue)", opacity: 0.7 }}
+                    >
+                      Additional Details
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FInput
+                        label="Occupation"
+                        field="occupation"
+                        placeholder="e.g. Engineer"
+                      />
+                      <FInput
+                        label="Address"
+                        field="address"
+                        placeholder="e.g. Bantama, Kumasi"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {role === "admin" && (
+                  <div>
+                    <p
+                      className="text-xs font-black uppercase tracking-widest mb-3"
+                      style={{ color: "var(--royal-blue)", opacity: 0.7 }}
+                    >
+                      Admin Details
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FInput
+                        label="Position"
+                        field="position"
+                        options={[
+                          "Headmaster",
+                          "Assistant Headmaster",
+                          "Admin Officer",
+                          "Bursar",
+                          "Academic Director",
+                          "System Administrator",
+                        ]}
+                      />
+                      <FInput
+                        label="Staff ID"
+                        field="staffId"
+                        placeholder="e.g. AFSHTS/ADM/002"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Temp password info */}
+                <div
+                  className="p-3 rounded-xl border"
+                  style={{ backgroundColor: "#eef2ff", borderColor: "#c7d2fe" }}
+                >
+                  <p
+                    className="text-xs font-semibold"
+                    style={{ color: "var(--royal-blue)" }}
+                  >
+                    A temporary password will be auto-generated. You can reset
+                    it from the user's profile.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          {step === "form" && (
+            <div
+              className="flex items-center justify-between gap-3 px-6 py-4 border-t flex-shrink-0"
               style={{
                 borderColor: "var(--medium-gray)",
-                color: "var(--dark-gray)",
+                backgroundColor: "var(--light-gray)",
+                borderRadius: "0 0 1rem 1rem",
               }}
             >
-              ← Back
-            </button>
-            <div className="flex gap-2">
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-semibold rounded-xl border"
+                onClick={() => {
+                  setStep("role");
+                  setErrors({});
+                }}
+                className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl border"
                 style={{
                   borderColor: "var(--medium-gray)",
                   color: "var(--dark-gray)",
                 }}
               >
-                Cancel
+                ← Back
               </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-xl"
-                style={{ backgroundColor: "var(--royal-blue)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor =
-                    "var(--royal-blue-dark)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor = "var(--royal-blue)")
-                }
-              >
-                <Save size={14} /> Add {selectedRole?.label}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-semibold rounded-xl border"
+                  style={{
+                    borderColor: "var(--medium-gray)",
+                    color: "var(--dark-gray)",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-xl"
+                  style={{ backgroundColor: "var(--royal-blue)" }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      "var(--royal-blue-dark)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      "var(--royal-blue)")
+                  }
+                >
+                  <Save size={14} /> Add {selectedRole?.label}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </AddUserFormContext.Provider>
   );
 };
 
@@ -1207,6 +1305,14 @@ const UserManagement = () => {
   const [resetUser, setResetUser] = useState(null);
   const [showAddUser, setShowAddUser] = useState(false);
   const [toast, setToast] = useState(null);
+  const [studentRecords, setStudentRecords] = useState<number | null>(null);
+
+  useEffect(() => {
+    statsApi
+      .overview()
+      .then((o) => setStudentRecords(o.students))
+      .catch(() => setStudentRecords(null));
+  }, []);
 
   const showToast = (msg, type = "success", duration = 3500) => {
     setToast({ msg, type });
@@ -1255,18 +1361,14 @@ const UserManagement = () => {
   };
 
   const handleExport = () => {
-    const rows = ["Role,Name,Email,Phone,Status,Joined"];
+    const rows: unknown[][] = [
+      ["Role", "Name", "Email", "Phone", "Status", "Joined"],
+    ];
     filtered.forEach((u) => {
       const name = [u.title, u.firstName, u.lastName].filter(Boolean).join(" ");
-      rows.push(
-        `${u.role},${name},${u.email},${u.phone || "-"},${u.status},${u.joinDate || "-"}`,
-      );
+      rows.push([u.role, name, u.email, u.phone, u.status, u.joinDate]);
     });
-    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "AFTS_Users.csv";
-    a.click();
+    downloadCsv("AFTS_Users.csv", rows);
     showToast(`${filtered.length} users exported`);
   };
 
@@ -1366,6 +1468,13 @@ const UserManagement = () => {
             {users.length} total · {activeCount} active · {inactiveCount}{" "}
             inactive
           </p>
+          {studentRecords !== null && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              This page lists login accounts. {counts.student} student login(s)
+              · {studentRecords} student record(s) - manage records and create
+              logins under Students.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button

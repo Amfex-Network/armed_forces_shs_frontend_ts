@@ -437,85 +437,111 @@ const Settings = () => {
       <SectionCard
         icon={Shield}
         title="Security Settings"
-        description="Password policy, session management and access control"
+        description="Protections enforced on every account and request"
         color="var(--accent-red)"
       >
-        <div className="space-y-1">
-          <Field
-            label="Session Timeout"
-            description="Auto-logout after inactivity (minutes)"
-          >
-            <SelectField
-              value={String(security.sessionTimeout)}
-              onChange={(v) => setSec("sessionTimeout", parseInt(v))}
-              options={["15", "30", "60", "120"].map((v) => ({
-                value: v,
-                label: `${v} minutes`,
-              }))}
-            />
-          </Field>
-          <Field
-            label="Max Login Attempts"
-            description="Lock account after this many failed attempts"
-          >
-            <SelectField
-              value={String(security.maxLoginAttempts)}
-              onChange={(v) => setSec("maxLoginAttempts", parseInt(v))}
-              options={["3", "5", "10"].map((v) => ({
-                value: v,
-                label: `${v} attempts`,
-              }))}
-            />
-          </Field>
-          <Field label="Minimum Password Length">
-            <SelectField
-              value={String(security.passwordMinLength)}
-              onChange={(v) => setSec("passwordMinLength", parseInt(v))}
-              options={["6", "8", "10", "12"].map((v) => ({
-                value: v,
-                label: `${v} characters`,
-              }))}
-            />
-          </Field>
-        </div>
-        <div className="mt-3 space-y-0">
-          <ToggleSwitch
-            label="Require Uppercase Letter"
-            description="Passwords must contain at least one uppercase letter"
-            checked={security.requireUppercase}
-            onChange={(v) => setSec("requireUppercase", v)}
-            color="var(--accent-red)"
-          />
-          <ToggleSwitch
-            label="Require Numbers"
-            description="Passwords must contain at least one number"
-            checked={security.requireNumbers}
-            onChange={(v) => setSec("requireNumbers", v)}
-            color="var(--accent-red)"
-          />
-          <ToggleSwitch
-            label="Require Special Characters"
-            description="Passwords must contain !@#$% etc."
-            checked={security.requireSpecialChar}
-            onChange={(v) => setSec("requireSpecialChar", v)}
-            color="var(--accent-red)"
-          />
-          <ToggleSwitch
-            label="Lock Account on Failed Login"
-            description="Temporarily lock after max failed attempts"
-            checked={security.lockAfterFail}
-            onChange={(v) => setSec("lockAfterFail", v)}
-            color="var(--accent-red)"
-          />
-          <ToggleSwitch
-            label="Two-Factor Authentication"
-            description="Require OTP code on login (SMS to registered phone)"
-            checked={security.twoFactor}
-            onChange={(v) => setSec("twoFactor", v)}
-            color="var(--accent-red)"
-          />
-        </div>
-        <SaveButton section="Security" />
+        <p className="text-xs text-gray-500 mb-2">
+          These protections are built in and always enforced by the server.
+        </p>
+        <ul className="divide-y" style={{ borderColor: "var(--medium-gray)" }}>
+          <li className="py-2.5">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Passwords
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              At least 10 characters with uppercase, lowercase and a number;
+              checked on the server.
+            </p>
+          </li>
+          <li className="py-2.5">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Temporary passwords
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              New and reset accounts get a random 12-character one-time password
+              that must be changed at first sign-in.
+            </p>
+          </li>
+          <li className="py-2.5">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Failed sign-ins
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              After 10 failed attempts an account is locked for 15 minutes,
+              whatever device or network they come from.
+            </p>
+          </li>
+          <li className="py-2.5">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Sessions
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Stored only in a secure HttpOnly cookie (not readable by page
+              scripts) and expire after the configured lifetime.
+            </p>
+          </li>
+          <li className="py-2.5">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Instant revocation
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Deactivating a user, changing their role, resetting or changing a
+              password, or signing out ends their sessions immediately.
+            </p>
+          </li>
+          <li className="py-2.5">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Access control
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Every request is checked on the server: teachers see only their
+              assigned classes, parents only their linked children, students
+              only themselves.
+            </p>
+          </li>
+          <li className="py-2.5">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Request protection
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Cross-site request forgery checks, input sanitising, request size
+              limits, rate limiting and secure HTTP headers.
+            </p>
+          </li>
+          <li className="py-2.5">
+            <p
+              className="text-sm font-semibold"
+              style={{ color: "var(--dark-gray)" }}
+            >
+              Audit trail
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Sign-ins, every change, and refused attempts are recorded in Audit
+              Logs.
+            </p>
+          </li>
+        </ul>
       </SectionCard>
 
       {/* Notifications */}

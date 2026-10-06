@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Trash2,
 } from "lucide-react";
+import { downloadCsv } from "../../utils/csv";
 
 // Mock audit log data
 
@@ -203,20 +204,22 @@ const AuditLogs = () => {
 
   const filtered = useMemo(
     () =>
-      logs.filter((log) => {
-        const q = search.toLowerCase();
-        const matchSearch =
-          !q ||
-          log.user.toLowerCase().includes(q) ||
-          log.action.toLowerCase().includes(q) ||
-          log.details.toLowerCase().includes(q) ||
-          log.module.toLowerCase().includes(q);
-        const matchModule =
-          filterModule === "All" || log.module === filterModule;
-        const matchRole = filterRole === "All" || log.role === filterRole;
-        const matchDate = !filterDate || log.timestamp.startsWith(filterDate);
-        return matchSearch && matchModule && matchRole && matchDate;
-      }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+      logs
+        .filter((log) => {
+          const q = search.toLowerCase();
+          const matchSearch =
+            !q ||
+            log.user.toLowerCase().includes(q) ||
+            log.action.toLowerCase().includes(q) ||
+            log.details.toLowerCase().includes(q) ||
+            log.module.toLowerCase().includes(q);
+          const matchModule =
+            filterModule === "All" || log.module === filterModule;
+          const matchRole = filterRole === "All" || log.role === filterRole;
+          const matchDate = !filterDate || log.timestamp.startsWith(filterDate);
+          return matchSearch && matchModule && matchRole && matchDate;
+        })
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
     [logs, search, filterModule, filterRole, filterDate],
   );
 
@@ -228,17 +231,34 @@ const AuditLogs = () => {
     (filterDate ? 1 : 0);
 
   const handleExport = () => {
-    const rows = ["Timestamp,User,Role,Action,Module,Status,IP,Details"];
+    const rows: unknown[][] = [
+      [
+        "Timestamp",
+        "User",
+        "Role",
+        "Action",
+        "Module",
+        "Status",
+        "IP",
+        "Details",
+      ],
+    ];
     filtered.forEach((l) =>
-      rows.push(
-        `"${l.timestamp}","${l.user}","${l.role}","${l.action}","${l.module}","${l.status}","${l.ip}","${l.details}"`,
-      ),
+      rows.push([
+        l.timestamp,
+        l.user,
+        l.role,
+        l.action,
+        l.module,
+        l.status,
+        l.ip,
+        l.details,
+      ]),
     );
-    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `AFTS_AuditLogs_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
+    downloadCsv(
+      `AFTS_AuditLogs_${new Date().toISOString().split("T")[0]}.csv`,
+      rows,
+    );
   };
 
   const stats = {
@@ -459,7 +479,6 @@ const AuditLogs = () => {
               onClick={() => {
                 setSearch("");
                 setFModule("All");
-                setFStatus("All");
                 setFRole("All");
                 setFDate("");
                 setPage(1);

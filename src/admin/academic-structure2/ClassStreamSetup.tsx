@@ -8,8 +8,11 @@ import {
   X,
   CheckCircle2,
   Search,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
-import { classesApi } from "../../api/domains";
+import { classesApi, type ClassCoverage } from "../../api/domains";
+import { usersApi } from "../../api/users";
 
 const YEAR_GROUPS = ["Form 1", "Form 2", "Form 3"];
 const COURSES = ["General Science", "General Arts", "Business", "Technical"];
@@ -35,6 +38,62 @@ const PB = {
   Technical: "#f0fdf4",
 };
 
+// Module-level so the inputs keep focus while typing (a component declared
+// inside ClassStreamSetup would be re-created on every keystroke).
+const FInput = ({
+  label,
+  value,
+  onChange,
+  options,
+  type = "text",
+  required = false,
+}: {
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  options?: { value: string; label: string }[];
+  type?: string;
+  required?: boolean;
+}) => (
+  <div>
+    <label
+      className="text-xs font-bold uppercase tracking-wider block mb-1"
+      style={{ color: "var(--dark-gray)" }}
+    >
+      {label}
+      {required && <span style={{ color: "var(--accent-red)" }}> *</span>}
+    </label>
+    {options ? (
+      <select
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none bg-white"
+        style={{ borderColor: "var(--medium-gray)" }}
+        onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
+        onBlur={(e) => (e.target.style.borderColor = "var(--medium-gray)")}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <input
+        type={type}
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none"
+        style={{ borderColor: "var(--medium-gray)" }}
+        onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
+        onBlur={(e) => (e.target.style.borderColor = "var(--medium-gray)")}
+      />
+    )}
+  </div>
+);
+
+const opts = (values: string[]) => values.map((v) => ({ value: v, label: v }));
+
 const ClassStreamSetup = () => {
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +103,10 @@ const ClassStreamSetup = () => {
   const [filterYr, setFY] = useState("All");
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState(null);
+  const [teachers, setTeachers] = useState<string[]>([]);
+  const [coverage, setCoverage] = useState<ClassCoverage | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -51,10 +114,17 @@ const ClassStreamSetup = () => {
   };
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const loadCoverage = () =>
+    classesApi
+      .coverage()
+      .then(setCoverage)
+      .catch(() => setCoverage(null));
+
   const load = async () => {
     try {
       setLoading(true);
       setClasses(await classesApi.list());
+      loadCoverage();
     } catch (err) {
       showToast(err?.message || "Failed to load classes", "error");
     } finally {
@@ -64,7 +134,37 @@ const ClassStreamSetup = () => {
 
   useEffect(() => {
     load();
+    usersApi
+      .list()
+      .then((all) =>
+        setTeachers(
+          all
+            .filter((u) => u.role === "teacher")
+            .map((u) =>
+              [u.title, u.firstName, u.lastName].filter(Boolean).join(" "),
+            )
+            .sort(),
+        ),
+      )
+      .catch(() => setTeachers([]));
   }, []);
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true);
+      const res = await classesApi.syncFromStudents();
+      await load();
+      showToast(
+        res.created.length
+          ? `${res.created.length} class(es) created from student records`
+          : "All student classes already exist",
+      );
+    } catch (err) {
+      showToast(err?.message || "Failed to create classes", "error");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const filtered = useMemo(
     () =>
@@ -78,7 +178,11 @@ const ClassStreamSetup = () => {
   );
 
   const handleSave = async () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      setFormError("Class name is required.");
+      return;
+    }
+    setFormError("");
     try {
       if (editC) {
         const saved = await classesApi.update(editC.id, form);
@@ -92,8 +196,9 @@ const ClassStreamSetup = () => {
       setShowForm(false);
       setEditC(null);
       setForm({ ...EMPTY });
+      loadCoverage();
     } catch (err) {
-      showToast(err?.message || "Failed to save class", "error");
+      setFormError(err?.message || "Failed to save class");
     }
   };
 
@@ -101,47 +206,12 @@ const ClassStreamSetup = () => {
     try {
       await classesApi.remove(cls.id);
       setClasses((cs) => cs.filter((c) => c.id !== cls.id));
-      showToast(`${cls.name} removed`, "error");
+      showToast(`${cls.name} removed`);
+      loadCoverage();
     } catch (err) {
       showToast(err?.message || "Failed to delete class", "error");
     }
   };
-
-  const FInput = ({ label, field, options, type = "text", required }) => (
-    <div>
-      <label
-        className="text-xs font-bold uppercase tracking-wider block mb-1"
-        style={{ color: "var(--dark-gray)" }}
-      >
-        {label}
-        {required && <span style={{ color: "var(--accent-red)" }}> *</span>}
-      </label>
-      {options ? (
-        <select
-          value={form[field] || ""}
-          onChange={(e) => set(field, e.target.value)}
-          className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none bg-white"
-          style={{ borderColor: "var(--medium-gray)" }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--medium-gray)")}
-        >
-          {options.map((o) => (
-            <option key={o}>{o}</option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          value={form[field] || ""}
-          onChange={(e) => set(field, e.target.value)}
-          className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none"
-          style={{ borderColor: "var(--medium-gray)" }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--medium-gray)")}
-        />
-      )}
-    </div>
-  );
 
   const totals = {
     total: classes.length,
@@ -184,6 +254,7 @@ const ClassStreamSetup = () => {
           onClick={() => {
             setEditC(null);
             setForm({ ...EMPTY });
+            setFormError("");
             setShowForm(true);
           }}
           className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white"
@@ -192,6 +263,54 @@ const ClassStreamSetup = () => {
           <Plus size={14} /> Add Class
         </button>
       </div>
+
+      {coverage && (coverage.missing.length > 0 || coverage.unassigned > 0) && (
+        <div
+          className="rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+          style={{ backgroundColor: "#fffbeb", borderColor: "#fde68a" }}
+        >
+          <AlertCircle
+            size={18}
+            style={{ color: "var(--warning)" }}
+            className="flex-shrink-0"
+          />
+          <div className="flex-1 text-xs" style={{ color: "#92400e" }}>
+            {coverage.missing.length > 0 && (
+              <p>
+                <strong>
+                  {coverage.missing.reduce((n, m) => n + m.count, 0)} student(s)
+                </strong>{" "}
+                are in {coverage.missing.length} form class(es) that do not
+                exist yet (
+                {coverage.missing
+                  .slice(0, 4)
+                  .map((m) => m.name)
+                  .join(", ")}
+                {coverage.missing.length > 4 ? ", ..." : ""}). Teachers cannot
+                see these students until the classes exist.
+              </p>
+            )}
+            {coverage.unassigned > 0 && (
+              <p className="mt-0.5">
+                <strong>{coverage.unassigned} student(s)</strong> have no form
+                class - set it on the Students page.
+              </p>
+            )}
+          </div>
+          {coverage.missing.length > 0 && (
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-xl text-white flex-shrink-0 disabled:opacity-60"
+              style={{ backgroundColor: "var(--warning)" }}
+            >
+              <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
+              {syncing ? "Creating..." : "Create classes from student records"}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -253,7 +372,10 @@ const ClassStreamSetup = () => {
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((cls) => {
-          const pct = Math.round((cls.enrolled / cls.capacity) * 100);
+          const enrolled = cls.enrolled ?? 0;
+          const pct = cls.capacity
+            ? Math.min(100, Math.round((enrolled / cls.capacity) * 100))
+            : 0;
           const pc = PC[cls.course] || "var(--royal-blue)";
           const pb = PB[cls.course] || "#eef2ff";
           return (
@@ -297,6 +419,7 @@ const ClassStreamSetup = () => {
                     onClick={() => {
                       setEditC(cls);
                       setForm({ ...cls });
+                      setFormError("");
                       setShowForm(true);
                     }}
                     style={{ color: "var(--warning)" }}
@@ -315,7 +438,7 @@ const ClassStreamSetup = () => {
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-gray-500">Enrolment</span>
                 <span className="font-bold" style={{ color: pc }}>
-                  {cls.enrolled}/{cls.capacity}
+                  {enrolled}/{cls.capacity}
                 </span>
               </div>
               <div
@@ -386,15 +509,58 @@ const ClassStreamSetup = () => {
               style={{ backgroundColor: "var(--accent-red)" }}
             />
             <div className="p-5 space-y-4">
-              <FInput label="Class Name" field="name" required />
+              {formError && (
+                <div
+                  className="flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: "#fff1f2",
+                    color: "var(--accent-red)",
+                  }}
+                >
+                  <AlertCircle size={13} /> {formError}
+                </div>
+              )}
+              <FInput
+                label="Class Name"
+                value={form.name}
+                onChange={(v) => set("name", v)}
+                required
+              />
               <FInput
                 label="Year Group"
-                field="yearGroup"
-                options={YEAR_GROUPS}
+                value={form.yearGroup}
+                onChange={(v) => set("yearGroup", v)}
+                options={opts(YEAR_GROUPS)}
               />
-              <FInput label="Course" field="course" options={COURSES} />
-              <FInput label="Capacity" field="capacity" type="number" />
-              <FInput label="Form Teacher" field="formTeacher" />
+              <FInput
+                label="Course"
+                value={form.course}
+                onChange={(v) => set("course", v)}
+                options={opts(
+                  form.course && !COURSES.includes(form.course)
+                    ? [form.course, ...COURSES]
+                    : COURSES,
+                )}
+              />
+              <FInput
+                label="Capacity"
+                value={form.capacity}
+                onChange={(v) => set("capacity", v === "" ? "" : Number(v))}
+                type="number"
+              />
+              <FInput
+                label="Form Teacher"
+                value={form.formTeacher}
+                onChange={(v) => set("formTeacher", v)}
+                options={[
+                  { value: "", label: "-- None --" },
+                  ...opts(
+                    form.formTeacher && !teachers.includes(form.formTeacher)
+                      ? [form.formTeacher, ...teachers]
+                      : teachers,
+                  ),
+                ]}
+              />
             </div>
             <div
               className="flex justify-end gap-2 px-5 py-4 border-t"

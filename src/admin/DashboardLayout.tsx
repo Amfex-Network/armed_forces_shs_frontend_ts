@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../context/SettingsContext";
 import logo from "../assets/logo.png";
 
 import {
@@ -153,6 +154,7 @@ const DashboardLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { settings } = useSettings();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -425,7 +427,7 @@ const DashboardLayout = () => {
               className="px-3 py-1.5 rounded-lg font-semibold"
               style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
             >
-              2024/2025 · Semester 1
+              {settings.currentAcademicYear} · {settings.currentTerm}
             </span>
             <span
               className="px-3 py-1.5 rounded-lg font-semibold"

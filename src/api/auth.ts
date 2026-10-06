@@ -13,12 +13,20 @@ export interface ApiUser {
   role: Role;
   picture?: string;
   active?: boolean;
+  title?: string;
+  staffId?: string;
+  department?: string;
+  teacherRole?: string;
+  formClass?: string;
+  course?: string;
+  assignedClasses?: string[];
+  assignedSubjects?: string[];
+  mustChangePassword?: boolean;
 }
 
 interface AuthResponse {
   success: boolean;
   message?: string;
-  token?: string;
   user: ApiUser;
 }
 
@@ -31,16 +39,13 @@ export const authApi = {
   login: (email: string, password: string) =>
     api.post<AuthResponse>("/api/auth/login", { email, password }),
 
-  register: (payload: {
-    firstname: string;
-    lastname: string;
-    email: string;
-    password: string;
-    role?: Role;
-    phone?: string;
-  }) => api.post<AuthResponse>("/api/auth/register", payload),
-
   logout: () => api.post<{ success: boolean }>("/api/auth/logout"),
 
   me: () => api.get<MeResponse>("/api/auth/me"),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post<AuthResponse>("/api/auth/change-password", {
+      currentPassword,
+      newPassword,
+    }),
 };

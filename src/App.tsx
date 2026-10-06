@@ -17,6 +17,7 @@ import TeacherLogin from "./layout/TeacherLogin";
 import StudentLogin from "./layout/StudentLogin";
 import ParentLogin from "./layout/ParentLogin";
 import ForgotPassword from "./auth/ForgotPassword";
+import ChangePasswordPage from "./auth/ChangePasswordPage";
 import DashboardLayout from "./admin/DashboardLayout";
 import Dashboard from "./admin/dashboard/Dashboard";
 import UserManagement from "./admin/user-management/UserManagement";
@@ -80,131 +81,162 @@ const App = () => (
   <AuthProvider>
     <SettingsProvider>
       <StudentProvider>
-      <ToastContainer />
-      <Routes>
-        {/* Public */}
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Hero />} />
-          <Route path="features" element={<Features />} />
-          <Route path="about" element={<About />} />
-          <Route path="contact" element={<Contact />} />
-        </Route>
+        <ToastContainer />
+        <Routes>
+          {/* Public */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Hero />} />
+            <Route path="features" element={<Features />} />
+            <Route path="about" element={<About />} />
+            <Route path="contact" element={<Contact />} />
+          </Route>
 
-        {/* Login pages */}
-        <Route path="/adminLogin" element={<AdminLogin />} />
-        <Route path="/adminLogout" element={<AdminLogout />} />
-        <Route path="/teacherLogout" element={<LogoutPage role="teacher" />} />
-        <Route path="/studentLogout" element={<LogoutPage role="student" />} />
-        <Route path="/parentLogout" element={<LogoutPage role="parent" />} />
-        <Route path="/teacherLogin" element={<TeacherLogin />} />
-        <Route path="/studentLogin" element={<StudentLogin />} />
-        <Route path="/parentLogin" element={<ParentLogin />} />
-        <Route path="/forgotPassword" element={<ForgotPassword />} />
-
-        {/* Admin */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute allowedRole="admin">
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="userManagement" element={<UserManagement />} />
-          <Route path="schoolStructure" element={<SchoolStructure />} />
-          <Route path="gradingConfig" element={<GradingConfig />} />
-          <Route path="commentBank" element={<CommentBank />} />
-          <Route path="teacher" element={<Teacher />} />
-          <Route path="students" element={<Students />} />
-          <Route path="parents" element={<Parents />} />
-          <Route path="bulkCommunication" element={<BulkCommunication />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="academicStructure1" element={<AcademicStructure1 />} />
-          <Route path="academicStructure2" element={<AcademicStructure2 />} />
-          <Route path="reportTemplate" element={<ReportTemplateWrapper />} />
-          <Route path="scoreCorrection" element={<ScoreCorrection />} />
-          <Route path="publishReports" element={<PublishReports />} />
-          <Route path="additionalInfo" element={<AdditionalInfo />} />
-          <Route path="auditLogs" element={<AuditLogs />} />
-          <Route path="analytics" element={<AdminAnalytics />} />
-          <Route path="calendar" element={<SchoolCalendar />} />
-        </Route>
-
-        {/* Teacher portal */}
-        <Route
-          path="/teacher"
-          element={
-            <ProtectedRoute allowedRole="teacher">
-              <TeacherDashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<TeacherHome />} />
-          <Route path="classes" element={<TeacherClasses />} />
-          <Route path="scores" element={<TeacherScores />} />
-          <Route path="attendance" element={<TeacherAttendance />} />
-          <Route path="comments" element={<TeacherComments />} />
-          <Route path="reports" element={<TeacherReports />} />
-          <Route path="timetable" element={<TeacherTimetable />} />
-          <Route path="analytics" element={<TeacherAnalytics />} />
-          <Route path="profile" element={<TeacherProfile />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="hod" element={<ScopedPanel title="Head of Department" />} />
-          <Route path="formclass" element={<TeacherFormClass />} />
-          <Route path="scoreReview" element={<ScoreReview />} />
+          {/* Login pages */}
+          <Route path="/adminLogin" element={<AdminLogin />} />
+          <Route path="/adminLogout" element={<AdminLogout />} />
           <Route
-            path="assistant-hod"
-            element={<ScopedPanel title="Assistant HOD" />}
+            path="/teacherLogout"
+            element={<LogoutPage role="teacher" />}
           />
-          <Route path="yeargroup" element={<ScopedPanel title="Year Group Head" />} />
-          <Route path="examcoord" element={<ScopedPanel title="Exam Coordinator" />} />
-          <Route path="house" element={<ScopedPanel title="House Master" />} />
-          <Route path="counsellor" element={<ScopedPanel title="Counsellor" />} />
-          <Route path="waec" element={<ScopedPanel title="WAEC Coordinator" />} />
-          <Route path="workshop" element={<ScopedPanel title="Workshop Instructor" />} />
-          <Route path="sports" element={<ScopedPanel title="Sports Master" />} />
-        </Route>
+          <Route
+            path="/studentLogout"
+            element={<LogoutPage role="student" />}
+          />
+          <Route path="/parentLogout" element={<LogoutPage role="parent" />} />
+          <Route path="/teacherLogin" element={<TeacherLogin />} />
+          <Route path="/studentLogin" element={<StudentLogin />} />
+          <Route path="/parentLogin" element={<ParentLogin />} />
+          <Route path="/forgotPassword" element={<ForgotPassword />} />
+          <Route path="/changePassword" element={<ChangePasswordPage />} />
 
-        {/* Student portal */}
-        <Route
-          path="/student"
-          element={
-            <ProtectedRoute allowedRole="student">
-              <StudentDashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<StudentHome />} />
-          <Route path="results" element={<StudentResults />} />
-          <Route path="reportcard" element={<StudentReportCard />} />
-          <Route path="attendance" element={<StudentAttendance />} />
-          <Route path="timetable" element={<StudentTimetable />} />
-          <Route path="profile" element={<StudentProfile />} />
-          <Route path="setting" element={<StudentSettings />} />
-        </Route>
+          {/* Admin */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="userManagement" element={<UserManagement />} />
+            <Route path="schoolStructure" element={<SchoolStructure />} />
+            <Route path="gradingConfig" element={<GradingConfig />} />
+            <Route path="commentBank" element={<CommentBank />} />
+            <Route path="teacher" element={<Teacher />} />
+            <Route path="students" element={<Students />} />
+            <Route path="parents" element={<Parents />} />
+            <Route path="bulkCommunication" element={<BulkCommunication />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="academicStructure1" element={<AcademicStructure1 />} />
+            <Route path="academicStructure2" element={<AcademicStructure2 />} />
+            <Route path="reportTemplate" element={<ReportTemplateWrapper />} />
+            <Route path="scoreCorrection" element={<ScoreCorrection />} />
+            <Route path="publishReports" element={<PublishReports />} />
+            <Route path="additionalInfo" element={<AdditionalInfo />} />
+            <Route path="auditLogs" element={<AuditLogs />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="calendar" element={<SchoolCalendar />} />
+          </Route>
 
-        {/* Parent portal */}
-        <Route
-          path="/parent"
-          element={
-            <ProtectedRoute allowedRole="parent">
-              <ParentDashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<ParentHome />} />
-          <Route path="results" element={<ParentResults />} />
-          <Route path="reportcard" element={<ParentReportCard />} />
-          <Route path="attendance" element={<ParentAttendance />} />
-          <Route path="profile" element={<ParentProfile />} />
-          {/* <Route path="settings" element={<ParentSettings />} /> */}
-        </Route>
+          {/* Teacher portal */}
+          <Route
+            path="/teacher"
+            element={
+              <ProtectedRoute allowedRole="teacher">
+                <TeacherDashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<TeacherHome />} />
+            <Route path="classes" element={<TeacherClasses />} />
+            <Route path="scores" element={<TeacherScores />} />
+            <Route path="attendance" element={<TeacherAttendance />} />
+            <Route path="comments" element={<TeacherComments />} />
+            <Route path="reports" element={<TeacherReports />} />
+            <Route path="timetable" element={<TeacherTimetable />} />
+            <Route path="analytics" element={<TeacherAnalytics />} />
+            <Route path="profile" element={<TeacherProfile />} />
+            <Route path="settings" element={<Settings />} />
+            <Route
+              path="hod"
+              element={<ScopedPanel title="Head of Department" />}
+            />
+            <Route path="formclass" element={<TeacherFormClass />} />
+            <Route path="scoreReview" element={<ScoreReview />} />
+            <Route
+              path="assistant-hod"
+              element={<ScopedPanel title="Assistant HOD" />}
+            />
+            <Route
+              path="yeargroup"
+              element={<ScopedPanel title="Year Group Head" />}
+            />
+            <Route
+              path="examcoord"
+              element={<ScopedPanel title="Exam Coordinator" />}
+            />
+            <Route
+              path="house"
+              element={<ScopedPanel title="House Master" />}
+            />
+            <Route
+              path="counsellor"
+              element={<ScopedPanel title="Counsellor" />}
+            />
+            <Route
+              path="waec"
+              element={<ScopedPanel title="WAEC Coordinator" />}
+            />
+            <Route
+              path="workshop"
+              element={<ScopedPanel title="Workshop Instructor" />}
+            />
+            <Route
+              path="sports"
+              element={<ScopedPanel title="Sports Master" />}
+            />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Student portal */}
+          <Route
+            path="/student"
+            element={
+              <ProtectedRoute allowedRole="student">
+                <StudentDashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<StudentHome />} />
+            <Route path="results" element={<StudentResults />} />
+            <Route path="reportcard" element={<StudentReportCard />} />
+            <Route path="attendance" element={<StudentAttendance />} />
+            <Route path="timetable" element={<StudentTimetable />} />
+            <Route path="profile" element={<StudentProfile />} />
+            <Route path="setting" element={<StudentSettings />} />
+          </Route>
+
+          {/* Parent portal */}
+          <Route
+            path="/parent"
+            element={
+              <ProtectedRoute allowedRole="parent">
+                <ParentDashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<ParentHome />} />
+            <Route path="results" element={<ParentResults />} />
+            <Route path="reportcard" element={<ParentReportCard />} />
+            <Route path="attendance" element={<ParentAttendance />} />
+            <Route path="profile" element={<ParentProfile />} />
+            {/* <Route path="settings" element={<ParentSettings />} /> */}
+          </Route>
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </StudentProvider>
     </SettingsProvider>
   </AuthProvider>

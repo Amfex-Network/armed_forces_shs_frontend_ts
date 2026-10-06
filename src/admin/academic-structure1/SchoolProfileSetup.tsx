@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Save,
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useSettings } from "../../context/SettingsContext";
 import type { AppSettings } from "../../api/settings";
+import type { SettingsCollector } from "../academic-setup/GradingConfig";
 
 const REGIONS = [
   "",
@@ -57,7 +58,10 @@ const Field = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={`w-full ${Icon ? "pl-9" : "pl-3"} pr-3 py-2.5 text-sm rounded-xl border-2 outline-none bg-white`}
-          style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+          style={{
+            borderColor: "var(--medium-gray)",
+            color: "var(--dark-gray)",
+          }}
         >
           {options.map((o: string) => (
             <option key={o} value={o}>
@@ -71,15 +75,25 @@ const Field = ({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           className={`w-full ${Icon ? "pl-9" : "pl-3"} pr-3 py-2.5 text-sm rounded-xl border-2 outline-none`}
-          style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+          style={{
+            borderColor: "var(--medium-gray)",
+            color: "var(--dark-gray)",
+          }}
         />
       )}
     </div>
   </div>
 );
 
-const SchoolProfileSetup = () => {
+interface Props {
+  collectRef?: React.MutableRefObject<SettingsCollector | null>;
+  dirtyRef?: React.MutableRefObject<boolean>;
+}
+
+const SchoolProfileSetup = ({ collectRef, dirtyRef }: Props = {}) => {
   const { settings, loading, save } = useSettings();
+  const ownDirty = useRef(false);
+  const dirty = dirtyRef || ownDirty;
   const [form, setForm] = useState<Partial<AppSettings>>({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(
@@ -92,6 +106,7 @@ const SchoolProfileSetup = () => {
   };
 
   useEffect(() => {
+    if (dirty.current) return;
     setForm({
       schoolName: settings.schoolName,
       shortName: settings.shortName,
@@ -105,17 +120,37 @@ const SchoolProfileSetup = () => {
       email: settings.email,
       website: settings.website,
     });
-  }, [settings]);
+  }, [settings, dirty]);
 
-  const set = (k: keyof AppSettings, v: string) =>
+  const set = (k: keyof AppSettings, v: string) => {
+    dirty.current = true;
     setForm((f) => ({ ...f, [k]: v }));
+  };
+
+  const collect = (): ReturnType<SettingsCollector> => {
+    if (!(form.schoolName || "").trim()) {
+      return { error: "School name cannot be empty." };
+    }
+    return { payload: form };
+  };
+
+  useEffect(() => {
+    if (collectRef) collectRef.current = collect;
+  });
 
   const handleSave = async () => {
+    const { payload, error } = collect();
+    if (error || !payload) {
+      showToast(error || "Nothing to save", "error");
+      return;
+    }
     try {
       setSaving(true);
-      await save(form);
+      dirty.current = false;
+      await save(payload);
       showToast("School profile saved");
     } catch (e: any) {
+      dirty.current = true;
       showToast(e?.message || "Failed to save", "error");
     } finally {
       setSaving(false);
@@ -150,7 +185,10 @@ const SchoolProfileSetup = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+          <h1
+            className="text-xl font-black"
+            style={{ color: "var(--dark-gray)" }}
+          >
             School Profile
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">

@@ -27,9 +27,13 @@ const TeacherClasses = () => {
           Loading classes…
         </p>
       ) : classes.length === 0 ? (
-        <p className="text-sm text-gray-400 py-10 text-center">
-          No classes yet - an admin needs to create classes first.
-        </p>
+        <div className="text-sm text-gray-500 py-10 text-center">
+          <p className="font-semibold">No classes are assigned to you yet.</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Ask the administrator to tick your classes under Teachers → Edit →
+            Classes Taught.
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {classes.map((cls) => (
@@ -81,7 +85,11 @@ const TeacherClasses = () => {
                 {/* Actions */}
                 <div className="flex gap-2">
                   <button
-                    onClick={() => navigate("/teacher/scores")}
+                    onClick={() =>
+                      navigate("/teacher/scores", {
+                        state: { classId: cls.id },
+                      })
+                    }
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm bg-[var(--royal-blue)] text-white rounded-lg hover:bg-blue-800 transition"
                   >
                     <Edit3 size={13} /> Enter Scores

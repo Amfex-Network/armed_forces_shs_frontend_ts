@@ -16,6 +16,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { authApi } from "../../api/auth";
 import { useSettings } from "../../context/SettingsContext";
+import ChangePasswordForm from "../../components/common/ChangePasswordForm";
 
 const TERM_INFO = {
   weeksGone: 0,
@@ -393,6 +394,22 @@ const TeacherProfile = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      <div
+        className="mt-5 bg-white rounded-xl border shadow-sm p-5 max-w-md"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
+        <h3
+          className="font-black text-sm mb-1"
+          style={{ color: "var(--dark-gray)" }}
+        >
+          Change Password
+        </h3>
+        <p className="text-xs text-gray-400 mb-4">
+          Changing it signs you out on every other device.
+        </p>
+        <ChangePasswordForm />
       </div>
     </div>
   );

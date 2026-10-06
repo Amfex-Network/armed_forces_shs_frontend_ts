@@ -1,7 +1,7 @@
 // src/auth/ProtectedRoute.tsx
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, CHANGE_PASSWORD_PATH } from "../context/AuthContext";
 
 // Maps each role to its login page
 const LOGIN_PAGES: Record<string, string> = {
@@ -47,6 +47,11 @@ const ProtectedRoute = ({
         replace
       />
     );
+  }
+
+  // A temporary password must be replaced before anything else.
+  if (user.mustChangePassword) {
+    return <Navigate to={CHANGE_PASSWORD_PATH} replace />;
   }
 
   // Logged in but wrong role → redirect to their own portal
