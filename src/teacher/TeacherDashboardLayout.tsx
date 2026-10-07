@@ -27,9 +27,18 @@ import {
 } from "react-icons/fa";
 import { useSettings } from "../context/SettingsContext";
 import logo from "../assets/logo.png";
+import { isFormTeacher, isHod } from "../utils/teacherRoles";
+
+interface NavItem {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  path: string;
+  end?: boolean;
+  badge?: string;
+}
 
 // Nav item definitions
-const N = {
+const N: Record<string, NavItem> = {
   dashboard: {
     icon: FaTachometerAlt,
     label: "Dashboard",
@@ -65,46 +74,42 @@ const N = {
   },
   formclass: {
     icon: FaUsers,
-    label: "Form Class",
+    label: "My Form Class",
     path: "/teacher/formclass",
-    badge: "FM",
   },
   scoreReview: {
     icon: FaClipboardList,
     label: "Score Review",
     path: "/teacher/scoreReview",
-    badge: "FM",
+  },
+  department: {
+    icon: FaChartBar,
+    label: "Department Review",
+    path: "/teacher/department",
   },
 };
 
-// Sidebar config - 3 approved roles only
-const SIDEBAR_CONFIG = {
-  "Subject Teacher": [
+// Every teacher teaches; HOD and Form Teacher duties add their own section,
+// so a teacher with several duties sees all of their tools together.
+const buildNav = (role: string) => {
+  const sections = [
     {
       section: "Main",
       items: [N.dashboard, N.classes, N.scores, N.attendance],
     },
-    { section: "Academic", items: [N.comments, N.reports, N.timetable, N.analytics] },
-  ],
-  "Subject Teacher + Form Master": [
     {
-      section: "Main",
-      items: [N.dashboard, N.classes, N.scores, N.attendance],
+      section: "Academic",
+      items: [N.comments, N.reports, N.scoreReview, N.timetable, N.analytics],
     },
-    { section: "Academic", items: [N.comments, N.reports, N.timetable, N.analytics] },
-    { section: "Form Master", items: [N.formclass, N.scoreReview] },
-  ],
-  "Form Master": [
-    {
-      section: "Main",
-      items: [N.dashboard, N.classes, N.scores, N.attendance],
-    },
-    { section: "Academic", items: [N.comments, N.reports, N.timetable, N.analytics] },
-    { section: "Form Master", items: [N.formclass, N.scoreReview] },
-  ],
+  ];
+  if (isFormTeacher(role)) {
+    sections.push({ section: "Form Teacher", items: [N.formclass] });
+  }
+  if (isHod(role)) {
+    sections.push({ section: "Head of Department", items: [N.department] });
+  }
+  return sections;
 };
-
-const DEFAULT_NAV = SIDEBAR_CONFIG["Subject Teacher"];
 
 const TeacherDashboardLayout = () => {
   const { settings } = useSettings();
@@ -128,10 +133,10 @@ const TeacherDashboardLayout = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const handleLogout = () => {
     logout();
-    navigate("/teacherLogout", { replace: true });
+    navigate("/", { replace: true });
   };
 
-  const navSections = SIDEBAR_CONFIG[activeRole] || DEFAULT_NAV;
+  const navSections = buildNav(activeRole);
   const otherNav = [
     { icon: FaUser, label: "Profile", path: "/teacher/profile" },
     { icon: FaCog, label: "Settings", path: "/teacher/settings" },

@@ -1,5 +1,7 @@
 // src/admin/academic-setup/CommentBank.jsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { commentBankApi } from "../../api/commentBank";
+import { useConfirm } from "../../components/common/ConfirmDialog";
 import {
   Plus,
   Edit3,
@@ -24,7 +26,8 @@ import {
 } from "react-icons/fa";
 
 // Initial comments
-const INITIAL_COMMENTS = [
+// Starter comments the admin can load into an empty bank in one click.
+const STARTER_COMMENTS = [
   // Subject Teacher - Excellent
   {
     id: 21,
@@ -764,7 +767,10 @@ const CommentModal = ({ comment, onSave, onClose }) => {
 
 // CommentBank Main
 const CommentBank = () => {
-  const [comments, setComments] = useState(INITIAL_COMMENTS);
+  const [comments, setComments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const confirm = useConfirm();
   const [search, setSearch] = useState("");
   const [filterCat, setFCat] = useState("all");
   const [filterPerf, setFPerf] = useState("all");
@@ -778,27 +784,95 @@ const CommentBank = () => {
     setTimeout(() => setToast(null), 2500);
   };
 
-  const handleSave = (form) => {
-    if (form.id) {
-      setComments((cs) => cs.map((c) => (c.id === form.id ? form : c)));
-      showToast("Comment updated");
-    } else {
-      setComments((cs) => [...cs, { ...form, id: Date.now() }]);
-      showToast("Comment added to bank");
+  const load = async () => {
+    try {
+      setLoading(true);
+      setComments(await commentBankApi.list());
+    } catch (err: any) {
+      showToast(err?.message || "Failed to load the comment bank", "error");
+    } finally {
+      setLoading(false);
     }
-    setShowModal(false);
-    setEditC(null);
   };
 
-  const handleDelete = (id) => {
-    setComments((cs) => cs.filter((c) => c.id !== id));
-    showToast("Comment removed", "error");
+  useEffect(() => {
+    load();
+  }, []);
+
+  const payloadOf = (form) => ({
+    category: form.category,
+    performance: form.performance,
+    text: (form.text || "").trim(),
+    tags: form.tags || [],
+    favourite: !!form.favourite,
+  });
+
+  const handleSave = async (form) => {
+    if (!(form.text || "").trim()) {
+      showToast("The comment text is empty", "error");
+      return;
+    }
+    try {
+      if (form.id) {
+        const saved = await commentBankApi.update(form.id, payloadOf(form));
+        setComments((cs) => cs.map((c) => (c.id === saved.id ? saved : c)));
+        showToast("Comment updated");
+      } else {
+        const saved = await commentBankApi.create(payloadOf(form));
+        setComments((cs) => [...cs, saved]);
+        showToast("Comment added to bank");
+      }
+      setShowModal(false);
+      setEditC(null);
+    } catch (err: any) {
+      showToast(err?.message || "Failed to save comment", "error");
+    }
   };
 
-  const handleToggleFav = (id) => {
-    setComments((cs) =>
-      cs.map((c) => (c.id === id ? { ...c, favourite: !c.favourite } : c)),
-    );
+  const handleDelete = async (id) => {
+    const target = comments.find((c) => c.id === id);
+    const ok = await confirm({
+      title: "Delete this comment?",
+      message: target
+        ? `"${target.text.slice(0, 120)}${target.text.length > 120 ? "…" : ""}"`
+        : undefined,
+    });
+    if (!ok) return;
+    try {
+      await commentBankApi.remove(id);
+      setComments((cs) => cs.filter((c) => c.id !== id));
+      showToast("Comment removed");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to delete comment", "error");
+    }
+  };
+
+  const handleToggleFav = async (id) => {
+    const target = comments.find((c) => c.id === id);
+    if (!target) return;
+    try {
+      const saved = await commentBankApi.update(id, {
+        favourite: !target.favourite,
+      });
+      setComments((cs) => cs.map((c) => (c.id === id ? saved : c)));
+    } catch (err: any) {
+      showToast(err?.message || "Failed to update comment", "error");
+    }
+  };
+
+  const loadStarters = async () => {
+    try {
+      setBusy(true);
+      await commentBankApi.bulkCreate(
+        STARTER_COMMENTS.map(({ id, ...rest }) => rest),
+      );
+      await load();
+      showToast("Starter comments added");
+    } catch (err: any) {
+      showToast(err?.message || "Failed to add starter comments", "error");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleCopy = (text) => {
@@ -814,7 +888,7 @@ const CommentBank = () => {
         const matchSearch =
           !search ||
           c.text.toLowerCase().includes(search.toLowerCase()) ||
-          c.tags.some((t) => t.includes(search.toLowerCase()));
+          (c.tags || []).some((t) => t.includes(search.toLowerCase()));
         return matchCat && matchPerf && matchSearch;
       }),
     [comments, filterCat, filterPerf, search],
@@ -1012,7 +1086,27 @@ const CommentBank = () => {
       </div>
 
       {/* Comments grid */}
-      {tabComments.length === 0 ? (
+      {loading ? (
+        <p className="text-center py-12 text-sm text-gray-400">
+          Loading comment bank…
+        </p>
+      ) : comments.length === 0 ? (
+        <div className="text-center py-12">
+          <MessageSquare size={40} className="mx-auto mb-3 text-gray-300" />
+          <p className="text-gray-500 font-medium">The comment bank is empty</p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={loadStarters}
+            className="mt-3 px-4 py-2 text-sm font-bold text-white rounded-xl disabled:opacity-60"
+            style={{ backgroundColor: "var(--royal-blue)" }}
+          >
+            {busy
+              ? "Adding…"
+              : `Add ${STARTER_COMMENTS.length} starter comments`}
+          </button>
+        </div>
+      ) : tabComments.length === 0 ? (
         <div className="text-center py-12">
           <MessageSquare size={40} className="mx-auto mb-3 text-gray-300" />
           <p className="text-gray-400 font-medium">No comments found</p>

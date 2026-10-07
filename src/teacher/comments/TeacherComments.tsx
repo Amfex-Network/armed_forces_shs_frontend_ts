@@ -13,9 +13,17 @@ import { studentsApi } from "../../api/students";
 import { commentsApi } from "../../api/comments";
 import { useSettings } from "../../context/SettingsContext";
 import { Avatar, PageHeader } from "../components/TeacherUI";
-import { sameClass } from "../../utils/classNames";
+import { classResultsApi, type ClassStanding } from "../../api/results";
+import { commentBankApi } from "../../api/commentBank";
+import {
+  surnameFirst,
+  sortStudents,
+  useStudentSort,
+  SortToggle,
+} from "../../utils/studentOrder";
 
-const TEMPLATES = [
+// Used when the admin's Comment Bank has no form-teacher remarks yet.
+const FALLBACK_TEMPLATES = [
   "An excellent and hardworking student. Keep it up.",
   "A good performance this term. Aim even higher next time.",
   "Shows steady improvement. Encouraged to stay focused.",
@@ -26,7 +34,13 @@ const TEMPLATES = [
 interface Row {
   id: string;
   studentId: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
+  total?: number;
+  average?: number;
+  position?: number;
+  subjects?: number;
   formClass?: string;
   comment: string;
   commentId?: string;
@@ -45,6 +59,9 @@ const TeacherComments = () => {
   const [bulkText, setBulkText] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [outOf, setOutOf] = useState(0);
+  const [templates, setTemplates] = useState<string[]>(FALLBACK_TEMPLATES);
+  const [sortMode, setSortMode] = useStudentSort();
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(
     null,
   );
@@ -61,9 +78,15 @@ const TeacherComments = () => {
   useEffect(() => {
     (async () => {
       try {
-        const cls = await classesApi.list();
+        // Remarks on the report card are written by the form teacher.
+        const cls = (await classesApi.list()).filter((c) => c.form);
         setClasses(cls);
         if (cls.length) setSelectedClass(cls[0]);
+        const bank = await commentBankApi.list().catch(() => []);
+        const mine = bank
+          .filter((b) => b.category === "formTeacher")
+          .map((b) => b.text);
+        if (mine.length) setTemplates(mine);
       } catch {
         /* ignore */
       } finally {
@@ -80,20 +103,27 @@ const TeacherComments = () => {
     let active = true;
     (async () => {
       try {
-        const [studs, comments] = await Promise.all([
-          studentsApi.list(),
+        const [inClass, comments, summary] = await Promise.all([
+          studentsApi.list(selectedClass.name),
           commentsApi
             .list({
-              formClass: selectedClass.name,
               term,
               academicYear: ACADEMIC_YEAR,
             })
             .catch(() => []),
+          classResultsApi
+            .summary({
+              formClass: selectedClass.name,
+              term,
+              academicYear: ACADEMIC_YEAR,
+            })
+            .catch(() => ({ outOf: 0, items: [] })),
         ]);
         if (!active) return;
-        const inClass = studs.filter((s) =>
-          sameClass(s.formClass, selectedClass.name),
+        const perf = new Map<string, ClassStanding>(
+          summary.items.map((x): [string, ClassStanding] => [x.studentId, x]),
         );
+        setOutOf(summary.outOf);
         const byStudent: Record<string, any> = {};
         comments.forEach((c) => {
           const sid = typeof c.student === "object" ? c.student._id : c.student;
@@ -102,10 +132,17 @@ const TeacherComments = () => {
         setRows(
           inClass.map((s) => {
             const c = byStudent[s.id as string];
+            const p = perf.get(s.id as string);
             return {
               id: s.id as string,
               studentId: s.studentId,
-              name: `${s.firstName} ${s.lastName}`,
+              firstName: s.firstName,
+              lastName: s.lastName,
+              name: surnameFirst(s),
+              total: p?.total,
+              average: p?.average,
+              position: p?.position,
+              subjects: p?.subjects,
               formClass: s.formClass,
               comment: c?.formTeacherComment || "",
               commentId: c?.id,
@@ -142,11 +179,33 @@ const TeacherComments = () => {
     [rows, selected],
   );
 
+  // Comment Bank text may contain {name}; use each student's first name.
+  const personal = (text: string, r: Row) =>
+    text.replace(/\{name\}/gi, (r.firstName || r.name).trim());
+
+  const sortedRows = useMemo(
+    () => sortStudents(rows, sortMode),
+    [rows, sortMode],
+  );
+
+  const gradeOf = (avg?: number) => {
+    if (avg === undefined) return "";
+    const scale = [...settings.gradingScale].sort(
+      (a, b) => b.minScore - a.minScore,
+    );
+    return (
+      (scale.find((b) => avg >= b.minScore) || scale[scale.length - 1])
+        ?.grade || ""
+    );
+  };
+
   const applyBulk = () => {
     if (!bulkText.trim() || selected.length === 0) return;
     setRows((rs) =>
       rs.map((r) =>
-        selected.includes(r.id) ? { ...r, comment: bulkText, saved: false } : r,
+        selected.includes(r.id)
+          ? { ...r, comment: personal(bulkText, r), saved: false }
+          : r,
       ),
     );
   };
@@ -158,11 +217,13 @@ const TeacherComments = () => {
 
   const handleSave = async () => {
     if (!selectedClass) return;
-    const applied = bulkText.trim()
-      ? rows.map((r) =>
-          selected.includes(r.id) ? { ...r, comment: bulkText } : r,
-        )
-      : rows;
+    const applied = (
+      bulkText.trim()
+        ? rows.map((r) =>
+            selected.includes(r.id) ? { ...r, comment: bulkText } : r,
+          )
+        : rows
+    ).map((r) => ({ ...r, comment: personal(r.comment, r) }));
     const toSave = applied.filter(
       (r) => selected.includes(r.id) && r.comment.trim(),
     );
@@ -194,7 +255,7 @@ const TeacherComments = () => {
           savedIds.has(r.id)
             ? {
                 ...r,
-                comment: bulkText.trim() ? bulkText : r.comment,
+                comment: personal(bulkText.trim() ? bulkText : r.comment, r),
                 commentId: idMap[r.id] || r.commentId,
                 saved: true,
               }
@@ -231,6 +292,21 @@ const TeacherComments = () => {
 
       <PageHeader title="Student Comments & Remarks" />
 
+      {!loading && classes.length === 0 && (
+        <div
+          className="p-4 rounded-xl text-sm"
+          style={{
+            backgroundColor: "#fffbeb",
+            color: "#92400e",
+            border: "1px solid #fde68a",
+          }}
+        >
+          Report remarks are written by form teachers, and you are not form
+          teacher of any class. The administrator sets this under Teachers →
+          Edit (role "… + Form Teacher").
+        </div>
+      )}
+
       {/* Controls */}
       <div className="bg-white rounded-xl border border-[var(--medium-gray)] shadow-sm p-4 flex flex-col sm:flex-row gap-3">
         <div className="flex-1">
@@ -251,7 +327,9 @@ const TeacherComments = () => {
                 color: "var(--dark-gray)",
               }}
             >
-              {classes.length === 0 && <option value="">No classes</option>}
+              {classes.length === 0 && (
+                <option value="">No form class assigned</option>
+              )}
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -312,6 +390,9 @@ const TeacherComments = () => {
               <p className="text-xs text-gray-400">
                 {rows.length} students · {savedCount} with comments
               </p>
+              <div className="mt-1.5">
+                <SortToggle mode={sortMode} onChange={setSortMode} />
+              </div>
             </div>
             {rows.length > 0 && (
               <button
@@ -336,7 +417,7 @@ const TeacherComments = () => {
                 {loading ? "Loading…" : "No students in this class yet."}
               </p>
             ) : (
-              rows.map((r) => {
+              sortedRows.map((r) => {
                 const isSelected = selected.includes(r.id);
                 return (
                   <div
@@ -381,6 +462,14 @@ const TeacherComments = () => {
                         {r.name}
                       </p>
                       <p className="text-xs text-gray-400">{r.studentId}</p>
+                      <p
+                        className="text-xs mt-0.5"
+                        style={{ color: "var(--royal-blue)" }}
+                      >
+                        {r.subjects
+                          ? `Total ${r.total} · Avg ${r.average} (${gradeOf(r.average)}) · Pos ${r.position}/${outOf} · ${r.subjects} subj.`
+                          : "No scores entered yet"}
+                      </p>
                     </div>
                     {r.saved ? (
                       <span
@@ -481,12 +570,15 @@ const TeacherComments = () => {
                     Quick Templates
                   </label>
                   <div className="space-y-1.5">
-                    {TEMPLATES.map((t, i) => (
+                    {templates.map((t, i) => (
                       <button
                         key={i}
                         onClick={() => {
                           if (selected.length === 1) {
-                            setRowComment(selectedRows[0].id, t);
+                            setRowComment(
+                              selectedRows[0].id,
+                              personal(t, selectedRows[0]),
+                            );
                           } else {
                             setBulkText(t);
                           }

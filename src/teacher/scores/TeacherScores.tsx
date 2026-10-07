@@ -9,12 +9,19 @@ import {
   Clock,
   Lock,
   Download,
+  Upload,
 } from "lucide-react";
 import { classesApi, subjectsApi } from "../../api/domains";
 import { studentsApi } from "../../api/students";
 import { scoresApi } from "../../api/scores";
 import { useSettings } from "../../context/SettingsContext";
-import { sameClass } from "../../utils/classNames";
+import {
+  surnameFirst,
+  sortStudents,
+  useStudentSort,
+  SortToggle,
+} from "../../utils/studentOrder";
+import { downloadScoreSheet, parseScoreSheet } from "../../utils/scoreSheet";
 
 // submission status per class: null | 'saved' | 'submitted' | 'approved' | 'rejected'
 const SUBMIT_STATUS = {
@@ -73,6 +80,11 @@ const TeacherScores = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [classStatus, setClassStatus] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [sortMode, setSortMode] = useStudentSort();
+  const [importNote, setImportNote] = useState<{
+    ok: boolean;
+    lines: string[];
+  } | null>(null);
 
   useEffect(() => {
     setTerm(settings.currentTerm);
@@ -85,11 +97,16 @@ const TeacherScores = () => {
           classesApi.list(),
           subjectsApi.list(),
         ]);
-        setClasses(cls);
-        setSubjects(subs);
-        if (cls.length)
-          setSelectedClass(cls.find((c) => c.id === wantedClassId) || cls[0]);
-        if (subs.length) setSelectedSubject(subs[0].name);
+        // Form classes and review-only subjects are not for score entry.
+        const teaching = cls.filter((c) => c.teaching !== false);
+        const mine = subs.filter((x) => x.teaching !== false);
+        setClasses(teaching);
+        setSubjects(mine);
+        if (teaching.length)
+          setSelectedClass(
+            teaching.find((c) => c.id === wantedClassId) || teaching[0],
+          );
+        if (mine.length) setSelectedSubject(mine[0].name);
       } catch {
         /* ignore */
       } finally {
@@ -106,19 +123,17 @@ const TeacherScores = () => {
     let active = true;
     (async () => {
       try {
-        const [studs, scores] = await Promise.all([
-          studentsApi.list(),
+        // Marks are matched by student, not by the class stored on the mark,
+        // so a mark entered earlier is always found (no duplicate creates).
+        const [inClass, scores] = await Promise.all([
+          studentsApi.list(selectedClass.name),
           scoresApi.list({
             subject: selectedSubject,
             term,
             academicYear,
-            formClass: selectedClass.name,
           }),
         ]);
         if (!active) return;
-        const inClass = studs.filter((s) =>
-          sameClass(s.formClass, selectedClass.name),
-        );
         const scoreByStudent: Record<string, any> = {};
         scores.forEach((sc) => {
           const sid =
@@ -131,7 +146,9 @@ const TeacherScores = () => {
             return {
               id: s.id,
               studentId: s.studentId,
-              name: `${s.firstName} ${s.lastName}`,
+              firstName: s.firstName,
+              lastName: s.lastName,
+              name: surnameFirst(s),
               ca: sc ? sc.classScore : null,
               exam: sc ? sc.examScore : null,
               scoreId: sc ? sc.id : null,
@@ -158,7 +175,8 @@ const TeacherScores = () => {
   };
 
   const updateScore = (sid, field, value) => {
-    const num = value === "" ? null : parseInt(value);
+    const n = value === "" ? null : Number(value);
+    const num = n === null || Number.isNaN(n) ? null : n;
     setStudents((ss) =>
       ss.map((s) => (s.id === sid ? { ...s, [field]: num } : s)),
     );
@@ -176,6 +194,9 @@ const TeacherScores = () => {
       if (s.ca !== null && (s.ca < 0 || s.ca > 30)) e[`${s.id}_ca`] = "0–30";
       if (s.exam !== null && (s.exam < 0 || s.exam > 70))
         e[`${s.id}_exam`] = "0–70";
+      // A half-entered row would be silently skipped; flag it instead.
+      if (s.ca !== null && s.exam === null) e[`${s.id}_exam`] = "Needed";
+      if (s.exam !== null && s.ca === null) e[`${s.id}_ca`] = "Needed";
     });
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -183,21 +204,19 @@ const TeacherScores = () => {
 
   const persistScores = async () => {
     const toSave = students.filter((s) => s.ca !== null && s.exam !== null);
-    const results = await Promise.all(
-      toSave.map((s) =>
-        s.scoreId
-          ? scoresApi.update(s.scoreId, { classScore: s.ca, examScore: s.exam })
-          : scoresApi.create({
-              student: s.id,
-              subject: selectedSubject,
-              academicYear,
-              term,
-              formClass: selectedClass.name,
-              classScore: s.ca,
-              examScore: s.exam,
-            }),
-      ),
-    );
+    if (toSave.length === 0) return;
+    // One request for the class; repeating it after a dropped connection
+    // just saves the same marks again.
+    const results = await scoresApi.saveMany({
+      subject: selectedSubject,
+      academicYear,
+      term,
+      entries: toSave.map((s) => ({
+        student: s.id,
+        classScore: s.ca,
+        examScore: s.exam,
+      })),
+    });
     const byStudent: Record<string, any> = {};
     results.forEach((r) => {
       const sid = typeof r.student === "object" ? r.student._id : r.student;
@@ -253,14 +272,92 @@ const TeacherScores = () => {
 
   const filtered = useMemo(
     () =>
-      students.filter(
-        (s) =>
-          !search ||
-          s.name.toLowerCase().includes(search.toLowerCase()) ||
-          s.studentId.includes(search),
+      sortStudents(
+        students.filter(
+          (s) =>
+            !search ||
+            s.name.toLowerCase().includes(search.toLowerCase()) ||
+            (s.studentId || "").toLowerCase().includes(search.toLowerCase()),
+        ),
+        sortMode,
       ),
-    [students, search],
+    [students, search, sortMode],
   );
+
+  const handleDownloadSheet = () => {
+    if (!selectedClass || !selectedSubject) return;
+    downloadScoreSheet({
+      className: selectedClass.name,
+      subject: selectedSubject,
+      term,
+      academicYear,
+      rows: sortStudents(students, sortMode).map((s) => ({
+        studentId: s.studentId,
+        name: s.name,
+        ca: s.ca,
+        exam: s.exam,
+      })),
+    });
+  };
+
+  // Fills the grid from an Excel sheet; nothing is saved until the teacher
+  // checks the marks and presses Save.
+  const handleUploadSheet = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const { rows } = await parseScoreSheet(file);
+      const byId = new Map(
+        students.map((st) => [String(st.studentId).trim().toLowerCase(), st]),
+      );
+      const unknown: string[] = [];
+      const bad: string[] = [];
+      const updates = new Map<
+        string,
+        { ca: number | null; exam: number | null }
+      >();
+      rows.forEach((r) => {
+        const st = byId.get(r.studentId.toLowerCase());
+        if (!st) {
+          unknown.push(`${r.studentId} (row ${r.rowNumber})`);
+          return;
+        }
+        const parse = (v: string) => (v === "" ? null : Number(v));
+        const ca = parse(r.ca);
+        const exam = parse(r.exam);
+        if (
+          (ca !== null && Number.isNaN(ca)) ||
+          (exam !== null && Number.isNaN(exam))
+        ) {
+          bad.push(`row ${r.rowNumber} (${r.studentId}): not a number`);
+          return;
+        }
+        updates.set(st.id, { ca, exam });
+      });
+      setStudents((ss) =>
+        ss.map((st) =>
+          updates.has(st.id) ? { ...st, ...updates.get(st.id) } : st,
+        ),
+      );
+      setErrors({});
+      setSaved(false);
+      const lines = [
+        `${updates.size} student(s) filled from ${file.name}. Check the marks, then press Save.`,
+      ];
+      if (unknown.length)
+        lines.push(
+          `Not in this class (ignored): ${unknown.slice(0, 8).join(", ")}${unknown.length > 8 ? ", …" : ""}`,
+        );
+      if (bad.length) lines.push(`Skipped: ${bad.slice(0, 8).join("; ")}`);
+      setImportNote({ ok: unknown.length === 0 && bad.length === 0, lines });
+    } catch (err) {
+      setImportNote({
+        ok: false,
+        lines: [err?.message || "Could not read the file."],
+      });
+    }
+  };
 
   const submitted = students.filter(
     (s) => s.ca !== null && s.exam !== null,
@@ -285,57 +382,41 @@ const TeacherScores = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Sample Guide */}
           <button
             type="button"
-            onClick={() => {
-              const lines = [
-                "============================================",
-                "AFSHTS SCORE ENTRY - SAMPLE GUIDE",
-                "============================================",
-                "",
-                "HOW TO ENTER SCORES:",
-                "  • CA Score   : Continuous Assessment - maximum 30 marks",
-                "  • Exam Score : End of Semester Examination - maximum 70 marks",
-                "  • Total      : CA + Exam = 100 marks (calculated automatically)",
-                "",
-                "GRADING SCALE (current school settings):",
-                ...[...settings.gradingScale]
-                  .sort((a, b) => b.minScore - a.minScore)
-                  .map(
-                    (b) =>
-                      `  ${b.grade.padEnd(3)} : from ${b.minScore}  (${b.label || "-"})`,
-                  ),
-                "",
-                "SUBMISSION RULES:",
-                "  1. Enter scores for ALL students before submitting.",
-                '  2. Click "Save Draft" to save your progress.',
-                '  3. Click "Submit for Review" when all scores are entered.',
-                "  4. Scores are LOCKED after submission.",
-                '  5. Use "Recall" to pull back and make corrections before approval.',
-                "  6. The Form Master will approve or return for correction.",
-                "",
-                "NOTES:",
-                "  - CA scores must be between 0 and 30.",
-                "  - Exam scores must be between 0 and 70.",
-                "  - Contact the Admin office for any corrections after approval.",
-                "============================================",
-              ];
-              const blob = new Blob([lines.join("\n")], { type: "text/plain" });
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = "AFSHTS_Score_Entry_Guide.txt";
-              a.click();
-            }}
-            className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl border transition"
+            onClick={handleDownloadSheet}
+            disabled={
+              !selectedClass || !selectedSubject || students.length === 0
+            }
+            className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl border transition disabled:opacity-50"
             style={{
               borderColor: "var(--success-dark)",
               color: "var(--success-dark)",
               backgroundColor: "#f0fdf4",
             }}
+            title="Download this class list as an Excel sheet to fill in"
           >
-            <Download size={14} /> Sample Guide
+            <Download size={14} /> Excel Sheet
           </button>
+          {!isLocked && (
+            <label
+              className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl border transition cursor-pointer"
+              style={{
+                borderColor: "var(--royal-blue)",
+                color: "var(--royal-blue)",
+                backgroundColor: "#eef2ff",
+              }}
+              title="Upload a filled-in sheet to fill the marks below"
+            >
+              <Upload size={14} /> Upload Marks
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={handleUploadSheet}
+              />
+            </label>
+          )}
 
           {currentStatus && SUBMIT_STATUS[currentStatus] && (
             <span
@@ -441,6 +522,30 @@ const TeacherScores = () => {
               Subjects Taught.
             </p>
           )}
+        </div>
+      )}
+
+      {importNote && (
+        <div
+          className="flex items-start justify-between gap-3 p-3 rounded-xl text-sm"
+          style={{
+            backgroundColor: importNote.ok ? "#f0fdf4" : "#fffbeb",
+            color: importNote.ok ? "var(--success-dark)" : "#92400e",
+            border: `1px solid ${importNote.ok ? "#bbf7d0" : "#fde68a"}`,
+          }}
+        >
+          <div className="space-y-0.5">
+            {importNote.lines.map((l) => (
+              <p key={l}>{l}</p>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setImportNote(null)}
+            className="text-xs font-bold flex-shrink-0"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -622,24 +727,27 @@ const TeacherScores = () => {
           >
             {selectedClass?.name} · {selectedSubject}
           </h3>
-          <div className="relative">
-            <Search
-              size={13}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search…"
-              className="pl-8 pr-3 py-2 text-sm rounded-xl border outline-none w-44"
-              style={{ borderColor: "var(--medium-gray)" }}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "var(--royal-blue)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "var(--medium-gray)")
-              }
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            <SortToggle mode={sortMode} onChange={setSortMode} />
+            <div className="relative">
+              <Search
+                size={13}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="pl-8 pr-3 py-2 text-sm rounded-xl border outline-none w-44"
+                style={{ borderColor: "var(--medium-gray)" }}
+                onFocus={(e) =>
+                  (e.target.style.borderColor = "var(--royal-blue)")
+                }
+                onBlur={(e) =>
+                  (e.target.style.borderColor = "var(--medium-gray)")
+                }
+              />
+            </div>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -702,6 +810,7 @@ const TeacherScores = () => {
                         type="number"
                         min="0"
                         max="30"
+                        step="0.5"
                         value={s.ca ?? ""}
                         onChange={(e) =>
                           updateScore(s.id, "ca", e.target.value)
@@ -738,6 +847,7 @@ const TeacherScores = () => {
                         type="number"
                         min="0"
                         max="70"
+                        step="0.5"
                         value={s.exam ?? ""}
                         onChange={(e) =>
                           updateScore(s.id, "exam", e.target.value)

@@ -13,13 +13,14 @@ import {
 } from "lucide-react";
 import { classesApi, type ClassCoverage } from "../../api/domains";
 import { usersApi } from "../../api/users";
+import { useSchoolLists } from "../../hooks/useSchoolLists";
+import { useConfirm } from "../../components/common/ConfirmDialog";
 
 const YEAR_GROUPS = ["Form 1", "Form 2", "Form 3"];
-const COURSES = ["General Science", "General Arts", "Business", "Technical"];
 const EMPTY = {
   name: "",
   yearGroup: "Form 1",
-  course: "General Science",
+  course: "",
   capacity: 40,
   formTeacher: "",
   enrolled: 0,
@@ -95,6 +96,7 @@ const FInput = ({
 const opts = (values: string[]) => values.map((v) => ({ value: v, label: v }));
 
 const ClassStreamSetup = () => {
+  const confirm = useConfirm();
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -107,6 +109,7 @@ const ClassStreamSetup = () => {
   const [coverage, setCoverage] = useState<ClassCoverage | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [formError, setFormError] = useState("");
+  const { courses: COURSES } = useSchoolLists();
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -203,6 +206,13 @@ const ClassStreamSetup = () => {
   };
 
   const handleDelete = async (cls) => {
+    const ok = await confirm({
+      title: "Delete class?",
+      message: <strong>{cls.name}</strong>,
+      detail:
+        "The class is removed from teachers' assignments. A class that still has students cannot be deleted.",
+    });
+    if (!ok) return;
     try {
       await classesApi.remove(cls.id);
       setClasses((cs) => cs.filter((c) => c.id !== cls.id));
@@ -536,11 +546,14 @@ const ClassStreamSetup = () => {
                 label="Course"
                 value={form.course}
                 onChange={(v) => set("course", v)}
-                options={opts(
-                  form.course && !COURSES.includes(form.course)
-                    ? [form.course, ...COURSES]
-                    : COURSES,
-                )}
+                options={[
+                  { value: "", label: "-- Select course --" },
+                  ...opts(
+                    form.course && !COURSES.includes(form.course)
+                      ? [form.course, ...COURSES]
+                      : COURSES,
+                  ),
+                ]}
               />
               <FInput
                 label="Capacity"

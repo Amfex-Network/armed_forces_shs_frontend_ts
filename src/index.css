@@ -109,78 +109,46 @@ body {
 }
 
 /* PRINT STYLES
-   Add this block to the bottom of your src/index.css
-   It hides all UI chrome and prints only the report card cleanly
-  */
+   Report cards render a print-only copy under <body> (.print-root, see
+   components/report/TerminalReport.tsx). On paper only that copy shows: no
+   page chrome, no dotted background, one A4 page.
+*/
+.print-root {
+  display: none;
+}
 
 @media print {
-  /* Hide everything by default */
-  body * {
-    visibility: hidden;
+  @page {
+    size: A4;
+    margin: 10mm;
   }
 
-  /* Show only the report card */
-  .print-area,
-  .print-area * {
-    visibility: visible;
+  html,
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
   }
 
-  /* Position the report card at top-left */
-  .print-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-
-  /* Hide UI elements that should never print */
-  .no-print,
-  header,
-  nav,
-  aside,
-  footer,
-  button,
-  [class*="sidebar"],
-  [class*="DashboardLayout"],
-  [class*="modal-overlay"] {
+  body > *:not(.print-root) {
     display: none !important;
   }
 
-  /* Page setup */
-  @page {
-    size: A4;
-    margin: 12mm 10mm;
+  .print-root {
+    display: block !important;
   }
 
-  /* Remove shadows and rounded corners for print */
-  .print-area * {
+  .print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
     box-shadow: none !important;
-    border-radius: 0 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    color-adjust: exact;
   }
 
-  /* Preserve background colors (important for headers) */
-  * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    color-adjust: exact;
+  .print-root .terminal-report {
+    font-size: 11px;
   }
 
-  /* Table layout */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    page-break-inside: avoid;
-  }
-
-  tr {
-    page-break-inside: avoid;
-  }
-
-  /* Prevent page breaks inside the report */
-  .report-card {
+  .print-root table,
+  .print-root tr {
     page-break-inside: avoid;
   }
 }

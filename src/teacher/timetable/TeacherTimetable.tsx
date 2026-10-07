@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Clock, Plus, Trash2, CheckCircle2, AlertCircle, ChevronDown } from "lucide-react";
+import {
+  Clock,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+} from "lucide-react";
 import { classesApi, subjectsApi } from "../../api/domains";
 import {
   timetableApi,
@@ -7,12 +14,15 @@ import {
   TIMETABLE_DAYS,
   TIMETABLE_PERIODS,
 } from "../../api/timetable";
+import { useConfirm } from "../../components/common/ConfirmDialog";
 
-const TEACHING_PERIODS = TIMETABLE_PERIODS.map((p, i) => ({ ...p, index: i })).filter(
-  (p) => !(p as any).isBreak,
-);
+const TEACHING_PERIODS = TIMETABLE_PERIODS.map((p, i) => ({
+  ...p,
+  index: i,
+})).filter((p) => !(p as any).isBreak);
 
 const TeacherTimetable = () => {
+  const confirm = useConfirm();
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<any>(null);
@@ -90,9 +100,7 @@ const TeacherTimetable = () => {
         room: room || undefined,
       });
       setSlots((ss) => {
-        const rest = ss.filter(
-          (s) => !(s.day === day && s.period === period),
-        );
+        const rest = ss.filter((s) => !(s.day === day && s.period === period));
         return [...rest, saved];
       });
       showToast("Slot saved");
@@ -104,6 +112,11 @@ const TeacherTimetable = () => {
   };
 
   const handleDelete = async (slot: TimetableSlot) => {
+    const ok = await confirm({
+      title: "Remove this lesson?",
+      message: `${slot.day} · period ${slot.period} · ${slot.subject}`,
+    });
+    if (!ok) return;
     try {
       await timetableApi.remove(slot.id as string);
       setSlots((ss) => ss.filter((s) => s.id !== slot.id));
@@ -141,7 +154,10 @@ const TeacherTimetable = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+          <h1
+            className="text-xl font-black"
+            style={{ color: "var(--dark-gray)" }}
+          >
             Class Timetable
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -152,7 +168,9 @@ const TeacherTimetable = () => {
           <select
             value={selectedClass?.id || ""}
             onChange={(e) =>
-              setSelectedClass(classes.find((c) => c.id === e.target.value) || null)
+              setSelectedClass(
+                classes.find((c) => c.id === e.target.value) || null,
+              )
             }
             className="appearance-none pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2 outline-none cursor-pointer"
             style={{
@@ -284,9 +302,16 @@ const TeacherTimetable = () => {
                   </tr>
                 );
               return (
-                <tr key={i} className="border-b" style={{ borderColor: "var(--medium-gray)" }}>
+                <tr
+                  key={i}
+                  className="border-b"
+                  style={{ borderColor: "var(--medium-gray)" }}
+                >
                   <td className="px-3 py-2">
-                    <p className="text-xs font-bold" style={{ color: "var(--dark-gray)" }}>
+                    <p
+                      className="text-xs font-bold"
+                      style={{ color: "var(--dark-gray)" }}
+                    >
                       {p.label}
                     </p>
                     <p className="text-xs text-gray-400">{p.time}</p>
@@ -318,7 +343,10 @@ const TeacherTimetable = () => {
                               style={{ borderColor: "var(--medium-gray)" }}
                               title="Remove"
                             >
-                              <Trash2 size={11} style={{ color: "var(--accent-red)" }} />
+                              <Trash2
+                                size={11}
+                                style={{ color: "var(--accent-red)" }}
+                              />
                             </button>
                           </div>
                         ) : (

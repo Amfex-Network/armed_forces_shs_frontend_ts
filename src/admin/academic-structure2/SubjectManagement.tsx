@@ -12,15 +12,18 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { subjectsApi, departmentsApi } from "../../api/domains";
+import {
+  coursesFromDepartments,
+  DEFAULT_COURSES,
+} from "../../hooks/useSchoolLists";
+import { useConfirm } from "../../components/common/ConfirmDialog";
 
-const COURSES = ["General Science", "General Arts", "Business", "Technical"];
 const EMPTY_SUBJECT = {
   name: "",
   code: "",
   type: "elective",
   department: "",
   courses: [],
-  periodsPerWeek: 4,
   active: true,
 };
 const TYPE_STYLE = {
@@ -43,8 +46,10 @@ const Toggle = ({ checked, onChange }) => (
 );
 
 const SubjectManagement = () => {
+  const confirm = useConfirm();
   const [subjects, setSubjects] = useState<any[]>([]);
   const [departmentNames, setDepartmentNames] = useState<string[]>([]);
+  const [COURSES, setCourses] = useState<string[]>(DEFAULT_COURSES);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSubject, setEditingSubject] = useState(null);
@@ -69,6 +74,7 @@ const SubjectManagement = () => {
       ]);
       setSubjects(subs);
       setDepartmentNames(deps.map((d) => d.name));
+      setCourses(coursesFromDepartments(deps));
     } catch (err) {
       showToast(err?.message || "Failed to load subjects", "error");
     } finally {
@@ -175,6 +181,17 @@ const SubjectManagement = () => {
   };
 
   const handleDelete = async (subject) => {
+    const ok = await confirm({
+      title: "Delete subject?",
+      message: (
+        <strong>
+          {subject.name} ({subject.code})
+        </strong>
+      ),
+      detail:
+        "Scores already entered for this subject are kept, but teachers can no longer enter new ones.",
+    });
+    if (!ok) return;
     try {
       await subjectsApi.remove(subject.id);
       setSubjects((prev) => prev.filter((item) => item.id !== subject.id));
@@ -718,28 +735,6 @@ const SubjectManagement = () => {
               </div>
               <div>
                 <label
-                  className="text-xs font-bold uppercase tracking-wider block mb-1"
-                  style={{ color: "var(--dark-gray)" }}
-                >
-                  Periods per Week
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={form.periodsPerWeek}
-                  onChange={(e) =>
-                    updateField("periodsPerWeek", parseInt(e.target.value) || 4)
-                  }
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none text-center font-black"
-                  style={{
-                    borderColor: "var(--medium-gray)",
-                    color: "var(--royal-blue)",
-                  }}
-                />
-              </div>
-              <div>
-                <label
                   className="text-xs font-bold uppercase tracking-wider block mb-2"
                   style={{ color: "var(--dark-gray)" }}
                 >
@@ -747,8 +742,8 @@ const SubjectManagement = () => {
                 </label>
                 {form.type === "core" ? (
                   <p className="text-xs text-gray-500">
-                    Core subjects are taken by all courses (
-                    {COURSES.map((c) => c.replace("General ", "")).join(", ")}).
+                    Core subjects are taken by all courses ({COURSES.join(", ")}
+                    ).
                   </p>
                 ) : (
                   <>

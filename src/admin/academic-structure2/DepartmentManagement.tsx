@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { departmentsApi } from "../../api/domains";
 import { usersApi } from "../../api/users";
+import { useConfirm } from "../../components/common/ConfirmDialog";
 
 const EMPTY_DEPARTMENT = {
   name: "",
@@ -22,6 +23,7 @@ const EMPTY_DEPARTMENT = {
 };
 
 const DepartmentManagement = () => {
+  const confirm = useConfirm();
   const [departments, setDepartments] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,6 +101,11 @@ const DepartmentManagement = () => {
   };
 
   const handleDelete = async (department) => {
+    const ok = await confirm({
+      title: "Delete department?",
+      message: <strong>{department.name}</strong>,
+    });
+    if (!ok) return;
     try {
       await departmentsApi.remove(department.id);
       setDepartments((prev) =>
@@ -205,7 +212,7 @@ const DepartmentManagement = () => {
           },
           { label: "Teaching Staff", value: teachers.length, color: "#7c3aed" },
           {
-            label: "Total Subjects",
+            label: "Total Courses",
             value: departments.reduce(
               (total, department) => total + department.subjects.length,
               0,
@@ -277,7 +284,7 @@ const DepartmentManagement = () => {
                     </p>
                     <p className="text-xs text-gray-400">
                       {staff.length} staff · {department.subjects.length}{" "}
-                      subjects
+                      {department.subjects.length === 1 ? "course" : "courses"}
                       {hod ? ` · HOD: ${hod.title} ${hod.lastName}` : ""}
                     </p>
                   </div>
@@ -330,7 +337,7 @@ const DepartmentManagement = () => {
                         className="text-xs font-black uppercase tracking-widest mb-2"
                         style={{ color: "var(--dark-gray)", opacity: 0.5 }}
                       >
-                        Subjects
+                        Courses
                       </p>
                       <div className="flex flex-wrap gap-1.5">
                         {department.subjects.map((subject) => (

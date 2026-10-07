@@ -5,7 +5,12 @@ import { classesApi } from "../../api/domains";
 import { studentsApi } from "../../api/students";
 import { attendanceApi } from "../../api/attendance";
 import { Avatar, PageHeader } from "../components/TeacherUI";
-import { sameClass } from "../../utils/classNames";
+import {
+  surnameFirst,
+  sortStudents,
+  useStudentSort,
+  SortToggle,
+} from "../../utils/studentOrder";
 
 const STATUS_STYLES = {
   present: {
@@ -30,6 +35,7 @@ const TeacherAttendance = () => {
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [students, setStudents] = useState<any[]>([]);
+  const [sortMode, setSortMode] = useStudentSort();
   const [attendance, setAttendance] = useState<Record<string, string>>({});
   const [recordIds, setRecordIds] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -39,7 +45,9 @@ const TeacherAttendance = () => {
   useEffect(() => {
     (async () => {
       try {
-        const cls = await classesApi.list();
+        const cls = (await classesApi.list()).filter(
+          (c) => c.teaching || c.form,
+        );
         setClasses(cls);
         if (cls.length) setSelectedClass(cls[0]);
       } catch {
@@ -58,18 +66,19 @@ const TeacherAttendance = () => {
     let active = true;
     (async () => {
       try {
+        // Existing marks are matched by student so a re-save updates them.
         const [studs, records] = await Promise.all([
-          studentsApi.list(),
-          attendanceApi.list({ date, formClass: selectedClass.name }),
+          studentsApi.list(selectedClass.name),
+          attendanceApi.list({ date }),
         ]);
         if (!active) return;
-        const inClass = studs
-          .filter((s) => sameClass(s.formClass, selectedClass.name))
-          .map((s) => ({
-            id: s.id,
-            studentId: s.studentId,
-            name: `${s.firstName} ${s.lastName}`,
-          }));
+        const inClass = studs.map((s) => ({
+          id: s.id,
+          studentId: s.studentId,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          name: surnameFirst(s),
+        }));
         const statusMap: Record<string, string> = {};
         const idMap: Record<string, string> = {};
         records.forEach((r) => {
@@ -211,10 +220,11 @@ const TeacherAttendance = () => {
 
       {/* Student List */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
+        <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-2 flex-wrap">
           <p className="text-sm font-semibold text-gray-700">
             {selectedClass?.name || "-"} - {students.length} students
           </p>
+          <SortToggle mode={sortMode} onChange={setSortMode} />
         </div>
 
         {students.length === 0 ? (
@@ -227,7 +237,7 @@ const TeacherAttendance = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {students.map((student, idx) => {
+            {sortStudents(students, sortMode).map((student, idx) => {
               const status = attendance[student.id];
               return (
                 <div

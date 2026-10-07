@@ -34,11 +34,16 @@ export const AUTH_EVENTS = {
 
 type Body = Record<string, unknown> | undefined;
 
+// Incremented on every sign-in and sign-out. A "session ended" answer only
+// counts if its request was sent in the current session.
+export const sessionEpoch = { current: 0 };
+
 async function request<T>(
   method: string,
   path: string,
   body?: Body,
 ): Promise<T> {
+  const epoch = sessionEpoch.current;
   const headers: Record<string, string> = {};
   if (body) headers["Content-Type"] = "application/json";
 
@@ -76,7 +81,9 @@ async function request<T>(
     const error = new ApiError(message, res.status, data);
     const isSessionCheck = path.startsWith("/api/auth/");
     if (error.code === "NOT_AUTHENTICATED" && !isSessionCheck) {
-      window.dispatchEvent(new Event(AUTH_EVENTS.expired));
+      window.dispatchEvent(
+        new CustomEvent(AUTH_EVENTS.expired, { detail: { epoch } }),
+      );
     }
     if (error.code === "PASSWORD_CHANGE_REQUIRED") {
       window.dispatchEvent(new Event(AUTH_EVENTS.passwordChange));

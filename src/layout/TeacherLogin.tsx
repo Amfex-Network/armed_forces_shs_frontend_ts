@@ -2,47 +2,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import {
-  FaShieldAlt,
-  FaEye,
-  FaEyeSlash,
-  FaBook,
-  FaChalkboardTeacher,
-  FaClipboardList,
-} from "react-icons/fa";
-
-const ROLES = [
-  {
-    id: "Subject Teacher",
-    label: "Subject Teacher",
-    icon: FaBook,
-    desc: "Enter CA and exam scores, and track student progress",
-  },
-  {
-    id: "Subject Teacher + Form Master",
-    label: "Subject Teacher + Form Master",
-    icon: FaChalkboardTeacher,
-    desc: "Teaches subjects and manages a form class",
-  },
-  {
-    id: "Form Master",
-    label: "Form Master",
-    icon: FaClipboardList,
-    desc: "Supervise teachers, verify scores and record attendance",
-  },
-];
+import { FaShieldAlt, FaEye, FaEyeSlash } from "react-icons/fa";
 
 export default function TeacherLogin() {
   const navigate = useNavigate();
   const { login, loading, error } = useAuth();
-  const [role, setRole] = useState(ROLES[0]);
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [showPw, setShowPw] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const res = await login(email, pw, "teacher", role.id);
+    const res = await login(email, pw, "teacher");
     if (res.success) navigate(res.redirectTo || "/teacher", { replace: true });
   };
 
@@ -95,63 +66,10 @@ export default function TeacherLogin() {
               className="text-xs mt-1"
               style={{ color: "rgba(255,255,255,.55)" }}
             >
-              Logging in as:{" "}
-              <strong className="text-white">{role.label}</strong>
+              Teacher Portal · your role is set by the administrator
             </p>
           </div>
           <div className="h-1" style={{ background: "var(--accent-red)" }} />
-
-          {/* Role selector */}
-          <div className="px-4 pt-4 space-y-1.5 max-h-56 overflow-y-auto">
-            {ROLES.map((r) => {
-              const Icon = r.icon;
-              const active = role.id === r.id;
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all"
-                  style={{
-                    borderColor: active ? "var(--royal-blue)" : "#e5e7eb",
-                    backgroundColor: active ? "#eef2ff" : "white",
-                  }}
-                >
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{
-                      backgroundColor: active ? "var(--royal-blue)" : "#f3f4f6",
-                    }}
-                  >
-                    <Icon size={14} color={active ? "white" : "#6b7280"} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-xs font-bold truncate"
-                      style={{
-                        color: active ? "var(--royal-blue)" : "#111827",
-                      }}
-                    >
-                      {r.label}
-                    </p>
-                    <p className="text-xs truncate text-gray-400">{r.desc}</p>
-                  </div>
-                  {active && (
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="var(--royal-blue)"
-                      strokeWidth="2.5"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </button>
-              );
-            })}
-          </div>
 
           {/* Form */}
           <div className="px-6 py-4 space-y-4">
@@ -264,7 +182,7 @@ export default function TeacherLogin() {
                     Signing In…
                   </>
                 ) : (
-                  `Sign In as ${role.label} →`
+                  "Sign In →"
                 )}
               </button>
             </form>

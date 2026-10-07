@@ -59,7 +59,7 @@ const StudentDashboardLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/studentLogout", { replace: true });
+    navigate("/", { replace: true });
   };
 
   return (

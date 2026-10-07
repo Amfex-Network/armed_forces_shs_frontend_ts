@@ -31,8 +31,16 @@ import {
 } from "lucide-react";
 import { usersApi } from "../../api/users";
 import { statsApi } from "../../api/stats";
+import { studentsApi } from "../../api/students";
+import { useAuth } from "../../context/AuthContext";
+import { useConfirm } from "../../components/common/ConfirmDialog";
 import { useSchoolLists } from "../../hooks/useSchoolLists";
 import MultiPick from "../../components/common/MultiPick";
+import {
+  TEACHER_ROLES,
+  isFormTeacher,
+  normalizeTeacherRole,
+} from "../../utils/teacherRoles";
 import { downloadCsv } from "../../utils/csv";
 
 // Config
@@ -234,7 +242,12 @@ const ROLE_STEPS = {
 
 // Edit User Modal
 const EditUserModal = ({ user, onSave, onClose }) => {
-  const [form, setForm] = useState({ ...user });
+  const [form, setForm] = useState({
+    ...user,
+    ...(user.role === "teacher"
+      ? { teacherRole: normalizeTeacherRole(user.teacherRole) }
+      : {}),
+  });
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const lists = useSchoolLists();
 
@@ -266,9 +279,9 @@ const EditUserModal = ({ user, onSave, onClose }) => {
           },
           { key: "staffId", label: "Staff ID" },
           {
-            key: "formClass",
-            label: "Form Class (if form teacher)",
-            options: withCurrent(lists.classes, user.formClass),
+            key: "teacherRole",
+            label: "Role",
+            options: [...TEACHER_ROLES],
           },
         ]
       : []),
@@ -336,7 +349,9 @@ const EditUserModal = ({ user, onSave, onClose }) => {
                   className="w-full px-3 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   style={{ borderColor: "var(--medium-gray)" }}
                 >
-                  <option value="">-- None --</option>
+                  {key !== "teacherRole" && (
+                    <option value="">-- None --</option>
+                  )}
                   {options.map((o) => (
                     <option key={o} value={o}>
                       {o}
@@ -360,6 +375,15 @@ const EditUserModal = ({ user, onSave, onClose }) => {
           ))}
           {user.role === "teacher" && (
             <>
+              {isFormTeacher(form.teacherRole) && (
+                <MultiPick
+                  label="Form Teacher Of"
+                  options={lists.classes}
+                  value={form.formClasses || []}
+                  onChange={(v) => set("formClasses", v)}
+                  emptyText="No classes yet - create them under Structure - Part 2."
+                />
+              )}
               <MultiPick
                 label="Classes Taught"
                 options={lists.classes}
@@ -415,7 +439,13 @@ const EditUserModal = ({ user, onSave, onClose }) => {
           </button>
           <button
             type="button"
-            onClick={() => onSave(form)}
+            onClick={() =>
+              onSave(
+                user.role === "teacher" && !isFormTeacher(form.teacherRole)
+                  ? { ...form, formClasses: [], formClass: "" }
+                  : form,
+              )
+            }
             className="flex-1 py-2.5 rounded-xl text-sm font-black text-white flex items-center justify-center gap-2"
             style={{ backgroundColor: "var(--royal-blue)" }}
           >
@@ -574,7 +604,9 @@ const AddUserModal = ({ onSave, onClose }) => {
             staffId: form.staffId,
             department: form.department || "",
             teacherRole: form.teacherRole || "Subject Teacher",
-            formClass: form.formClass || "",
+            formClasses: isFormTeacher(form.teacherRole)
+              ? form.formClasses || []
+              : [],
             assignedClasses: form.assignedClasses || [],
             assignedSubjects: form.assignedSubjects || [],
           }
@@ -853,22 +885,18 @@ const AddUserModal = ({ onSave, onClose }) => {
                         <FInput
                           label="Teacher Role"
                           field="teacherRole"
-                          options={[
-                            "Subject Teacher",
-                            "Subject Teacher + Form Teacher",
-                            "Subject Teacher + HOD",
-                            "Subject Teacher + Form Teacher + HOD",
-                            "Form Teacher + HOD",
-                            "Examiner",
-                          ]}
+                          options={[...TEACHER_ROLES]}
                         />
                       </div>
-                      {(form.teacherRole || "").includes("Form Teacher") && (
+                      {isFormTeacher(form.teacherRole) && (
                         <div className="sm:col-span-2">
-                          <FInput
-                            label="Form Class (assigned)"
-                            field="formClass"
+                          <MultiPick
+                            label="Form Teacher Of"
                             options={lists.classes}
+                            value={form.formClasses || []}
+                            onChange={(v) => set("formClasses", v)}
+                            emptyText="No classes yet - create them under Structure - Part 2."
+                            hint="A teacher can be form teacher of more than one class."
                           />
                         </div>
                       )}
@@ -918,12 +946,7 @@ const AddUserModal = ({ onSave, onClose }) => {
                       <FInput
                         label="Course"
                         field="course"
-                        options={[
-                          "General Science",
-                          "General Arts",
-                          "Business",
-                          "Technical",
-                        ]}
+                        options={lists.courses}
                       />
                       <FInput
                         label="Track"
@@ -1306,13 +1329,62 @@ const UserManagement = () => {
   const [showAddUser, setShowAddUser] = useState(false);
   const [toast, setToast] = useState(null);
   const [studentRecords, setStudentRecords] = useState<number | null>(null);
+  const [recordKeys, setRecordKeys] = useState<Set<string> | null>(null);
+  const { user: me } = useAuth();
+  const confirm = useConfirm();
 
   useEffect(() => {
     statsApi
       .overview()
       .then((o) => setStudentRecords(o.students))
       .catch(() => setStudentRecords(null));
+    studentsApi
+      .list()
+      .then((all) => {
+        const keys = new Set<string>();
+        all.forEach((st) => {
+          if (st.email) keys.add(`e:${st.email.toLowerCase()}`);
+          if (st.studentId) keys.add(`i:${st.studentId}`);
+        });
+        setRecordKeys(keys);
+      })
+      .catch(() => setRecordKeys(null));
   }, []);
+
+  // A student login whose student record was deleted shows nothing in the
+  // portal; flag it so the admin can remove it.
+  const hasNoRecord = (u) =>
+    u.role === "student" &&
+    recordKeys !== null &&
+    !recordKeys.has(`e:${(u.email || "").toLowerCase()}`) &&
+    !(u.studentId && recordKeys.has(`i:${u.studentId}`));
+
+  const handleDeleteUser = async (u) => {
+    const ok = await confirm({
+      title: "Delete this account?",
+      message: (
+        <>
+          <strong>
+            {[u.title, u.firstName, u.lastName].filter(Boolean).join(" ")}
+          </strong>{" "}
+          · {u.email}
+        </>
+      ),
+      detail:
+        u.role === "student"
+          ? "Only the login is removed; the student record (if any) and its results stay. This cannot be undone."
+          : "The person will no longer be able to sign in. This cannot be undone.",
+    });
+    if (!ok) return;
+    try {
+      await usersApi.remove(u.id);
+      setUsers((us) => us.filter((x) => x.id !== u.id));
+      setViewUser(null);
+      showToast(`${u.firstName} ${u.lastName}'s account deleted`);
+    } catch (err) {
+      showToast(err?.message || "Failed to delete account", "error");
+    }
+  };
 
   const showToast = (msg, type = "success", duration = 3500) => {
     setToast({ msg, type });
@@ -1771,6 +1843,19 @@ const UserManagement = () => {
                             <span className="font-mono truncate max-w-[140px]">
                               {identifier}
                             </span>
+                            {hasNoRecord(u) && (
+                              <span
+                                className="px-1.5 py-0.5 rounded font-semibold inline-block"
+                                style={{
+                                  backgroundColor: "#fff1f2",
+                                  color: "var(--accent-red)",
+                                  fontSize: "10px",
+                                }}
+                                title="No student record matches this login's email or student ID"
+                              >
+                                No student record
+                              </span>
+                            )}
                             {u.role === "teacher" && u.teacherRole && (
                               <span
                                 className="px-1.5 py-0.5 rounded text-xs font-semibold inline-block truncate max-w-[160px]"
@@ -1851,6 +1936,17 @@ const UserManagement = () => {
                                 <Unlock size={14} />
                               )}
                             </button>
+                            {u.id !== me?.id && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(u)}
+                                className="p-1.5 rounded-lg hover:bg-red-50 transition"
+                                style={{ color: "var(--accent-red)" }}
+                                title="Delete account"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1997,6 +2093,20 @@ const UserManagement = () => {
                             <Unlock size={13} />
                           )}
                         </button>
+                        {u.id !== me?.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(u)}
+                            className="flex items-center justify-center p-1.5 rounded-lg"
+                            style={{
+                              backgroundColor: "#fff1f2",
+                              color: "var(--accent-red)",
+                            }}
+                            title="Delete account"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

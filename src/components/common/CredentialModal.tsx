@@ -27,7 +27,9 @@ const CredentialModal = ({
     usersApi
       .resetPassword(userId)
       .then((p) => active && setPw(p))
-      .catch((e) => active && setError(e?.message || "Failed to reset password"))
+      .catch(
+        (e) => active && setError(e?.message || "Failed to reset password"),
+      )
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
@@ -69,11 +71,16 @@ const CredentialModal = ({
           </p>
           <div
             className="flex items-center gap-2 p-4 rounded-xl border-2"
-            style={{ borderColor: "var(--royal-blue)", backgroundColor: "#eef2ff" }}
+            style={{
+              borderColor: "var(--royal-blue)",
+              backgroundColor: "#eef2ff",
+            }}
           >
             <p
               className="flex-1 font-mono font-bold text-lg text-center break-all"
-              style={{ color: error ? "var(--accent-red)" : "var(--royal-blue)" }}
+              style={{
+                color: error ? "var(--accent-red)" : "var(--royal-blue)",
+              }}
             >
               {loading ? "Generating…" : error || pw}
             </p>

@@ -21,24 +21,19 @@ import {
 import { usersApi, type ManagedUser } from "../../api/users";
 import { departmentsApi } from "../../api/domains";
 import CredentialModal from "../../components/common/CredentialModal";
+import PeopleImportExport from "../../components/common/PeopleImportExport";
+import { TEACHER_COLUMNS } from "../../utils/peopleSheets";
 import MultiPick from "../../components/common/MultiPick";
 import { useSchoolLists } from "../../hooks/useSchoolLists";
+import {
+  TEACHER_ROLES,
+  isFormTeacher,
+  isHod,
+  normalizeTeacherRole,
+} from "../../utils/teacherRoles";
 
 const TITLES = ["Mr", "Mrs", "Miss", "Dr", "Prof", "Rev", "Capt", "Sgt"];
 const STATUSES = ["Active", "Inactive"];
-const TEACHER_ROLES = [
-  "Subject Teacher",
-  "Form Teacher",
-  "HOD",
-  "Assistant HOD",
-  "Exam Coordinator",
-  "House Master",
-  "Counsellor",
-  "WAEC Coordinator",
-  "Workshop Instructor",
-  "Sports Master",
-  "Year Group Head",
-];
 
 const EMPTY: Partial<ManagedUser> = {
   title: "Mr",
@@ -50,6 +45,7 @@ const EMPTY: Partial<ManagedUser> = {
   department: "",
   teacherRole: "Subject Teacher",
   formClass: "",
+  formClasses: [],
   assignedClasses: [],
   assignedSubjects: [],
   status: "Active",
@@ -138,7 +134,12 @@ const FInput = ({
 
 const TeacherFormModal = ({ teacher, onSave, onClose, departments }: any) => {
   const isEdit = !!teacher?.id;
-  const [form, setForm] = useState<Partial<ManagedUser>>(teacher || EMPTY);
+  const [form, setForm] = useState<Partial<ManagedUser>>(
+    teacher
+      ? { ...teacher, teacherRole: normalizeTeacherRole(teacher.teacherRole) }
+      : EMPTY,
+  );
+  const formTeacher = isFormTeacher(form.teacherRole);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -147,19 +148,15 @@ const TeacherFormModal = ({ teacher, onSave, onClose, departments }: any) => {
   if (form.department && !deptOptions.includes(form.department)) {
     deptOptions.splice(1, 0, form.department);
   }
-  const classOptions = [
-    "",
-    ...(form.formClass && !lists.classes.includes(form.formClass)
-      ? [form.formClass]
-      : []),
-    ...lists.classes,
-  ];
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.firstName?.trim()) e.firstName = "Required";
     if (!form.lastName?.trim()) e.lastName = "Required";
     if (!form.email?.trim()) e.email = "Required";
+    if (formTeacher && !((form.formClasses as string[]) || []).length) {
+      e.formClasses = "Pick the class(es) this teacher is form teacher of";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -252,19 +249,49 @@ const TeacherFormModal = ({ teacher, onSave, onClose, departments }: any) => {
               onChange={(v: string) => set("department", v)}
               options={deptOptions}
             />
-            <FInput
-              label="Role"
-              value={form.teacherRole}
-              onChange={(v: string) => set("teacherRole", v)}
-              options={TEACHER_ROLES}
-            />
-            <FInput
-              label="Form Class (if form teacher)"
-              value={form.formClass || ""}
-              onChange={(v: string) => set("formClass", v)}
-              options={classOptions}
-            />
+            <div className="sm:col-span-2">
+              <FInput
+                label="Role"
+                value={form.teacherRole}
+                onChange={(v: string) => set("teacherRole", v)}
+                options={[...TEACHER_ROLES]}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                {isHod(form.teacherRole) &&
+                  "HOD: can review the department's subject scores in every class. "}
+                {formTeacher &&
+                  "Form teacher: attendance, remarks and report cards for the form class(es). "}
+                Score entry is only for the classes and subjects ticked below.
+              </p>
+            </div>
           </div>
+          {formTeacher && (
+            <div
+              className="rounded-xl border p-4"
+              style={{
+                borderColor: errors.formClasses
+                  ? "var(--accent-red)"
+                  : "var(--medium-gray)",
+              }}
+            >
+              <MultiPick
+                label="Form Teacher Of"
+                options={lists.classes}
+                value={(form.formClasses as string[]) || []}
+                onChange={(v) => set("formClasses", v)}
+                emptyText="No classes yet - create them under Structure - Part 2."
+                hint="A teacher can be form teacher of more than one class (e.g. Form 1 Applied Electricity A and B)."
+              />
+              {errors.formClasses && (
+                <p
+                  className="text-xs mt-1"
+                  style={{ color: "var(--accent-red)" }}
+                >
+                  {errors.formClasses}
+                </p>
+              )}
+            </div>
+          )}
           <div
             className="rounded-xl border p-4 space-y-4"
             style={{ borderColor: "var(--medium-gray)" }}
@@ -282,7 +309,7 @@ const TeacherFormModal = ({ teacher, onSave, onClose, departments }: any) => {
               value={(form.assignedSubjects as string[]) || []}
               onChange={(v) => set("assignedSubjects", v)}
               emptyText="No subjects yet - create them under Structure - Part 2."
-              hint="In score entry the teacher only sees these classes (plus their form class) and these subjects. With no subjects ticked, the subjects of their department are used."
+              hint="Score entry shows only these classes and subjects. With no subjects ticked, the subjects of the teacher's department are used."
             />
           </div>
         </div>
@@ -307,7 +334,13 @@ const TeacherFormModal = ({ teacher, onSave, onClose, departments }: any) => {
           </button>
           <button
             onClick={() => {
-              if (validate()) onSave(form);
+              if (!validate()) return;
+              // Only form teachers keep form classes.
+              onSave(
+                formTeacher
+                  ? form
+                  : { ...form, formClasses: [], formClass: "" },
+              );
             }}
             className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-xl"
             style={{ backgroundColor: "var(--royal-blue)" }}
@@ -432,7 +465,12 @@ const ProfileDrawer = ({ teacher, onEdit, onClose }: any) => {
             { icon: Mail, label: "Email", value: teacher.email },
             { icon: Phone, label: "Phone", value: teacher.phone },
             { icon: IdCard, label: "Staff ID", value: teacher.staffId },
-            { icon: Users, label: "Form Class", value: teacher.formClass },
+            {
+              icon: Users,
+              label: "Form Teacher Of",
+              value:
+                ((teacher.formClasses as string[]) || []).join(", ") || "-",
+            },
             {
               icon: Users,
               label: "Classes Taught",
@@ -625,16 +663,51 @@ const Teacher = () => {
             {total} teachers · {active} active
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditTeacher(null);
-            setShowForm(true);
-          }}
-          className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white shadow-sm"
-          style={{ backgroundColor: "var(--royal-blue)" }}
-        >
-          <Plus size={15} /> Add Teacher
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <PeopleImportExport
+            role="teacher"
+            label="Teachers"
+            columns={TEACHER_COLUMNS}
+            examples={[
+              [
+                "Mr",
+                "Kwame",
+                "Mensah",
+                "k.mensah@afshts.edu.gh",
+                "0244000000",
+                "AFSHTS/TCH/001",
+                "TECHNICAL DEPARTMENT",
+                "Subject Teacher + Form Teacher",
+                "Form 1 Applied Electricity A; Form 1 Applied Electricity B",
+                "Form 1 Applied Electricity A; Form 1 Applied Electricity B",
+                "Applied Electricity; Technical Drawing",
+              ],
+            ]}
+            guide={[
+              "AFSHTS TEACHER IMPORT",
+              "",
+              "Required: First Name, Last Name, Email (each email can only be used once).",
+              "Role: Subject Teacher | Subject Teacher + HOD | Subject Teacher + Form Teacher | Subject Teacher + HOD + Form Teacher",
+              "Department, classes and subjects must match names already set up in Structure - Part 2.",
+              "Separate several classes or subjects with a semicolon ( ; ).",
+              "Form Teacher Of: the class(es) the teacher is form teacher of.",
+              "Each new teacher gets a one-time password; a login sheet downloads after the import.",
+              "Rows with an email that already has an account are skipped.",
+            ]}
+            exportRows={() => teachers}
+            onImported={load}
+          />
+          <button
+            onClick={() => {
+              setEditTeacher(null);
+              setShowForm(true);
+            }}
+            className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white shadow-sm"
+            style={{ backgroundColor: "var(--royal-blue)" }}
+          >
+            <Plus size={15} /> Add Teacher
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

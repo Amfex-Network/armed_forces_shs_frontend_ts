@@ -84,8 +84,13 @@ export const SettingsProvider = ({
   const { user } = useAuth();
   const userId = user?.id;
 
-  // Settings need an authenticated request, so load them again on sign-in.
+  // Settings need a signed-in user; load them on sign-in, keep the defaults
+  // until then (no request while signed out).
   useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     refresh();
   }, [refresh, userId]);
 

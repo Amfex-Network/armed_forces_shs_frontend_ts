@@ -1,7 +1,8 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { authApi, type ApiUser, type Role } from "../api/auth";
-import { ApiError, AUTH_EVENTS } from "../api/client";
+import { ApiError, AUTH_EVENTS, sessionEpoch } from "../api/client";
+import { normalizeTeacherRole } from "../utils/teacherRoles";
 
 export const CHANGE_PASSWORD_PATH = "/changePassword";
 
@@ -49,6 +50,12 @@ function normalize(u: ApiUser, studentId = ""): AppUser {
     department: u.department || "",
     teacherRole: u.teacherRole || "",
     formClass: u.formClass || "",
+    formClasses:
+      u.formClasses && u.formClasses.length
+        ? u.formClasses
+        : u.role === "teacher" && u.formClass
+          ? [u.formClass]
+          : [],
     course: u.course || "",
     assignedClasses: u.assignedClasses || [],
     assignedSubjects: u.assignedSubjects || [],
@@ -57,7 +64,10 @@ function normalize(u: ApiUser, studentId = ""): AppUser {
     redirectTo: u.mustChangePassword
       ? CHANGE_PASSWORD_PATH
       : REDIRECT[u.role] || "/dashboard",
-    ...(u.role === "student" && studentId ? { studentId } : {}),
+    // The account's own student ID wins over whatever was typed at sign-in.
+    ...(u.role === "student"
+      ? { studentId: (u as { studentId?: string }).studentId || studentId }
+      : {}),
   };
 }
 
@@ -71,13 +81,15 @@ export const useAuth = (): any => {
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [activeRole, setActiveRole] = useState<string>(() => {
-    try {
-      return sessionStorage.getItem("afts_active_role") || "Subject Teacher";
-    } catch {
-      return "Subject Teacher";
-    }
-  });
+  // True after a deliberate sign-out, so protected pages send the person to
+  // the entry page rather than to a login form.
+  const [signedOut, setSignedOut] = useState(false);
+  // The role comes from the account (set by the admin), never from a choice
+  // made at sign-in.
+  const activeRole =
+    user?.role === "teacher"
+      ? normalizeTeacherRole(user.teacherRole as string)
+      : "";
 
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -113,7 +125,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Another request found the session gone (expired, revoked, or the
   // account was deactivated): drop the user so routes send them to sign in.
   useEffect(() => {
-    const onExpired = () => setUser(null);
+    // Ignore answers to requests sent before the latest sign-in/sign-out: a
+    // slow request started while signed out must not sign the new session
+    // out again.
+    const onExpired = (e: Event) => {
+      const epoch = (e as CustomEvent<{ epoch: number }>).detail?.epoch;
+      if (epoch !== undefined && epoch !== sessionEpoch.current) return;
+      setUser(null);
+    };
     const onMustChange = () =>
       setUser((u) =>
         u
@@ -135,24 +154,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return normalized;
   };
 
-  const setTeacherRole = (role: Role, chosenTeacherRole: string) => {
-    const locked =
-      role === "teacher"
-        ? chosenTeacherRole || "Subject Teacher"
-        : "Subject Teacher";
-    setActiveRole(locked);
-    try {
-      sessionStorage.setItem("afts_active_role", locked);
-    } catch {
-      /* ignore */
-    }
-  };
-
   const login = async (
     email: string,
     password: string,
     _role = "",
-    chosenTeacherRole = "",
+    _unused = "",
     studentId = "",
   ) => {
     setLoading(true);
@@ -167,8 +173,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const res = await authApi.login(email.trim().toLowerCase(), password);
       const normalized = normalize(res.user, studentId.trim());
+      sessionEpoch.current += 1;
+      setSignedOut(false);
       setUser(normalized);
-      setTeacherRole(normalized.role, chosenTeacherRole);
       setLoading(false);
       return { success: true, redirectTo: normalized.redirectTo };
     } catch (err) {
@@ -183,13 +190,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
+    sessionEpoch.current += 1;
+    setSignedOut(true);
     setUser(null);
-    setActiveRole("Subject Teacher");
-    try {
-      sessionStorage.removeItem("afts_active_role");
-    } catch {
-      /* ignore */
-    }
     try {
       await authApi.logout();
     } catch {
@@ -202,6 +205,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         activeRole,
+        signedOut,
         initializing,
         loading,
         error,

@@ -4,7 +4,13 @@ import { classesApi, subjectsApi } from "../../api/domains";
 import { studentsApi, type Student } from "../../api/students";
 import { scoresApi } from "../../api/scores";
 import { useSettings } from "../../context/SettingsContext";
-import { sameClass } from "../../utils/classNames";
+import { useAuth } from "../../context/AuthContext";
+import {
+  surnameFirst,
+  sortStudents,
+  useStudentSort,
+  SortToggle,
+} from "../../utils/studentOrder";
 
 const GRADE_COLOR: Record<string, string> = {
   A1: "text-green-700 bg-green-50",
@@ -22,6 +28,8 @@ const CREDIT = ["A1", "B2", "B3", "C4", "C5", "C6"];
 
 interface Row {
   studentId: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   ca: number | null;
   exam: number | null;
@@ -29,8 +37,12 @@ interface Row {
   grade: string | null;
 }
 
-const ScoreReview = () => {
+// "own": the teacher's taught and form classes. "department": an HOD
+// reviewing their department's subjects across every class (read-only).
+const ScoreReview = ({ mode = "own" }: { mode?: "own" | "department" }) => {
   const { settings } = useSettings();
+  const { user } = useAuth();
+  const [sortMode, setSortMode] = useStudentSort();
   const TERMS = settings.terms;
   const ACADEMIC_YEAR = settings.currentAcademicYear;
 
@@ -53,10 +65,25 @@ const ScoreReview = () => {
           classesApi.list(),
           subjectsApi.list(),
         ]);
-        setClasses(cls);
-        setSubjects(subs);
-        if (cls.length) setSelectedClass(cls[0]);
-        if (subs.length) setSubject(subs[0].name);
+        const dept = String(user?.department || "")
+          .trim()
+          .toLowerCase();
+        const visibleClasses =
+          mode === "department" ? cls : cls.filter((c) => c.teaching || c.form);
+        const visibleSubjects =
+          mode === "department"
+            ? subs.filter(
+                (x) =>
+                  dept &&
+                  String(x.department || "")
+                    .trim()
+                    .toLowerCase() === dept,
+              )
+            : subs;
+        setClasses(visibleClasses);
+        setSubjects(visibleSubjects);
+        if (visibleClasses.length) setSelectedClass(visibleClasses[0]);
+        if (visibleSubjects.length) setSubject(visibleSubjects[0].name);
       } catch {
         /* ignore */
       } finally {
@@ -74,12 +101,11 @@ const ScoreReview = () => {
     (async () => {
       try {
         const [studs, scores] = await Promise.all([
-          studentsApi.list(),
+          studentsApi.list(selectedClass.name),
           scoresApi.list({
             subject,
             term,
             academicYear: ACADEMIC_YEAR,
-            formClass: selectedClass.name,
           }),
         ]);
         if (!alive) return;
@@ -90,19 +116,19 @@ const ScoreReview = () => {
           byStudent[sid] = sc;
         });
         setRows(
-          studs
-            .filter((s: Student) => sameClass(s.formClass, selectedClass.name))
-            .map((s: Student) => {
-              const sc = byStudent[s.id as string];
-              return {
-                studentId: s.studentId,
-                name: `${s.firstName} ${s.lastName}`,
-                ca: sc ? sc.classScore : null,
-                exam: sc ? sc.examScore : null,
-                total: sc ? sc.total : null,
-                grade: sc ? sc.grade : null,
-              };
-            }),
+          studs.map((s: Student) => {
+            const sc = byStudent[s.id as string];
+            return {
+              studentId: s.studentId,
+              firstName: s.firstName,
+              lastName: s.lastName,
+              name: surnameFirst(s),
+              ca: sc ? sc.classScore : null,
+              exam: sc ? sc.examScore : null,
+              total: sc ? sc.total : null,
+              grade: sc ? sc.grade : null,
+            };
+          }),
         );
       } catch {
         if (alive) setRows([]);
@@ -148,13 +174,16 @@ const ScoreReview = () => {
             className="text-xl font-black"
             style={{ color: "var(--dark-gray)" }}
           >
-            Score Review
+            {mode === "department" ? "Department Review" : "Score Review"}
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            Review entered scores and completion for a class subject
+            {mode === "department"
+              ? `${user?.department || "Your department"} subjects in every class (read-only)`
+              : "Review entered scores and completion for a class subject"}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <SortToggle mode={sortMode} onChange={setSortMode} />
           {[
             {
               value: selectedClass?.id || "",
@@ -198,6 +227,25 @@ const ScoreReview = () => {
           ))}
         </div>
       </div>
+
+      {(classes.length === 0 || subjects.length === 0) && (
+        <div
+          className="p-4 rounded-xl text-sm"
+          style={{
+            backgroundColor: "#fffbeb",
+            color: "#92400e",
+            border: "1px solid #fde68a",
+          }}
+        >
+          {mode === "department"
+            ? !user?.department
+              ? "Your staff profile has no department. Ask the administrator to set it."
+              : `No subjects belong to ${user.department} yet. Subjects are linked to departments under Structure - Part 2.`
+            : classes.length === 0
+              ? "No classes are assigned to you yet."
+              : "No subjects are available for review yet."}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -296,7 +344,7 @@ const ScoreReview = () => {
                   </td>
                 </tr>
               ) : (
-                rows.map((r, i) => {
+                sortStudents(rows, sortMode).map((r, i) => {
                   const entered = r.total !== null;
                   return (
                     <tr key={i} className="hover:bg-gray-50">

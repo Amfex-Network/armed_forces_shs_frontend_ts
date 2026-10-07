@@ -20,6 +20,7 @@ export interface ManagedUser {
   course?: string;
   assignedClasses?: string[];
   assignedSubjects?: string[];
+  formClasses?: string[];
   [key: string]: unknown;
 }
 
@@ -42,6 +43,7 @@ interface ApiUser {
   course?: string;
   assignedClasses?: string[];
   assignedSubjects?: string[];
+  formClasses?: string[];
 }
 
 function toUi(u: ApiUser): ManagedUser {
@@ -64,6 +66,12 @@ function toUi(u: ApiUser): ManagedUser {
     course: u.course || "",
     assignedClasses: u.assignedClasses || [],
     assignedSubjects: u.assignedSubjects || [],
+    formClasses:
+      u.formClasses && u.formClasses.length
+        ? u.formClasses
+        : u.role === "teacher" && u.formClass
+          ? [u.formClass]
+          : [],
   };
 }
 
@@ -92,6 +100,7 @@ function toApi(u: Partial<ManagedUser>): Record<string, unknown> {
     body.assignedClasses = u.assignedClasses;
   if (Array.isArray(u.assignedSubjects))
     body.assignedSubjects = u.assignedSubjects;
+  if (Array.isArray(u.formClasses)) body.formClasses = u.formClasses;
   for (const key of ["year", "house", "track", "gender"]) {
     if (typeof u[key] === "string" && u[key]) body[key] = u[key];
   }
@@ -128,6 +137,23 @@ export const usersApi = {
 
   remove(id: string) {
     return api.del<{ success: boolean; message: string }>(`/api/users/${id}`);
+  },
+
+  bulkCreate(role: "teacher" | "parent", users: Record<string, unknown>[]) {
+    return api.post<{
+      success: boolean;
+      created: {
+        row: number;
+        name: string;
+        email: string;
+        role: string;
+        staffId: string;
+        children: string;
+        tempPassword: string;
+        warnings: string[];
+      }[];
+      skipped: { row: number; email?: string; reason: string }[];
+    }>("/api/users/bulk", { role, users });
   },
 
   async resetPassword(id: string): Promise<string> {

@@ -22,6 +22,7 @@ export interface ApiUser {
   assignedClasses?: string[];
   assignedSubjects?: string[];
   mustChangePassword?: boolean;
+  formClasses?: string[];
 }
 
 interface AuthResponse {

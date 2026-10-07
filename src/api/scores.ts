@@ -53,7 +53,27 @@ function toQuery(q?: ScoreQuery): string {
   return s ? `?${s}` : "";
 }
 
+export interface ScoreEntry {
+  student: string;
+  classScore: number;
+  examScore: number;
+}
+
 export const scoresApi = {
+  // One request per class; safe to repeat (each mark is upserted).
+  async saveMany(payload: {
+    subject: string;
+    academicYear: string;
+    term: string;
+    entries: ScoreEntry[];
+  }): Promise<Score[]> {
+    const res = await api.post<{ success: boolean; items: Score[] }>(
+      "/api/scores/bulk",
+      payload as unknown as Record<string, unknown>,
+    );
+    return res.items.map(toUi);
+  },
+
   async list(query?: ScoreQuery): Promise<Score[]> {
     const res = await api.get<{ success: boolean; items: Score[] }>(
       `/api/scores${toQuery(query)}`,

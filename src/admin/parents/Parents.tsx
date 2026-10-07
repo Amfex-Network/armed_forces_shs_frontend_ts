@@ -22,6 +22,8 @@ import {
 import { usersApi, type ManagedUser } from "../../api/users";
 import { studentsApi, type Student } from "../../api/students";
 import CredentialModal from "../../components/common/CredentialModal";
+import PeopleImportExport from "../../components/common/PeopleImportExport";
+import { PARENT_COLUMNS } from "../../utils/peopleSheets";
 
 const TITLES = ["Mr", "Mrs", "Miss", "Dr", "Prof", "Rev"];
 const STATUSES = ["Active", "Inactive"];
@@ -157,7 +159,10 @@ const ParentFormModal = ({ parent, onSave, onClose }: any) => {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-white hover:text-purple-200">
+          <button
+            onClick={onClose}
+            className="text-white hover:text-purple-200"
+          >
             <X size={20} />
           </button>
         </div>
@@ -246,7 +251,10 @@ const DeleteConfirm = ({ parent, onConfirm, onClose }: any) => (
       >
         <Trash2 size={24} style={{ color: "var(--accent-red)" }} />
       </div>
-      <h3 className="font-black text-lg mb-1" style={{ color: "var(--dark-gray)" }}>
+      <h3
+        className="font-black text-lg mb-1"
+        style={{ color: "var(--dark-gray)" }}
+      >
         Delete Parent?
       </h3>
       <p className="text-sm text-gray-500 mb-1">
@@ -263,7 +271,10 @@ const DeleteConfirm = ({ parent, onConfirm, onClose }: any) => (
         <button
           onClick={onClose}
           className="px-5 py-2 text-sm font-semibold rounded-xl border"
-          style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+          style={{
+            borderColor: "var(--medium-gray)",
+            color: "var(--dark-gray)",
+          }}
         >
           Cancel
         </button>
@@ -305,21 +316,32 @@ const ChildrenDrawer = ({
           style={{ background: "linear-gradient(135deg,#7c3aed,#5b21b6)" }}
         >
           <p className="text-white font-black">Parent & Children</p>
-          <button onClick={onClose} className="text-white hover:text-purple-200">
+          <button
+            onClick={onClose}
+            className="text-white hover:text-purple-200"
+          >
             <X size={18} />
           </button>
         </div>
-        <div className="h-1 flex-shrink-0" style={{ backgroundColor: "var(--accent-red)" }} />
+        <div
+          className="h-1 flex-shrink-0"
+          style={{ backgroundColor: "var(--accent-red)" }}
+        />
 
         <div className="flex-1 p-5 space-y-5">
           <div className="flex items-center gap-4">
             <Avatar name={`${parent.firstName} ${parent.lastName}`} size="lg" />
             <div>
-              <h2 className="font-black text-lg" style={{ color: "var(--dark-gray)" }}>
+              <h2
+                className="font-black text-lg"
+                style={{ color: "var(--dark-gray)" }}
+              >
                 {parent.title} {parent.firstName} {parent.lastName}
               </h2>
               <p className="text-xs text-gray-400">{parent.email}</p>
-              <p className="text-xs text-gray-400">{parent.phone || "No phone"}</p>
+              <p className="text-xs text-gray-400">
+                {parent.phone || "No phone"}
+              </p>
             </div>
           </div>
 
@@ -443,7 +465,9 @@ const Parents = () => {
     tempPassword?: string;
     userId?: string;
   } | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: string } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: string } | null>(
+    null,
+  );
 
   const showToast = (msg: string, type = "success") => {
     setToast({ msg, type });
@@ -526,7 +550,10 @@ const Parents = () => {
           s.parentId === deleteParent.id ? { ...s, parentId: null } : s,
         ),
       );
-      showToast(`${deleteParent.firstName} ${deleteParent.lastName} removed`, "error");
+      showToast(
+        `${deleteParent.firstName} ${deleteParent.lastName} removed`,
+        "error",
+      );
     } catch (err: any) {
       showToast(err?.message || "Failed to delete parent", "error");
     } finally {
@@ -593,29 +620,72 @@ const Parents = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+          <h1
+            className="text-xl font-black"
+            style={{ color: "var(--dark-gray)" }}
+          >
             Parents / Guardians
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
             {total} parents · {linkedChildren} children linked
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditParent(null);
-            setShowForm(true);
-          }}
-          className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white shadow-sm"
-          style={{ backgroundColor: "#7c3aed" }}
-        >
-          <Plus size={15} /> Add Parent
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <PeopleImportExport
+            role="parent"
+            label="Parents"
+            columns={PARENT_COLUMNS}
+            examples={[
+              [
+                "Mr",
+                "Peter",
+                "Wiredu",
+                "p.wiredu@example.com",
+                "0244000000",
+                "AFSHTS/2026/0002",
+              ],
+            ]}
+            guide={[
+              "AFSHTS PARENT / GUARDIAN IMPORT",
+              "",
+              "Required: First Name, Last Name, Email (each email can only be used once).",
+              "Children: the Index Nos. (student IDs) of their wards, separated by a semicolon ( ; ).",
+              "Each listed child is linked to the parent, so their results appear in the parent portal.",
+              "Each new parent gets a one-time password; a login sheet downloads after the import.",
+              "Rows with an email that already has an account are skipped.",
+            ]}
+            exportRows={() =>
+              parents.map((p) => ({
+                ...p,
+                children: students
+                  .filter((s) => s.parentId === p.id)
+                  .map((s) => s.studentId),
+              }))
+            }
+            onImported={load}
+          />
+          <button
+            onClick={() => {
+              setEditParent(null);
+              setShowForm(true);
+            }}
+            className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white shadow-sm"
+            style={{ backgroundColor: "#7c3aed" }}
+          >
+            <Plus size={15} /> Add Parent
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {[
-          { label: "Total Parents", value: total, color: "#7c3aed", icon: Users },
+          {
+            label: "Total Parents",
+            value: total,
+            color: "#7c3aed",
+            icon: Users,
+          },
           {
             label: "Active",
             value: active,
@@ -641,7 +711,10 @@ const Parents = () => {
               <Icon size={18} style={{ color }} />
             </div>
             <div>
-              <p className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+              <p
+                className="text-xl font-black"
+                style={{ color: "var(--dark-gray)" }}
+              >
                 {value}
               </p>
               <p className="text-xs text-gray-500">{label}</p>
@@ -665,7 +738,10 @@ const Parents = () => {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, email or phone…"
             className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border-2 outline-none"
-            style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+            style={{
+              borderColor: "var(--medium-gray)",
+              color: "var(--dark-gray)",
+            }}
           />
         </div>
       </div>
@@ -685,16 +761,21 @@ const Parents = () => {
               }}
             >
               <tr>
-                {["Parent", "Email", "Phone", "Children", "Status", "Actions"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500"
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
+                {[
+                  "Parent",
+                  "Email",
+                  "Phone",
+                  "Children",
+                  "Status",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left text-xs font-semibold uppercase text-gray-500"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody
@@ -703,7 +784,10 @@ const Parents = () => {
             >
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                  <td
+                    colSpan={6}
+                    className="px-4 py-12 text-center text-gray-400"
+                  >
                     {loading
                       ? "Loading parents…"
                       : parents.length === 0
@@ -739,7 +823,10 @@ const Parents = () => {
                       <td className="px-4 py-3">
                         <span
                           className="text-xs font-bold px-2 py-0.5 rounded"
-                          style={{ backgroundColor: "#f5f3ff", color: "#7c3aed" }}
+                          style={{
+                            backgroundColor: "#f5f3ff",
+                            color: "#7c3aed",
+                          }}
                         >
                           {childCount(p.id)}
                         </span>

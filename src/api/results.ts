@@ -68,3 +68,28 @@ export const resultsApi = {
     return res.result;
   },
 };
+
+export interface ClassStanding {
+  studentId: string;
+  total: number;
+  subjects: number;
+  average: number;
+  aggregate: number;
+  position: number;
+}
+
+export const classResultsApi = {
+  async summary(q: {
+    formClass: string;
+    term: string;
+    academicYear: string;
+  }): Promise<{ outOf: number; items: ClassStanding[] }> {
+    const params = new URLSearchParams(q).toString();
+    const res = await api.get<{
+      success: boolean;
+      outOf: number;
+      items: ClassStanding[];
+    }>(`/api/results/class?${params}`);
+    return { outOf: res.outOf, items: res.items };
+  },
+};

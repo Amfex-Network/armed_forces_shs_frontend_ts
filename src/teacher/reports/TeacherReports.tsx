@@ -4,174 +4,63 @@ import { classesApi } from "../../api/domains";
 import { studentsApi, type Student } from "../../api/students";
 import { resultsApi, type ReportResult } from "../../api/results";
 import { useSettings } from "../../context/SettingsContext";
+import type { AppSettings } from "../../api/settings";
 import { sameClass } from "../../utils/classNames";
-
-const GRADE_COLOR: Record<string, string> = {
-  A1: "text-green-700 bg-green-50",
-  B2: "text-blue-700 bg-blue-50",
-  B3: "text-blue-600 bg-blue-50",
-  C4: "text-yellow-700 bg-yellow-50",
-  C5: "text-orange-600 bg-orange-50",
-  C6: "text-orange-700 bg-orange-50",
-  D7: "text-red-500 bg-red-50",
-  E8: "text-red-600 bg-red-50",
-  F9: "text-red-700 bg-red-50",
-};
+import {
+  TerminalReport,
+  PrintableReport,
+} from "../../components/report/TerminalReport";
+import {
+  surnameFirst,
+  sortStudents,
+  useStudentSort,
+  SortToggle,
+} from "../../utils/studentOrder";
 
 const ReportView = ({
   result,
+  settings,
   onClose,
 }: {
   result: ReportResult;
+  settings: AppSettings;
   onClose: () => void;
-}) => {
-  const s = result.student;
-  const pct = result.totalMax
-    ? ((result.totalScore / result.totalMax) * 100).toFixed(1)
-    : "0";
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8 print-area">
-        <div
-          className="flex items-center justify-between px-5 py-3 no-print"
-          style={{ backgroundColor: "var(--light-gray)" }}
-        >
-          <p
-            className="text-sm font-bold"
-            style={{ color: "var(--dark-gray)" }}
+}) => (
+  <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 overflow-y-auto">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-8 overflow-hidden">
+      <div
+        className="flex items-center justify-between px-5 py-3"
+        style={{ backgroundColor: "var(--light-gray)" }}
+      >
+        <p className="text-sm font-bold" style={{ color: "var(--dark-gray)" }}>
+          Report Preview
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-white"
+            style={{ backgroundColor: "var(--royal-blue)" }}
           >
-            Report Preview
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg text-white"
-              style={{ backgroundColor: "var(--royal-blue)" }}
-            >
-              <Printer size={13} /> Print
-            </button>
-            <button onClick={onClose} style={{ color: "var(--dark-gray)" }}>
-              <X size={18} />
-            </button>
-          </div>
+            <Printer size={13} /> Print
+          </button>
+          <button
+            onClick={onClose}
+            style={{ color: "var(--dark-gray)" }}
+            aria-label="Close preview"
+          >
+            <X size={18} />
+          </button>
         </div>
-
-        <div
-          className="p-6 text-center"
-          style={{
-            background:
-              "linear-gradient(135deg,var(--royal-blue),var(--royal-blue-dark))",
-          }}
-        >
-          <p className="text-white font-black text-lg">
-            ARMED FORCES SENIOR HIGH TECHNICAL SCHOOL
-          </p>
-          <p className="text-blue-200 text-xs">
-            Terminal Report - {result.term} · {result.academicYear}
-          </p>
-        </div>
-
-        <div
-          className="grid grid-cols-2 sm:grid-cols-3 border-b"
-          style={{ borderColor: "var(--medium-gray)" }}
-        >
-          {[
-            { l: "Name", v: `${s.firstName} ${s.lastName}` },
-            { l: "Student ID", v: s.studentId || "-" },
-            { l: "Class", v: s.formClass || "-" },
-            {
-              l: "Position",
-              v: result.position ? `${result.position}/${result.outOf}` : "-",
-            },
-            { l: "Aggregate", v: result.aggregate },
-            { l: "Overall", v: `${pct}%` },
-          ].map(({ l, v }) => (
-            <div
-              key={l}
-              className="p-3 border-b border-r"
-              style={{ borderColor: "var(--medium-gray)" }}
-            >
-              <p className="text-xs text-gray-400 uppercase">{l}</p>
-              <p
-                className="text-sm font-bold"
-                style={{ color: "var(--dark-gray)" }}
-              >
-                {v}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ backgroundColor: "var(--light-gray)" }}>
-                {["Subject", "CA", "Exam", "Total", "Grade", "Remark"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="px-3 py-2 text-left text-xs font-black uppercase text-gray-500"
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {result.subjects.map((sub, i) => (
-                <tr
-                  key={i}
-                  className="border-b"
-                  style={{ borderColor: "var(--medium-gray)" }}
-                >
-                  <td
-                    className="px-3 py-2 font-medium"
-                    style={{ color: "var(--dark-gray)" }}
-                  >
-                    {sub.name}
-                  </td>
-                  <td className="px-3 py-2 text-center">{sub.ca}</td>
-                  <td className="px-3 py-2 text-center">{sub.exam}</td>
-                  <td
-                    className="px-3 py-2 text-center font-black"
-                    style={{ color: "var(--royal-blue)" }}
-                  >
-                    {sub.total}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-black ${GRADE_COLOR[sub.grade] || "bg-gray-50 text-gray-600"}`}
-                    >
-                      {sub.grade}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-500">
-                    {sub.remarks}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div
-          className="p-4 text-xs text-gray-500 border-t"
-          style={{ borderColor: "var(--medium-gray)" }}
-        >
-          <p>
-            <strong>Form Teacher:</strong>{" "}
-            {result.comments?.formTeacher || "No comment recorded."}
-          </p>
-          <p className="mt-1">
-            <strong>Head of School:</strong>{" "}
-            {result.comments?.head || "No comment recorded."}
-          </p>
+      </div>
+      <div className="p-4 overflow-x-auto">
+        <div className="min-w-[640px]">
+          <TerminalReport result={result} settings={settings} />
         </div>
       </div>
     </div>
-  );
-};
+    <PrintableReport result={result} settings={settings} />
+  </div>
+);
 
 const TeacherReports = () => {
   const { settings } = useSettings();
@@ -187,6 +76,7 @@ const TeacherReports = () => {
   const [openResult, setOpenResult] = useState<ReportResult | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [sortMode, setSortMode] = useStudentSort();
 
   useEffect(() => {
     setTerm(settings.currentTerm);
@@ -199,9 +89,10 @@ const TeacherReports = () => {
           classesApi.list(),
           studentsApi.list(),
         ]);
-        setClasses(cls);
+        const mine = cls.filter((c) => c.teaching || c.form);
+        setClasses(mine);
         setStudents(studs);
-        if (cls.length) setSelectedClass(cls[0]);
+        if (mine.length) setSelectedClass(mine[0]);
       } catch {
         /* ignore */
       } finally {
@@ -213,15 +104,19 @@ const TeacherReports = () => {
   const classStudents = useMemo(() => {
     if (!selectedClass) return [];
     const q = search.toLowerCase();
-    return students
-      .filter((s) => sameClass(s.formClass, selectedClass.name))
-      .filter(
-        (s) =>
-          !q ||
-          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
-          s.studentId.toLowerCase().includes(q),
-      );
-  }, [students, selectedClass, search]);
+    return sortStudents(
+      students
+        .filter((s) => sameClass(s.formClass, selectedClass.name))
+        .filter(
+          (s) =>
+            !q ||
+            surnameFirst(s).toLowerCase().includes(q) ||
+            `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+            (s.studentId || "").toLowerCase().includes(q),
+        ),
+      sortMode,
+    );
+  }, [students, selectedClass, search, sortMode]);
 
   const viewReport = async (student: Student) => {
     try {
@@ -274,7 +169,8 @@ const TeacherReports = () => {
             Preview and print terminal reports for your class
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center flex-wrap">
+          <SortToggle mode={sortMode} onChange={setSortMode} />
           <div className="relative">
             <select
               value={selectedClass?.id || ""}
@@ -397,7 +293,7 @@ const TeacherReports = () => {
                       className="px-4 py-3 font-semibold"
                       style={{ color: "var(--dark-gray)" }}
                     >
-                      {s.firstName} {s.lastName}
+                      {surnameFirst(s)}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-500">
                       {s.studentId}
@@ -428,7 +324,11 @@ const TeacherReports = () => {
       </div>
 
       {openResult && (
-        <ReportView result={openResult} onClose={() => setOpenResult(null)} />
+        <ReportView
+          result={openResult}
+          settings={settings}
+          onClose={() => setOpenResult(null)}
+        />
       )}
     </div>
   );

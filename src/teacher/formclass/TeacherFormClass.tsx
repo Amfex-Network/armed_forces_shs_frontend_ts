@@ -5,13 +5,23 @@ import { studentsApi, type Student } from "../../api/students";
 import { Avatar, PageHeader } from "../components/TeacherUI";
 import { useAuth } from "../../context/AuthContext";
 import { sameClass } from "../../utils/classNames";
+import {
+  surnameFirst,
+  sortStudents,
+  useStudentSort,
+  SortToggle,
+} from "../../utils/studentOrder";
 
 const TeacherFormClass = () => {
   const { user } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const formClass = user?.formClass;
+  // A teacher may be form teacher of several classes.
+  const formClasses: string[] = (user?.formClasses as string[]) || [];
+  const [picked, setPicked] = useState("");
+  const formClass = formClasses.includes(picked) ? picked : formClasses[0];
+  const [sortMode, setSortMode] = useStudentSort();
 
   useEffect(() => {
     studentsApi
@@ -23,8 +33,11 @@ const TeacherFormClass = () => {
 
   const roster = useMemo(
     () =>
-      students.filter((s) => formClass && sameClass(s.formClass, formClass)),
-    [students, formClass],
+      sortStudents(
+        students.filter((s) => formClass && sameClass(s.formClass, formClass)),
+        sortMode,
+      ),
+    [students, formClass, sortMode],
   );
 
   const active = roster.filter(
@@ -47,6 +60,27 @@ const TeacherFormClass = () => {
         </div>
         <PageHeader title={`Form Class - ${formClass || "My Form Class"}`} />
       </div>
+
+      {formClasses.length > 1 && (
+        <div className="flex gap-2 flex-wrap">
+          {formClasses.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setPicked(c)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold border"
+              style={{
+                backgroundColor:
+                  c === formClass ? "var(--royal-blue)" : "white",
+                color: c === formClass ? "white" : "var(--dark-gray)",
+                borderColor: "var(--medium-gray)",
+              }}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
 
       {!formClass ? (
         <div
@@ -123,12 +157,15 @@ const TeacherFormClass = () => {
                 borderColor: "var(--medium-gray)",
               }}
             >
-              <h3
-                className="text-sm font-semibold"
-                style={{ color: "var(--dark-gray)" }}
-              >
-                Student Roster - {formClass}
-              </h3>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h3
+                  className="text-sm font-semibold"
+                  style={{ color: "var(--dark-gray)" }}
+                >
+                  Student Roster - {formClass}
+                </h3>
+                <SortToggle mode={sortMode} onChange={setSortMode} />
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[480px]">
@@ -174,7 +211,7 @@ const TeacherFormClass = () => {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             <Avatar
-                              name={`${s.firstName} ${s.lastName}`}
+                              name={surnameFirst(s)}
                               size="sm"
                               color="bg-blue-700"
                             />
@@ -182,7 +219,7 @@ const TeacherFormClass = () => {
                               className="font-medium"
                               style={{ color: "var(--dark-gray)" }}
                             >
-                              {s.firstName} {s.lastName}
+                              {surnameFirst(s)}
                             </p>
                           </div>
                         </td>

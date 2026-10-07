@@ -13,7 +13,9 @@ const TeacherClasses = () => {
   useEffect(() => {
     classesApi
       .list()
-      .then(setClasses)
+      // An HOD also receives every class for department review; My Classes
+      // lists only the classes this teacher teaches or is form teacher of.
+      .then((all) => setClasses(all.filter((c) => c.teaching || c.form)))
       .catch(() => setClasses([]))
       .finally(() => setLoading(false));
   }, []);
@@ -52,6 +54,30 @@ const TeacherClasses = () => {
                     <p className="text-sm text-gray-500">
                       {cls.course || cls.yearGroup || "-"}
                     </p>
+                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                      {cls.teaching && (
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: "#eef2ff",
+                            color: "var(--royal-blue)",
+                          }}
+                        >
+                          I teach this class
+                        </span>
+                      )}
+                      {cls.form && (
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: "#f0fdf4",
+                            color: "var(--success-dark)",
+                          }}
+                        >
+                          Form teacher
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                     <span className="text-blue-900 font-bold text-lg">
@@ -84,16 +110,18 @@ const TeacherClasses = () => {
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      navigate("/teacher/scores", {
-                        state: { classId: cls.id },
-                      })
-                    }
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm bg-[var(--royal-blue)] text-white rounded-lg hover:bg-blue-800 transition"
-                  >
-                    <Edit3 size={13} /> Enter Scores
-                  </button>
+                  {cls.teaching && (
+                    <button
+                      onClick={() =>
+                        navigate("/teacher/scores", {
+                          state: { classId: cls.id },
+                        })
+                      }
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm bg-[var(--royal-blue)] text-white rounded-lg hover:bg-blue-800 transition"
+                    >
+                      <Edit3 size={13} /> Enter Scores
+                    </button>
+                  )}
                   <button
                     onClick={() => navigate("/teacher/attendance")}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition"

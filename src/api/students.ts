@@ -44,9 +44,11 @@ function toApi(u: Partial<Student>): Record<string, unknown> {
 }
 
 export const studentsApi = {
-  async list(): Promise<Student[]> {
+  async list(formClass?: string): Promise<Student[]> {
     const res = await api.get<{ success: boolean; students: Student[] }>(
-      "/api/students",
+      formClass
+        ? `/api/students?formClass=${encodeURIComponent(formClass)}`
+        : "/api/students",
     );
     return res.students.map(toUi);
   },
@@ -98,6 +100,20 @@ export const studentsApi = {
     return api.del<{ success: boolean; message: string }>(
       `/api/students/${id}`,
     );
+  },
+
+  createLogins(ids: string[]) {
+    return api.post<{
+      success: boolean;
+      created: {
+        studentId: string;
+        name: string;
+        email: string;
+        formClass: string;
+        tempPassword: string;
+      }[];
+      skipped: { studentId: string; name: string; reason: string }[];
+    }>("/api/students/create-logins", { ids });
   },
 
   bulkDelete(ids: string[]) {

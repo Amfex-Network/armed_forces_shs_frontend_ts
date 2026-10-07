@@ -173,7 +173,7 @@ const DashboardLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/adminLogout", { replace: true });
+    navigate("/", { replace: true });
   };
 
   return (

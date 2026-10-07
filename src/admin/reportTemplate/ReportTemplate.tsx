@@ -60,6 +60,7 @@ import {
   Music,
   Cog,
 } from "lucide-react";
+import { useConfirm } from "../../components/common/ConfirmDialog";
 
 // SHS Ghana Specific Constants
 
@@ -1226,6 +1227,7 @@ const LiveReportPreview = ({ settings, sections, student }) => {
 // Main Component
 
 const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
+  const confirm = useConfirm();
   const currentStudent = propSelectedStudent || SAMPLE_SHS_STUDENT;
 
   const [activeTab, setActiveTab] = useState("general");
@@ -1574,7 +1576,9 @@ const ReportTemplate = ({ selectedStudent: propSelectedStudent }) => {
     markUnsaved();
   };
 
-  const handleDeleteCommentTemplate = (index) => {
+  const handleDeleteCommentTemplate = async (index) => {
+    const ok = await confirm({ title: "Delete this comment template?" });
+    if (!ok) return;
     setComments((prev) => ({
       ...prev,
       predefinedTemplates: prev.predefinedTemplates.filter(

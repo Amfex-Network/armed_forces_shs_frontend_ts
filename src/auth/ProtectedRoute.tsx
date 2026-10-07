@@ -24,7 +24,7 @@ const ProtectedRoute = ({
   children: React.ReactNode;
   allowedRole: string;
 }) => {
-  const { user, isLoggedIn, initializing } = useAuth();
+  const { user, isLoggedIn, initializing, signedOut } = useAuth();
   const location = useLocation();
 
   if (initializing) {
@@ -39,6 +39,10 @@ const ProtectedRoute = ({
   }
 
   // Not logged in at all → go to the relevant login page
+  if (!isLoggedIn && signedOut) {
+    return <Navigate to="/" replace />;
+  }
+
   if (!isLoggedIn) {
     return (
       <Navigate

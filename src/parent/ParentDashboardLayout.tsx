@@ -217,7 +217,7 @@ const ParentDashboardLayout = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const handleLogout = () => {
     logout();
-    navigate("/parentLogout", { replace: true });
+    navigate("/", { replace: true });
   };
 
   return (

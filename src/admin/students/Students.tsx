@@ -37,16 +37,10 @@ import { parseStudentFile } from "../../utils/studentImport";
 import { usersApi, type ManagedUser } from "../../api/users";
 import CredentialModal from "../../components/common/CredentialModal";
 import { classesApi } from "../../api/domains";
+import { useSchoolLists, withCurrent } from "../../hooks/useSchoolLists";
 import { downloadCsv } from "../../utils/csv";
+import { downloadCredentialSheet, inBatches } from "../../utils/peopleSheets";
 
-const PROGRAMS = [
-  "General Science",
-  "General Arts",
-  "Business",
-  "Technical",
-  "Visual Arts",
-  "Home Economics",
-];
 const YEAR_GROUPS = ["Form 1", "Form 2", "Form 3"];
 const HOUSES = ["Warrior", "Eagle", "Phoenix", "Valor"];
 const STATUSES = ["Active", "Inactive", "Suspended"];
@@ -67,7 +61,7 @@ const EMPTY = {
   lastName: "",
   gender: "Male",
   dob: "",
-  course: "General Science",
+  course: "",
   year: "Form 1",
   formClass: "",
   yearGroup: "Form 1",
@@ -208,6 +202,7 @@ const StudentFormModal = ({
   onClose,
   parents = [],
   classNames = [],
+  courses = [],
 }) => {
   const isEdit = !!student?.id;
   const [form, setForm] = useState(student || EMPTY);
@@ -349,9 +344,9 @@ const StudentFormModal = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FInput
                 label="Course"
-                value={form.course}
+                value={form.course || ""}
                 onChange={(v) => set("course", v)}
-                options={PROGRAMS}
+                options={["", ...withCurrent(courses, form.course)]}
               />
               <FInput
                 label="Year Group"
@@ -488,8 +483,8 @@ const DeleteConfirm = ({ student, onConfirm, onClose }) => (
         · {student.studentId}
       </p>
       <p className="text-xs text-gray-400 mb-6">
-        This action cannot be undone. All records for this student will be
-        removed.
+        This action cannot be undone. The student's scores, attendance, remarks
+        and login account will be removed.
       </p>
       <div className="flex gap-3 justify-center">
         <button
@@ -730,6 +725,13 @@ const Students = () => {
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [classNames, setClassNames] = useState<string[]>([]);
+  const { courses } = useSchoolLists();
+  // Filter by any course in use, including ones not (yet) in a department.
+  const courseFilterOptions = useMemo(() => {
+    const all = new Set(courses);
+    students.forEach((st) => st.course && all.add(st.course));
+    return [...all].sort((a, b) => a.localeCompare(b));
+  }, [courses, students]);
   const [toast, setToast] = useState(null);
 
   const showToast = (msg, type = "success") => {
@@ -910,6 +912,60 @@ const Students = () => {
       setBulkBusy(false);
       setConfirmBulkDelete(false);
     }
+  };
+
+  const [loginNote, setLoginNote] = useState<{
+    created: number;
+    skipped: { studentId: string; name: string; reason: string }[];
+  } | null>(null);
+
+  // Students without a login cannot see their results. Creates logins for
+  // the given records and downloads the one-time passwords once.
+  const createLogins = async (ids: string[]) => {
+    if (ids.length === 0) {
+      showToast("No students to create logins for", "error");
+      return;
+    }
+    try {
+      setBulkBusy(true);
+      const res = await inBatches(ids, 50, (batch) =>
+        studentsApi.createLogins(batch),
+      );
+      if (res.created.length) {
+        downloadCredentialSheet(
+          `AFSHTS_Student_Logins_${new Date().toISOString().slice(0, 10)}.xlsx`,
+          ["Name", "Index No.", "Class", "Email", "One-time password"],
+          res.created.map((c: any) => [
+            c.name,
+            c.studentId,
+            c.formClass,
+            c.email,
+            c.tempPassword,
+          ]),
+        );
+        const all = await usersApi.list().catch(() => null);
+        if (all) setStudentUsers(all.filter((u) => u.role === "student"));
+      }
+      setLoginNote({
+        created: res.created.length,
+        skipped: res.skipped as any,
+      });
+      setShowBulk(false);
+      setSelected([]);
+    } catch (err) {
+      showToast(err?.message || "Failed to create logins", "error");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const studentsWithoutLogin = () => {
+    const emails = new Set(
+      studentUsers.map((u) => (u.email || "").toLowerCase()),
+    );
+    return students.filter(
+      (st) => st.email && !emails.has(st.email.toLowerCase()),
+    );
   };
 
   const handlePromote = async () => {
@@ -1389,7 +1445,7 @@ const Students = () => {
                 label: "Course",
                 value: filterCourse,
                 set: setFP,
-                opts: ["All", ...PROGRAMS],
+                opts: ["All", ...courseFilterOptions],
               },
               {
                 label: "Year Group",
@@ -1804,6 +1860,26 @@ const Students = () => {
             </div>
             <div className="space-y-3">
               <button
+                onClick={() => createLogins(selected)}
+                disabled={bulkBusy}
+                className="w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition hover:shadow-sm disabled:opacity-60"
+                style={{
+                  borderColor: "var(--warning)",
+                  backgroundColor: "#fffbeb",
+                }}
+              >
+                <KeyRound size={20} style={{ color: "var(--warning)" }} />
+                <div>
+                  <p className="text-sm font-bold" style={{ color: "#92400e" }}>
+                    Create Logins
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    For selected students with an email and no login yet.
+                    Downloads their one-time passwords.
+                  </p>
+                </div>
+              </button>
+              <button
                 onClick={handlePromote}
                 className="w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition hover:shadow-sm"
                 style={{
@@ -1886,7 +1962,8 @@ const Students = () => {
                     }}
                   >
                     Permanently removes the student records with their scores,
-                    attendance and comments. This cannot be undone.
+                    attendance, remarks and login accounts. This cannot be
+                    undone.
                   </p>
                 </div>
               </button>
@@ -1914,6 +1991,7 @@ const Students = () => {
           student={editStudent}
           parents={parents}
           classNames={classNames}
+          courses={courses}
           onSave={handleSave}
           onClose={() => {
             setShowForm(false);
@@ -2050,8 +2128,80 @@ const Students = () => {
                 </div>
               )}
 
+              {importResult.created > 0 && (
+                <button
+                  type="button"
+                  disabled={bulkBusy}
+                  onClick={async () => {
+                    const ids = studentsWithoutLogin().map((st) => st.id);
+                    setImportResult(null);
+                    await createLogins(ids);
+                  }}
+                  className="w-full py-2.5 text-sm font-bold rounded-xl border-2 disabled:opacity-60"
+                  style={{
+                    borderColor: "var(--warning)",
+                    color: "#92400e",
+                    backgroundColor: "#fffbeb",
+                  }}
+                >
+                  {bulkBusy
+                    ? "Creating logins…"
+                    : "Create logins for students without one"}
+                </button>
+              )}
               <button
                 onClick={() => setImportResult(null)}
+                className="w-full py-2.5 text-sm font-bold text-white rounded-xl"
+                style={{ backgroundColor: "var(--royal-blue)" }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loginNote && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden">
+            <div
+              className="px-6 py-5 text-center"
+              style={{
+                background:
+                  "linear-gradient(135deg,var(--royal-blue),var(--royal-blue-dark))",
+              }}
+            >
+              <p className="text-white font-black text-lg">Student Logins</p>
+              <p className="text-blue-200 text-xs mt-1">
+                {loginNote.created} created · {loginNote.skipped.length} skipped
+              </p>
+            </div>
+            <div className="p-6 space-y-4 overflow-y-auto text-sm">
+              {loginNote.created > 0 && (
+                <p
+                  className="p-3 rounded-xl text-xs"
+                  style={{ backgroundColor: "#fffbeb", color: "#92400e" }}
+                >
+                  The login sheet with one-time passwords has been downloaded.
+                  It is the only copy - hand each password out privately and
+                  delete the file afterwards.
+                </p>
+              )}
+              {loginNote.skipped.length > 0 && (
+                <div className="rounded-xl border divide-y max-h-48 overflow-y-auto">
+                  {loginNote.skipped.map((x, i) => (
+                    <div key={i} className="px-3 py-2 text-xs">
+                      <span className="font-semibold">
+                        {x.name} ({x.studentId})
+                      </span>
+                      <span className="text-gray-500"> - {x.reason}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setLoginNote(null)}
                 className="w-full py-2.5 text-sm font-bold text-white rounded-xl"
                 style={{ backgroundColor: "var(--royal-blue)" }}
               >
