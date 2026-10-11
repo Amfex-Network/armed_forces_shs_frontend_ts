@@ -2,7 +2,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import logo from "../../assets/logo.png";
 import type { ReportResult } from "../../api/results";
-import type { AppSettings } from "../../api/settings";
+import { reportOptions, type AppSettings } from "../../api/settings";
 import { surnameFirst } from "../../utils/studentOrder";
 
 const GRADE_STYLE: Record<string, { bg: string; fg: string }> = {
@@ -32,6 +32,24 @@ const POSITION_BASIS_TEXT: Record<string, string> = {
 };
 const RED = "#c1121f";
 
+const longDate = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString("en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+};
+
+const rowsOf3 = <T,>(items: T[]): T[][] => {
+  const rows: T[][] = [];
+  for (let i = 0; i < items.length; i += 3) rows.push(items.slice(i, i + 3));
+  return rows;
+};
+
 // The official terminal report, used by the student, parent and teacher
 // portals so everyone sees (and prints) the same document. Sized to fit
 // one A4 page.
@@ -43,6 +61,7 @@ export const TerminalReport = ({
   settings: AppSettings;
 }) => {
   const st = result.student;
+  const opt = reportOptions(settings);
   const pct = result.totalMax
     ? ((result.totalScore / result.totalMax) * 100).toFixed(1)
     : "0.0";
@@ -54,6 +73,27 @@ export const TerminalReport = ({
   const contact = [settings.phone, settings.email, settings.website]
     .filter(Boolean)
     .join(" · ");
+
+  const details: [string, React.ReactNode][] = [
+    ["Name", surnameFirst(st)],
+    ["Index No.", st.studentId || "-"],
+    ["Class", st.formClass || "-"],
+    ["Course", st.course || "-"],
+  ];
+  if (opt.showPosition) {
+    details.push([
+      "Position",
+      result.position
+        ? `${ordinal(result.position)} out of ${result.outOf}`
+        : "-",
+    ]);
+  }
+  if (opt.showAggregate) {
+    details.push(["Aggregate (best 6)", result.aggregate || "-"]);
+  }
+  if (opt.nextTermBegins) {
+    details.push(["Next term begins", longDate(opt.nextTermBegins)]);
+  }
 
   const cell: React.CSSProperties = {
     border: "1px solid #cbd5e1",
@@ -118,7 +158,7 @@ export const TerminalReport = ({
               letterSpacing: 1,
             }}
           >
-            TERMINAL REPORT · {result.term.toUpperCase()} ·{" "}
+            {opt.title.toUpperCase()} · {result.term.toUpperCase()} ·{" "}
             {result.academicYear}
           </p>
         </div>
@@ -141,31 +181,19 @@ export const TerminalReport = ({
         style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}
       >
         <tbody>
-          <tr>
-            <td style={cell}>
-              <b>Name:</b> {surnameFirst(st)}
-            </td>
-            <td style={cell}>
-              <b>Index No.:</b> {st.studentId || "-"}
-            </td>
-            <td style={cell}>
-              <b>Class:</b> {st.formClass || "-"}
-            </td>
-          </tr>
-          <tr>
-            <td style={cell}>
-              <b>Course:</b> {st.course || "-"}
-            </td>
-            <td style={cell}>
-              <b>Position:</b>{" "}
-              {result.position
-                ? `${ordinal(result.position)} out of ${result.outOf}`
-                : "-"}
-            </td>
-            <td style={cell}>
-              <b>Aggregate (best 6):</b> {result.aggregate || "-"}
-            </td>
-          </tr>
+          {rowsOf3(details).map((row, i) => (
+            <tr key={i}>
+              {row.map(([label, value], j) => (
+                <td
+                  key={label}
+                  style={cell}
+                  colSpan={j === row.length - 1 ? 4 - row.length : 1}
+                >
+                  <b>{label}:</b> {value}
+                </td>
+              ))}
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -243,43 +271,54 @@ export const TerminalReport = ({
               {result.totalScore} / {result.totalMax}
             </td>
             <td style={{ ...cell, textAlign: "center" }} colSpan={2}>
-              Average: {pct}%
+              {opt.showAverage ? `Average: ${pct}%` : ""}
             </td>
           </tr>
         </tfoot>
       </table>
 
       {/* Attendance + conduct */}
-      <table
-        style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}
-      >
-        <tbody>
-          <tr>
-            <td style={cell}>
-              <b>Attendance:</b> {att.present + att.late} of {att.totalDays}{" "}
-              day(s) ({att.rate}%)
-            </td>
-            <td style={cell}>
-              <b>Absent:</b> {att.absent} · <b>Late:</b> {att.late}
-            </td>
-          </tr>
-          <tr>
-            <td style={cell}>
-              <b>Conduct:</b> {c?.conduct || "-"}
-            </td>
-            <td style={cell}>
-              <b>Interest:</b> {c?.interest || "-"} · <b>Attitude:</b>{" "}
-              {c?.attitude || "-"}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {(opt.showAttendance || opt.showConduct) && (
+        <table
+          style={{ width: "100%", borderCollapse: "collapse", marginTop: 10 }}
+        >
+          <tbody>
+            {opt.showAttendance && (
+              <tr>
+                <td style={cell}>
+                  <b>Attendance:</b> {att.present + att.late} of {att.totalDays}{" "}
+                  day(s) ({att.rate}%)
+                </td>
+                <td style={cell}>
+                  <b>Absent:</b> {att.absent} · <b>Late:</b> {att.late}
+                </td>
+              </tr>
+            )}
+            {opt.showConduct && (
+              <tr>
+                <td style={cell}>
+                  <b>Conduct:</b> {c?.conduct || "-"}
+                </td>
+                <td style={cell}>
+                  <b>Interest:</b> {c?.interest || "-"} · <b>Attitude:</b>{" "}
+                  {c?.attitude || "-"}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
 
       {/* Remarks */}
-      {[
-        ["Form Teacher's Remarks", c?.formTeacher],
-        ["Head of School's Remarks", c?.head],
-      ].map(([label, text]) => (
+      {(
+        [
+          opt.showFormTeacherRemarks && [
+            "Form Teacher's Remarks",
+            c?.formTeacher,
+          ],
+          opt.showHeadRemarks && [`${opt.headTitle}'s Remarks`, c?.head],
+        ].filter(Boolean) as [string, string | undefined][]
+      ).map(([label, text]) => (
         <div key={label} style={{ marginTop: 10 }}>
           <p
             style={{
@@ -307,22 +346,24 @@ export const TerminalReport = ({
       ))}
 
       {/* Signatures */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 18,
-          marginTop: 26,
-        }}
-      >
-        {["Form Teacher", "Head of School", "Parent / Guardian"].map((who) => (
-          <div key={who} style={{ textAlign: "center", fontSize: 11 }}>
-            <div style={{ borderTop: "1px solid #334155", paddingTop: 4 }}>
-              {who}'s Signature & Date
+      {opt.showSignatures && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 18,
+            marginTop: 26,
+          }}
+        >
+          {["Form Teacher", opt.headTitle, "Parent / Guardian"].map((who) => (
+            <div key={who} style={{ textAlign: "center", fontSize: 11 }}>
+              <div style={{ borderTop: "1px solid #334155", paddingTop: 4 }}>
+                {who}'s Signature & Date
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       <p
         style={{
@@ -332,9 +373,16 @@ export const TerminalReport = ({
           textAlign: "center",
         }}
       >
-        Grades follow the school's current grading scale. Aggregate is the sum
-        of the six best grade points (lower is better). Class position is by{" "}
-        {POSITION_BASIS_TEXT[result.positionBasis || "total"]}.
+        {opt.footerNote && (
+          <span style={{ display: "block", marginBottom: 2, color: "#475569" }}>
+            {opt.footerNote}
+          </span>
+        )}
+        Grades follow the school's current grading scale.
+        {opt.showAggregate &&
+          " Aggregate is the sum of the six best grade points (lower is better)."}
+        {opt.showPosition &&
+          ` Class position is by ${POSITION_BASIS_TEXT[result.positionBasis || "total"]}.`}
       </p>
     </div>
   );
