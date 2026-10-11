@@ -24,6 +24,12 @@ const ordinal = (n: number) => {
 };
 
 const NAVY = "#0b1f6b";
+
+const POSITION_BASIS_TEXT: Record<string, string> = {
+  total: "total marks",
+  average: "average mark",
+  aggregate: "aggregate of the best six subjects",
+};
 const RED = "#c1121f";
 
 // The official terminal report, used by the student, parent and teacher
@@ -327,7 +333,8 @@ export const TerminalReport = ({
         }}
       >
         Grades follow the school's current grading scale. Aggregate is the sum
-        of the six best grade points (lower is better).
+        of the six best grade points (lower is better). Class position is by{" "}
+        {POSITION_BASIS_TEXT[result.positionBasis || "total"]}.
       </p>
     </div>
   );

@@ -23,6 +23,7 @@ export interface ReportResult {
   formClass?: string;
   published?: boolean;
   position: number;
+  positionBasis?: "total" | "average" | "aggregate";
   outOf: number;
   totalScore: number;
   totalMax: number;

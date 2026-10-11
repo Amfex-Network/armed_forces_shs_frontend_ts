@@ -13,7 +13,29 @@ import {
   useSettings,
   DEFAULT_GRADING_SCALE,
 } from "../../context/SettingsContext";
-import type { AppSettings, GradeBand } from "../../api/settings";
+import type { AppSettings, GradeBand, PositionBasis } from "../../api/settings";
+
+const POSITION_OPTIONS: {
+  value: PositionBasis;
+  label: string;
+  help: string;
+}[] = [
+  {
+    value: "total",
+    label: "Total marks",
+    help: "Highest total of all subject marks comes first. Students who sat fewer subjects rank lower.",
+  },
+  {
+    value: "average",
+    label: "Average mark",
+    help: "Highest average per subject comes first. Fair when students take different numbers of subjects.",
+  },
+  {
+    value: "aggregate",
+    label: "Aggregate (best six)",
+    help: "Lowest aggregate of the six best grades comes first, as in WASSCE. Students with fewer than six graded subjects are ranked after everyone with a full aggregate.",
+  },
+];
 
 export type SettingsCollector = () => {
   payload?: Partial<AppSettings>;
@@ -36,6 +58,7 @@ const GradingConfig = ({ collectRef, dirtyRef }: Props = {}) => {
   const [currentTerm, setCurrentTerm] = useState("");
   const [years, setYears] = useState<string[]>([]);
   const [terms, setTerms] = useState<string[]>([]);
+  const [positionBasis, setPositionBasis] = useState<PositionBasis>("total");
   const [newYear, setNewYear] = useState("");
   const [newTerm, setNewTerm] = useState("");
   const [saving, setSaving] = useState(false);
@@ -56,6 +79,7 @@ const GradingConfig = ({ collectRef, dirtyRef }: Props = {}) => {
     setCurrentTerm(settings.currentTerm);
     setYears(settings.academicYears);
     setTerms(settings.terms);
+    setPositionBasis(settings.positionBasis || "total");
   }, [settings, dirty]);
 
   const touch = () => {
@@ -135,6 +159,7 @@ const GradingConfig = ({ collectRef, dirtyRef }: Props = {}) => {
         currentTerm,
         academicYears: years,
         terms,
+        positionBasis,
       },
     };
   };
@@ -331,6 +356,54 @@ const GradingConfig = ({ collectRef, dirtyRef }: Props = {}) => {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Class position */}
+      <div
+        className="bg-white rounded-xl border shadow-sm p-5"
+        style={{ borderColor: "var(--medium-gray)" }}
+      >
+        <h3
+          className="font-black text-sm mb-1"
+          style={{ color: "var(--dark-gray)" }}
+        >
+          Class Position
+        </h3>
+        <p className="text-xs text-gray-400 mb-3">
+          How positions on report cards are worked out. Students level on the
+          chosen measure share a position (1, 2, 2, 4).
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {POSITION_OPTIONS.map((o) => {
+            const on = positionBasis === o.value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  touch();
+                  setPositionBasis(o.value);
+                }}
+                aria-pressed={on}
+                className="text-left p-3 rounded-xl border-2 transition"
+                style={{
+                  borderColor: on ? "var(--royal-blue)" : "var(--medium-gray)",
+                  backgroundColor: on ? "#eef2ff" : "white",
+                }}
+              >
+                <p
+                  className="text-sm font-bold"
+                  style={{
+                    color: on ? "var(--royal-blue)" : "var(--dark-gray)",
+                  }}
+                >
+                  {o.label}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">{o.help}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
 
