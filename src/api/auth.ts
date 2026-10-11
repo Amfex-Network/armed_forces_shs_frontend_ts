@@ -23,6 +23,19 @@ export interface ApiUser {
   assignedSubjects?: string[];
   mustChangePassword?: boolean;
   formClasses?: string[];
+  address?: string;
+  notificationPrefs?: Record<string, boolean>;
+  memberSince?: string;
+}
+
+export interface ProfileUpdate {
+  phone?: string;
+  address?: string;
+  picture?: string;
+  title?: string;
+  firstname?: string;
+  lastname?: string;
+  notificationPrefs?: Record<string, boolean>;
 }
 
 interface AuthResponse {
@@ -43,6 +56,12 @@ export const authApi = {
   logout: () => api.post<{ success: boolean }>("/api/auth/logout"),
 
   me: () => api.get<MeResponse>("/api/auth/me"),
+
+  updateProfile: (payload: ProfileUpdate) =>
+    api.put<AuthResponse>(
+      "/api/auth/profile",
+      payload as Record<string, unknown>,
+    ),
 
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post<AuthResponse>("/api/auth/change-password", {

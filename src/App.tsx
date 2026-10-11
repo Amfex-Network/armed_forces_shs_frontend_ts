@@ -172,7 +172,10 @@ const App = () => (
               <Route path="timetable" element={<TeacherTimetable />} />
               <Route path="analytics" element={<TeacherAnalytics />} />
               <Route path="profile" element={<TeacherProfile />} />
-              <Route path="settings" element={<Settings />} />
+              <Route
+                path="settings"
+                element={<Navigate to="/teacher/profile" replace />}
+              />
               <Route
                 path="hod"
                 element={<ScopedPanel title="Head of Department" />}
@@ -232,7 +235,11 @@ const App = () => (
               <Route path="attendance" element={<StudentAttendance />} />
               <Route path="timetable" element={<StudentTimetable />} />
               <Route path="profile" element={<StudentProfile />} />
-              <Route path="setting" element={<StudentSettings />} />
+              <Route path="settings" element={<StudentSettings />} />
+              <Route
+                path="setting"
+                element={<Navigate to="/student/settings" replace />}
+              />
             </Route>
 
             {/* Parent portal */}
@@ -249,7 +256,7 @@ const App = () => (
               <Route path="reportcard" element={<ParentReportCard />} />
               <Route path="attendance" element={<ParentAttendance />} />
               <Route path="profile" element={<ParentProfile />} />
-              {/* <Route path="settings" element={<ParentSettings />} /> */}
+              <Route path="settings" element={<ParentSettings />} />
             </Route>
 
             {/* Fallback */}

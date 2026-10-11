@@ -12,6 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useSettings } from "../../context/SettingsContext";
 import { useNavigate } from "react-router-dom";
 import ChangePasswordForm from "../../components/common/ChangePasswordForm";
 
@@ -117,7 +118,7 @@ const Toggle = ({
 );
 
 export default function ParentSettings() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
   const show = (msg, type = "success") => {
@@ -131,16 +132,51 @@ export default function ParentSettings() {
     email: user?.email || "",
   });
 
+  // Choices saved on the account; anything never set defaults to on.
+  const saved = (user?.notificationPrefs || {}) as Record<string, boolean>;
   const [notif, setNotif] = useState({
-    resultsPublished: true,
-    reportCardReady: true,
-    attendanceAlert: true,
-    schoolAnnouncement: true,
-    emailNotifs: true,
+    resultsPublished: saved.resultsPublished ?? true,
+    reportCardReady: saved.reportCardReady ?? true,
+    attendanceAlert: saved.attendanceAlert ?? true,
+    schoolAnnouncement: saved.schoolAnnouncement ?? true,
+    emailNotifs: saved.emailNotifs ?? true,
   });
 
-  const handleSaveContact = () =>
-    show("Contact information updated successfully");
+  const { settings } = useSettings();
+  const canEdit = settings.selfUpdate?.parent !== false;
+  const [busy, setBusy] = useState("");
+
+  const handleSaveContact = async () => {
+    try {
+      setBusy("contact");
+      const updated = await updateProfile({
+        phone: contact.phone.trim(),
+        address: contact.address.trim(),
+      });
+      setContact((c) => ({
+        ...c,
+        phone: updated.phone || "",
+        address: updated.address || "",
+      }));
+      show("Contact information saved");
+    } catch (err: any) {
+      show(err?.message || "Could not save your contact details", "error");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const handleSaveNotif = async () => {
+    try {
+      setBusy("notif");
+      await updateProfile({ notificationPrefs: notif });
+      show("Notification preferences saved");
+    } catch (err: any) {
+      show(err?.message || "Could not save your preferences", "error");
+    } finally {
+      setBusy("");
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -236,6 +272,7 @@ export default function ParentSettings() {
           </Field>
           <Field label="Phone Number">
             <Input
+              disabled={!canEdit}
               value={contact.phone}
               onChange={(e) =>
                 setContact({ ...contact, phone: e.target.value })
@@ -245,6 +282,7 @@ export default function ParentSettings() {
           </Field>
           <Field label="Home Address">
             <Input
+              disabled={!canEdit}
               value={contact.address}
               onChange={(e) =>
                 setContact({ ...contact, address: e.target.value })
@@ -256,12 +294,20 @@ export default function ParentSettings() {
             <button
               type="button"
               onClick={handleSaveContact}
+              disabled={!canEdit || busy === "contact"}
               className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl"
               style={{ backgroundColor: "var(--royal-blue)" }}
             >
-              <Save size={14} /> Save Changes
+              <Save size={14} />{" "}
+              {busy === "contact" ? "Saving…" : "Save Changes"}
             </button>
           </div>
+          {!canEdit && (
+            <p className="text-xs text-gray-400">
+              The school has turned off editing of contact details. Ask the
+              school office to update them.
+            </p>
+          )}
         </div>
       </Card>
 
@@ -282,6 +328,13 @@ export default function ParentSettings() {
         desc="Choose what alerts you want to receive"
         color="var(--success-dark)"
       >
+        <p
+          className="text-xs mb-2 p-2.5 rounded-lg"
+          style={{ backgroundColor: "#fffbeb", color: "#92400e" }}
+        >
+          Your choices are saved now. Messages will be sent once the school
+          connects an SMS or email service.
+        </p>
         <Toggle
           label="Results Published"
           desc="Get notified when your child's results are published"
@@ -320,11 +373,13 @@ export default function ParentSettings() {
         <div className="flex justify-end pt-3">
           <button
             type="button"
-            onClick={() => show("Notification preferences saved")}
+            onClick={handleSaveNotif}
+            disabled={busy === "notif"}
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl"
             style={{ backgroundColor: "var(--success-dark)" }}
           >
-            <Save size={14} /> Save Preferences
+            <Save size={14} />{" "}
+            {busy === "notif" ? "Saving…" : "Save Preferences"}
           </button>
         </div>
       </Card>

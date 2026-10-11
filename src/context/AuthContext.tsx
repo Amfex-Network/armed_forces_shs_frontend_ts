@@ -1,6 +1,11 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { authApi, type ApiUser, type Role } from "../api/auth";
+import {
+  authApi,
+  type ApiUser,
+  type ProfileUpdate,
+  type Role,
+} from "../api/auth";
 import { ApiError, AUTH_EVENTS, sessionEpoch } from "../api/client";
 import { normalizeTeacherRole } from "../utils/teacherRoles";
 
@@ -44,7 +49,10 @@ function normalize(u: ApiUser, studentId = ""): AppUser {
     lastName,
     email: u.email,
     phone: u.phone,
-    picture: u.picture,
+    picture: u.picture || "",
+    address: u.address || "",
+    notificationPrefs: u.notificationPrefs || {},
+    memberSince: u.memberSince || "",
     title: u.title || "",
     staffId: u.staffId || "",
     department: u.department || "",
@@ -147,6 +155,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  const updateProfile = async (payload: ProfileUpdate) => {
+    const res = await authApi.updateProfile(payload);
+    const normalized = normalize(res.user);
+    setUser(normalized);
+    return normalized;
+  };
+
   const changePassword = async (current: string, next: string) => {
     const res = await authApi.changePassword(current, next);
     const normalized = normalize(res.user);
@@ -212,6 +227,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         login,
         logout,
         changePassword,
+        updateProfile,
         isLoggedIn: !!user,
         isAdmin: user?.role === "admin",
         isTeacher: user?.role === "teacher",

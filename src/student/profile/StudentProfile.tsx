@@ -40,7 +40,7 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
 );
 
 const StudentProfile = () => {
-  const { user: authUser } = useAuth();
+  const { user: authUser, updateProfile } = useAuth();
   const { settings } = useSettings();
   const [student, setStudent] = useState<any>(null);
   useEffect(() => {
@@ -51,19 +51,49 @@ const StudentProfile = () => {
   }, []);
   const user = { ...authUser, ...(student || {}) };
   const [editMode, setEditMode] = useState(false);
+  // Contact details are the student's own (saved on their account); the
+  // address on the school record is only shown until they add one.
   const [contact, setContact] = useState({
-    phone: user?.phone || "",
-    address: user?.address || "Uaddara Barracks, Kumasi",
+    phone: authUser?.phone || "",
+    address: authUser?.address || "",
   });
   const [draft, setDraft] = useState({ ...contact });
+  const canEdit = settings.selfUpdate?.student !== false;
+  useEffect(() => {
+    if (!authUser?.address && student?.address) {
+      setContact((c) => (c.address ? c : { ...c, address: student.address }));
+      setDraft((d) => (d.address ? d : { ...d, address: student.address }));
+    }
+  }, [student, authUser?.address]);
 
-  const handleSave = () => {
-    setContact(draft);
-    setEditMode(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setSaveError("");
+      const updated = await updateProfile({
+        phone: draft.phone.trim(),
+        address: draft.address.trim(),
+      });
+      const next = {
+        phone: updated.phone || "",
+        address: updated.address || "",
+      };
+      setContact(next);
+      setDraft(next);
+      setEditMode(false);
+    } catch (err: any) {
+      setSaveError(err?.message || "Could not save your contact details.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
     setDraft({ ...contact });
+    setSaveError("");
     setEditMode(false);
   };
 
@@ -82,7 +112,11 @@ const StudentProfile = () => {
             {user?.studentId} · {user?.formClass}
           </p>
         </div>
-        {!editMode ? (
+        {!canEdit ? (
+          <p className="text-xs text-gray-400 max-w-xs text-right">
+            Contact details are updated by the school office.
+          </p>
+        ) : !editMode ? (
           <button
             onClick={() => setEditMode(true)}
             className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition"
@@ -100,10 +134,11 @@ const StudentProfile = () => {
           <div className="flex gap-2">
             <button
               onClick={handleSave}
-              className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl text-white transition"
+              disabled={saving}
+              className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl text-white transition disabled:opacity-60"
               style={{ backgroundColor: "var(--success-dark)" }}
             >
-              <Save size={13} /> Save
+              <Save size={13} /> {saving ? "Saving…" : "Save"}
             </button>
             <button
               onClick={handleCancel}
@@ -115,6 +150,15 @@ const StudentProfile = () => {
             >
               <X size={13} /> Cancel
             </button>
+            {saveError && (
+              <p
+                className="text-xs self-center"
+                style={{ color: "var(--accent-red)" }}
+                role="alert"
+              >
+                {saveError}
+              </p>
+            )}
           </div>
         )}
       </div>

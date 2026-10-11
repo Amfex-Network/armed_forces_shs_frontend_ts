@@ -44,7 +44,19 @@ interface ApiUser {
   assignedClasses?: string[];
   assignedSubjects?: string[];
   formClasses?: string[];
+  lastLoginAt?: string;
 }
+
+const formatWhen = (iso?: string) =>
+  iso
+    ? new Date(iso).toLocaleString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
 
 function toUi(u: ApiUser): ManagedUser {
   return {
@@ -58,6 +70,7 @@ function toUi(u: ApiUser): ManagedUser {
     phone: u.phone || "",
     status: u.active === false ? "Inactive" : "Active",
     joinDate: u.date ? u.date.split("T")[0] : "",
+    lastLogin: formatWhen(u.lastLoginAt),
     staffId: u.staffId || "",
     studentId: u.studentId || "",
     department: u.department || "",

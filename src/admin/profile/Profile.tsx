@@ -20,17 +20,68 @@ import {
   Key,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { resizeImage } from "../../utils/imageResize";
 import ChangePasswordForm from "../../components/common/ChangePasswordForm";
 
 const TITLES = ["Mr", "Mrs", "Miss", "Dr", "Prof", "Rev"];
-const POSITIONS = [
-  "Headmaster",
-  "Assistant Headmaster",
-  "Admin Officer",
-  "Bursar",
-  "Academic Director",
-  "System Administrator",
-];
+
+const FInput = ({
+  label,
+  value,
+  onChange,
+  type = "text",
+  options,
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  options?: string[];
+  required?: boolean;
+}) => (
+  <div className="flex flex-col gap-1">
+    <label
+      className="text-xs font-bold uppercase tracking-wider"
+      style={{ color: "var(--dark-gray)" }}
+    >
+      {label}
+      {required && <span style={{ color: "var(--accent-red)" }}> *</span>}
+    </label>
+    {options ? (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="px-3 py-2 text-sm rounded-lg border-2 outline-none bg-white"
+        style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o || "-"}
+          </option>
+        ))}
+      </select>
+    ) : (
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="px-3 py-2 text-sm rounded-lg border-2 outline-none"
+        style={{ borderColor: "var(--medium-gray)", color: "var(--dark-gray)" }}
+      />
+    )}
+  </div>
+);
+
+const formatDate = (iso?: string, withTime = false) =>
+  iso
+    ? new Date(iso).toLocaleString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}),
+      })
+    : "-";
 
 const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
   <div
@@ -56,26 +107,23 @@ const InfoRow = ({ icon: Icon, label, value, color = "var(--royal-blue)" }) => (
 );
 
 const Profile = () => {
-  const { user } = useAuth();
-  const fileRef = useRef();
+  const { user, updateProfile } = useAuth();
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  // Personal info state
-  const [editMode, setEditMode] = useState(false);
-  const [photo, setPhoto] = useState(null);
-  const [info, setInfo] = useState({
-    title: "Mr",
-    firstName: user?.name?.split(" ")[0] || "System",
-    lastName: user?.name?.split(" ").slice(1).join(" ") || "Administrator",
-    staffId: "AFSHTS/ADM/001",
-    email: user?.email || "admin@afts.edu.gh",
-    phone: "0244000001",
-    address: "Uaddara Barracks, Kumasi, Ghana",
-    position: "System Administrator",
-    department: "Administration",
-    joinDate: "2018-09-01",
+  // Everything shown comes from the signed-in account.
+  const fromUser = () => ({
+    title: user?.title || "",
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    phone: user?.phone || "",
+    address: user?.address || "",
+    picture: user?.picture || "",
   });
-  const [draft, setDraft] = useState({ ...info });
-  const setD = (k, v) => setDraft((d) => ({ ...d, [k]: v }));
+  const [editMode, setEditMode] = useState(false);
+  const [draft, setDraft] = useState(fromUser);
+  const [saving, setSaving] = useState(false);
+  const setD = (k: string, v: string) => setDraft((d) => ({ ...d, [k]: v }));
+  const info = editMode ? draft : fromUser();
 
   // Password state
   const [pwSection, setPwSection] = useState(false);
@@ -87,75 +135,48 @@ const Profile = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setPhoto(reader.result);
-    reader.readAsDataURL(file);
+    try {
+      setD("picture", await resizeImage(file));
+    } catch (err: any) {
+      showToast(err?.message || "Could not use that image", "error");
+    }
   };
 
-  const handleSaveInfo = () => {
-    setInfo(draft);
-    setEditMode(false);
-    showToast("Profile updated successfully");
+  const handleSaveInfo = async () => {
+    if (!draft.firstName.trim() || !draft.lastName.trim()) {
+      showToast("First and last name are required", "error");
+      return;
+    }
+    try {
+      setSaving(true);
+      await updateProfile({
+        title: draft.title,
+        firstname: draft.firstName.trim(),
+        lastname: draft.lastName.trim(),
+        phone: draft.phone.trim(),
+        address: draft.address.trim(),
+        picture: draft.picture,
+      });
+      setEditMode(false);
+      showToast("Profile saved");
+    } catch (err: any) {
+      showToast(err?.message || "Could not save the profile", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancelEdit = () => {
-    setDraft({ ...info });
+    setDraft(fromUser());
     setEditMode(false);
   };
 
-  const initials = `${info.firstName[0]}${info.lastName[0]}`.toUpperCase();
-
-  const FInput = ({
-    label,
-    value,
-    onChange,
-    type = "text",
-    options,
-    required,
-  }) => (
-    <div className="flex flex-col gap-1">
-      <label
-        className="text-xs font-bold uppercase tracking-wider"
-        style={{ color: "var(--dark-gray)" }}
-      >
-        {label}
-        {required && <span style={{ color: "var(--accent-red)" }}> *</span>}
-      </label>
-      {options ? (
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="px-3 py-2 text-sm rounded-lg border-2 outline-none bg-white"
-          style={{
-            borderColor: "var(--medium-gray)",
-            color: "var(--dark-gray)",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--medium-gray)")}
-        >
-          {options.map((o) => (
-            <option key={o}>{o}</option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="px-3 py-2 text-sm rounded-lg border-2 outline-none"
-          style={{
-            borderColor: "var(--medium-gray)",
-            color: "var(--dark-gray)",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--medium-gray)")}
-        />
-      )}
-    </div>
-  );
+  const initials =
+    `${info.firstName[0] || ""}${info.lastName[0] || ""}`.toUpperCase() || "A";
 
   return (
     <div className="space-y-6">
@@ -184,13 +205,16 @@ const Profile = () => {
             My Profile
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {info.staffId} · {info.position}
+            {user?.staffId ? `${user.staffId} · ` : ""}Administrator
           </p>
         </div>
         {!editMode ? (
           <button
             type="button"
-            onClick={() => setEditMode(true)}
+            onClick={() => {
+              setDraft(fromUser());
+              setEditMode(true);
+            }}
             className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition"
             style={{ backgroundColor: "#eef2ff", color: "var(--royal-blue)" }}
           >
@@ -201,10 +225,11 @@ const Profile = () => {
             <button
               type="button"
               onClick={handleSaveInfo}
-              className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl text-white"
+              disabled={saving}
+              className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl text-white disabled:opacity-60"
               style={{ backgroundColor: "var(--success-dark)" }}
             >
-              <Save size={13} /> Save
+              <Save size={13} /> {saving ? "Saving…" : "Save"}
             </button>
             <button
               type="button"
@@ -251,9 +276,9 @@ const Profile = () => {
                 className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg overflow-hidden flex items-center justify-center text-white font-black text-2xl"
                 style={{ backgroundColor: "var(--accent-red)" }}
               >
-                {photo ? (
+                {info.picture ? (
                   <img
-                    src={photo}
+                    src={info.picture}
                     alt="profile"
                     className="w-full h-full object-cover"
                   />
@@ -274,7 +299,7 @@ const Profile = () => {
                   <input
                     ref={fileRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/webp"
                     className="hidden"
                     onChange={handlePhotoChange}
                   />
@@ -286,9 +311,20 @@ const Profile = () => {
                 className="text-xl font-black"
                 style={{ color: "var(--dark-gray)" }}
               >
-                {info.title} {info.firstName} {info.lastName}
+                {[info.title, info.firstName, info.lastName]
+                  .filter(Boolean)
+                  .join(" ")}
               </h2>
-              <p className="text-sm text-gray-400">{info.position}</p>
+              {editMode && info.picture && (
+                <button
+                  type="button"
+                  onClick={() => setD("picture", "")}
+                  className="text-xs font-semibold mt-0.5"
+                  style={{ color: "var(--accent-red)" }}
+                >
+                  Remove photo
+                </button>
+              )}
               <div className="flex flex-wrap gap-2 mt-1.5">
                 <span
                   className="text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -306,7 +342,7 @@ const Profile = () => {
                     color: "var(--success-dark)",
                   }}
                 >
-                  ● Active
+                  Active
                 </span>
               </div>
             </div>
@@ -334,7 +370,7 @@ const Profile = () => {
                   label="Title"
                   value={draft.title}
                   onChange={(v) => setD("title", v)}
-                  options={TITLES}
+                  options={["", ...TITLES]}
                 />
                 <FInput
                   label="First Name"
@@ -350,17 +386,6 @@ const Profile = () => {
                 required
               />
               <FInput
-                label="Staff ID"
-                value={draft.staffId}
-                onChange={(v) => setD("staffId", v)}
-              />
-              <FInput
-                label="Email"
-                value={draft.email}
-                onChange={(v) => setD("email", v)}
-                type="email"
-              />
-              <FInput
                 label="Phone"
                 value={draft.phone}
                 onChange={(v) => setD("phone", v)}
@@ -370,37 +395,31 @@ const Profile = () => {
                 value={draft.address}
                 onChange={(v) => setD("address", v)}
               />
-              <FInput
-                label="Position"
-                value={draft.position}
-                onChange={(v) => setD("position", v)}
-                options={POSITIONS}
-              />
-              <FInput
-                label="Join Date"
-                value={draft.joinDate}
-                onChange={(v) => setD("joinDate", v)}
-                type="date"
-              />
+              <p className="text-xs text-gray-400">
+                Email and staff ID identify the account; change them under User
+                Management.
+              </p>
             </div>
           ) : (
             <div>
               <InfoRow
                 icon={User}
                 label="Full Name"
-                value={`${info.title} ${info.firstName} ${info.lastName}`}
+                value={[info.title, info.firstName, info.lastName]
+                  .filter(Boolean)
+                  .join(" ")}
                 color="var(--royal-blue)"
               />
               <InfoRow
                 icon={Shield}
                 label="Staff ID"
-                value={info.staffId}
+                value={user?.staffId}
                 color="var(--accent-red)"
               />
               <InfoRow
                 icon={Mail}
                 label="Email"
-                value={info.email}
+                value={user?.email}
                 color="#7c3aed"
               />
               <InfoRow
@@ -416,23 +435,9 @@ const Profile = () => {
                 color="var(--warning)"
               />
               <InfoRow
-                icon={Briefcase}
-                label="Position"
-                value={info.position}
-                color="var(--info)"
-              />
-              <InfoRow
                 icon={Calendar}
-                label="Joined"
-                value={
-                  info.joinDate
-                    ? new Date(info.joinDate).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })
-                    : "-"
-                }
+                label="Account Created"
+                value={formatDate(user?.memberSince)}
                 color="var(--royal-blue)"
               />
             </div>
@@ -456,7 +461,7 @@ const Profile = () => {
               {[
                 {
                   label: "Account Type",
-                  value: "System Administrator",
+                  value: "Administrator",
                   color: "var(--royal-blue)",
                 },
                 {
@@ -465,19 +470,14 @@ const Profile = () => {
                   color: "var(--success-dark)",
                 },
                 {
-                  label: "Last Login",
-                  value: "Today, 14:32",
+                  label: "Last Sign-in",
+                  value: formatDate(user?.lastLoginAt, true),
                   color: "var(--dark-gray)",
                 },
                 {
                   label: "Account Created",
-                  value: "September 2018",
+                  value: formatDate(user?.memberSince),
                   color: "var(--dark-gray)",
-                },
-                {
-                  label: "Sessions Active",
-                  value: "1 active session",
-                  color: "var(--success-dark)",
                 },
               ].map(({ label, value, color }) => (
                 <div
