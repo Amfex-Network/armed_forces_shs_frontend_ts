@@ -59,10 +59,19 @@ const GRADE_COLORS: Record<string, string> = {
   F9: "#7f1d1d",
 };
 
-const TERM_TREND: any[] = [];
-const YEAR_ATTENDANCE: any[] = [];
-const TRACK_DATA: any[] = [];
-const RECENT_ACTIVITY: any[] = [];
+const TRANSITION_COLORS: Record<string, string> = {
+  "Transition One": "#ca8a04",
+  "Transition Two": "#16a34a",
+  "Not set": "#9ca3af",
+};
+
+const timeAgo = (iso: string) => {
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+};
 
 const NoData = ({ label = "No data yet" }) => (
   <div className="h-[160px] flex items-center justify-center text-sm text-gray-400">
@@ -299,6 +308,10 @@ const Dashboard = () => {
     totalScores: 0,
     byCourse: [] as { course: string; count: number }[],
     byGrade: [] as { grade: string; count: number }[],
+    byTransition: [] as { name: string; count: number }[],
+    attendanceByYear: [] as { year: string; present: number; absent: number }[],
+    termTrend: [] as { term: string; avg: number }[],
+    recentActivity: [] as { text: string; status: string; date: string }[],
   });
 
   React.useEffect(() => {
@@ -312,6 +325,19 @@ const Dashboard = () => {
     name: c.course,
     value: c.count,
     color: PROGRAM_COLORS[i % PROGRAM_COLORS.length],
+  }));
+
+  const TERM_TREND = stats.termTrend || [];
+  const YEAR_ATTENDANCE = stats.attendanceByYear || [];
+  const TRACK_DATA = (stats.byTransition || []).map((t) => ({
+    name: t.name,
+    value: t.count,
+    color: TRANSITION_COLORS[t.name] || "#6b7280",
+  }));
+  const RECENT_ACTIVITY = (stats.recentActivity || []).map((a) => ({
+    text: a.text,
+    time: timeAgo(a.date),
+    type: a.status === "failed" ? "warning" : "success",
   }));
 
   const gradeDist =
@@ -467,7 +493,7 @@ const Dashboard = () => {
         {/* Term trend */}
         <Card
           title="Performance Trend"
-          subtitle="Avg score & attendance - last 5 terms"
+          subtitle="Average score, last 5 terms with scores"
         >
           {TERM_TREND.length ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -488,18 +514,6 @@ const Dashboard = () => {
                       stopOpacity={0}
                     />
                   </linearGradient>
-                  <linearGradient id="attGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="var(--success-dark)"
-                      stopOpacity={0.2}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--success-dark)"
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis
@@ -508,7 +522,7 @@ const Dashboard = () => {
                 />
                 <YAxis
                   tick={{ fontSize: 10, fill: "#6b7280" }}
-                  domain={[50, 100]}
+                  domain={[0, 100]}
                 />
                 <Tooltip content={<BarTip />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -518,15 +532,6 @@ const Dashboard = () => {
                   name="Avg Score (%)"
                   stroke="var(--royal-blue)"
                   fill="url(#avgGrad)"
-                  strokeWidth={2.5}
-                  dot={{ r: 4 }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="attendance"
-                  name="Attendance (%)"
-                  stroke="var(--success-dark)"
-                  fill="url(#attGrad)"
                   strokeWidth={2.5}
                   dot={{ r: 4 }}
                 />
@@ -575,10 +580,13 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Charts row 3 - Attendance + Track + Activity */}
+      {/* Charts row 3 - Attendance + Transition + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Attendance by year group */}
-        <Card title="Attendance by Year Group" subtitle="This term">
+        <Card
+          title="Attendance by Year Group"
+          subtitle={`${settings.currentTerm} ${settings.currentAcademicYear}`}
+        >
           {YEAR_ATTENDANCE.length ? (
             <ResponsiveContainer width="100%" height={180}>
               <BarChart
@@ -617,10 +625,10 @@ const Dashboard = () => {
           )}
         </Card>
 
-        {/* Track split */}
+        {/* Transition split */}
         <Card
-          title="Transitional System Split"
-          subtitle="Semester 1 in session · Semester 2 on vacation"
+          title="Students by Transition"
+          subtitle="Transition One and Transition Two"
         >
           {TRACK_DATA.length ? (
             <ResponsiveContainer width="100%" height={180}>
@@ -646,7 +654,7 @@ const Dashboard = () => {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <NoData label="No data yet" />
+            <NoData label="No students enrolled yet" />
           )}
         </Card>
 

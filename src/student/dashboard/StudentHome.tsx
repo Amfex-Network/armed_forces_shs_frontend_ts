@@ -27,15 +27,10 @@ import {
   Cell,
 } from "recharts";
 import { resultsApi } from "../../api/results";
+import { calendarApi, type CalendarEvent } from "../../api/calendar";
+import { transitionLabel } from "../../utils/transition";
 import { useAuth } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
-
-const TERM_INFO = {
-  weeksGone: 0,
-  weeksTotal: 14,
-  startDate: "-",
-  endDate: "-",
-};
 
 const getPerformanceBand = (pct: number) =>
   pct >= 75
@@ -107,6 +102,22 @@ const StudentHome = () => {
   const ACADEMIC_YEAR = settings.currentAcademicYear;
 
   const [result, setResult] = useState<any>(null);
+  const [nextEvent, setNextEvent] = useState<CalendarEvent | null>(null);
+
+  useEffect(() => {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    calendarApi
+      .list()
+      .then((events) =>
+        setNextEvent(
+          events
+            .filter((e) => e.date >= today)
+            .sort((a, b) => a.date.localeCompare(b.date))[0] || null,
+        ),
+      )
+      .catch(() => setNextEvent(null));
+  }, []);
 
   useEffect(() => {
     resultsApi
@@ -147,9 +158,6 @@ const StudentHome = () => {
       )
     : 0;
   const attColor = getAttendanceColor(attPct);
-  const termProgress = Math.round(
-    (TERM_INFO.weeksGone / TERM_INFO.weeksTotal) * 100,
-  );
 
   // Chart data - subject scores for current term (shortened names)
   const subjectChartData = CURRENT_RESULTS.subjects.map((s) => ({
@@ -207,19 +215,6 @@ const StudentHome = () => {
           >
             <p className="text-blue-200 text-xs">{ACADEMIC_YEAR}</p>
             <p className="font-bold text-sm">{CURRENT_TERM}</p>
-            <p className="text-blue-200 text-xs mt-1"></p>
-            <div
-              className="mt-1.5 h-1.5 rounded-full overflow-hidden"
-              style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
-            >
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${termProgress}%`,
-                  backgroundColor: "#facc15",
-                }}
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -570,7 +565,7 @@ const StudentHome = () => {
           </div>
         </div>
 
-        {/* Track schedule */}
+        {/* School calendar */}
         <div
           className="bg-white rounded-xl border shadow-sm p-5"
           style={{ borderColor: "var(--medium-gray)" }}
@@ -580,62 +575,55 @@ const StudentHome = () => {
             style={{ color: "var(--dark-gray)" }}
           >
             <RefreshCw size={15} style={{ color: "var(--royal-blue)" }} />{" "}
-            Transitional System
+            School Calendar
           </h3>
-          <div className="space-y-3">
-            <div
-              className="rounded-xl p-4 border"
-              style={{ backgroundColor: "#fefce8", borderColor: "#fde68a" }}
-            >
-              <div className="flex items-center gap-2 mb-1">
+          <div className="space-y-3 text-sm">
+            {[
+              ["Academic year", ACADEMIC_YEAR],
+              ["Current term", CURRENT_TERM],
+              [
+                "Your transition",
+                transitionLabel(result?.student?.track) || "Not set yet",
+              ],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between gap-3"
+              >
+                <span className="text-xs text-gray-500">{label}</span>
                 <span
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: "var(--warning)" }}
-                />
-                <span
-                  className="font-semibold text-sm"
-                  style={{ color: "#78350f" }}
+                  className="font-semibold"
+                  style={{ color: "var(--dark-gray)" }}
                 >
-                  Semester 1 - In Session
+                  {value}
                 </span>
               </div>
-              <p className="text-xs" style={{ color: "#92400e" }}>
-                {new Date(TERM_INFO.startDate).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}{" "}
-                –{" "}
-                {new Date(TERM_INFO.endDate).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </p>
-              <p
-                className="text-xs font-semibold mt-1"
-                style={{ color: "#78350f" }}
-              ></p>
-            </div>
+            ))}
             <div
-              className="rounded-xl p-4 border"
+              className="rounded-xl p-3 border"
               style={{ backgroundColor: "#f0fdf4", borderColor: "#bbf7d0" }}
             >
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: "var(--success)" }}
-                />
-                <span
-                  className="font-semibold text-sm"
-                  style={{ color: "#14532d" }}
-                >
-                  Semester 2 - On Vacation
-                </span>
-              </div>
-              <p className="text-xs" style={{ color: "#166534" }}>
-                Resumes April 14, 2025
+              <p className="text-xs font-semibold" style={{ color: "#14532d" }}>
+                Next on the school calendar
               </p>
+              {nextEvent ? (
+                <p className="text-xs mt-0.5" style={{ color: "#166534" }}>
+                  {nextEvent.title} ·{" "}
+                  {new Date(`${nextEvent.date}T00:00:00`).toLocaleDateString(
+                    "en-GB",
+                    {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    },
+                  )}
+                </p>
+              ) : (
+                <p className="text-xs mt-0.5 text-gray-500">
+                  Nothing scheduled yet.
+                </p>
+              )}
             </div>
           </div>
         </div>
