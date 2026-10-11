@@ -155,7 +155,7 @@ const DepartmentManagement = () => {
             Department Management
           </h2>
           <p className="text-xs text-gray-400">
-            {departments.length} departments · assign HODs, subjects and staff
+            {departments.length} departments · assign HODs, courses and staff
           </p>
         </div>
         <button

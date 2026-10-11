@@ -29,6 +29,8 @@ import {
   ChevronRight,
   Copy,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { TRANSITIONS } from "../../utils/transition";
 import { usersApi } from "../../api/users";
 import { statsApi } from "../../api/stats";
 import { studentsApi } from "../../api/students";
@@ -949,9 +951,9 @@ const AddUserModal = ({ onSave, onClose }) => {
                         options={lists.courses}
                       />
                       <FInput
-                        label="Track"
+                        label="Transition"
                         field="track"
-                        options={["A", "B"]}
+                        options={TRANSITIONS}
                       />
                       <FInput
                         label="Form Class"
@@ -1317,6 +1319,7 @@ const ProfileDrawer = ({ user, onClose, onReset, onToggleStatus }) => {
 
 // Main UserManagement
 const UserManagement = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeRole, setActiveRole] = useState("all");
@@ -1540,13 +1543,6 @@ const UserManagement = () => {
             {users.length} total · {activeCount} active · {inactiveCount}{" "}
             inactive
           </p>
-          {studentRecords !== null && (
-            <p className="text-xs text-gray-400 mt-0.5">
-              This page lists login accounts. {counts.student} student login(s)
-              · {studentRecords} student record(s) - manage records and create
-              logins under Students.
-            </p>
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -1621,11 +1617,41 @@ const UserManagement = () => {
               >
                 {rc.plural}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">{active} active</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {role === "student" && studentRecords !== null
+                  ? `${active} active · ${studentRecords} enrolled`
+                  : `${active} active`}
+              </p>
             </button>
           );
         })}
       </div>
+
+      {studentRecords !== null && studentRecords > counts.student && (
+        <div
+          className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border text-sm"
+          style={{
+            backgroundColor: "#fffbeb",
+            borderColor: "#fcd34d",
+            color: "#92400e",
+          }}
+        >
+          <AlertCircle size={16} className="flex-shrink-0" />
+          <p className="flex-1">
+            This page lists sign-in accounts. {studentRecords} students are
+            enrolled but only {counts.student} have a login, so{" "}
+            {studentRecords - counts.student} cannot see their results yet.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/students")}
+            className="px-3 py-1.5 text-xs font-bold rounded-lg text-white flex-shrink-0"
+            style={{ backgroundColor: "var(--warning)" }}
+          >
+            Create logins under Students
+          </button>
+        </div>
+      )}
 
       {/* Role tabs + Search + Filters */}
       <div

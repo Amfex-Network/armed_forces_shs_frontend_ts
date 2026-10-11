@@ -28,6 +28,7 @@ import {
   ChevronDown,
   FileText,
   Printer,
+  FileSpreadsheet,
 } from "lucide-react";
 
 import { KeyRound } from "lucide-react";
@@ -36,9 +37,10 @@ import { studentsApi, type BulkImportResult } from "../../api/students";
 import { parseStudentFile } from "../../utils/studentImport";
 import { usersApi, type ManagedUser } from "../../api/users";
 import CredentialModal from "../../components/common/CredentialModal";
+import { useConfirm } from "../../components/common/ConfirmDialog";
 import { classesApi } from "../../api/domains";
 import { useSchoolLists, withCurrent } from "../../hooks/useSchoolLists";
-import { downloadCsv } from "../../utils/csv";
+import { TRANSITIONS, transitionLabel } from "../../utils/transition";
 import { downloadCredentialSheet, inBatches } from "../../utils/peopleSheets";
 
 const YEAR_GROUPS = ["Form 1", "Form 2", "Form 3"];
@@ -66,6 +68,7 @@ const EMPTY = {
   formClass: "",
   yearGroup: "Form 1",
   house: "Warrior",
+  track: "",
   status: "Active",
   attendance: 0,
   avgScore: 0,
@@ -353,6 +356,12 @@ const StudentFormModal = ({
                 value={form.yearGroup}
                 onChange={(v) => set("yearGroup", v)}
                 options={YEAR_GROUPS}
+              />
+              <FInput
+                label="Transition"
+                value={transitionLabel(form.track)}
+                onChange={(v) => set("track", v)}
+                options={["", ...TRANSITIONS]}
               />
               <FInput
                 label="Form Class"
@@ -645,6 +654,11 @@ const ProfileDrawer = ({ student, onEdit, onClose, parents = [] }) => {
             { icon: BookOpen, label: "Form Class", value: student.formClass },
             { icon: BookOpen, label: "House", value: student.house },
             {
+              icon: Calendar,
+              label: "Transition",
+              value: transitionLabel(student.track) || "-",
+            },
+            {
               icon: Phone,
               label: "Parent Phone",
               value: parentInfo.parentPhone,
@@ -697,6 +711,7 @@ const ProfileDrawer = ({ student, onEdit, onClose, parents = [] }) => {
 
 // Main Students Component
 const Students = () => {
+  const confirm = useConfirm();
   const [students, setStudents] = useState<any[]>([]);
   const [parents, setParents] = useState<ManagedUser[]>([]);
   const [studentUsers, setStudentUsers] = useState<ManagedUser[]>([]);
@@ -714,6 +729,8 @@ const Students = () => {
   const [filterCourse, setFP] = useState("All");
   const [filterYearGroup, setFT] = useState("All");
   const [filterStatus, setFS] = useState("All");
+  const [filterClass, setFC] = useState("All");
+  const [filterTransition, setFTr] = useState("All");
   const [viewMode, setViewMode] = useState("table"); // 'table' | 'cards'
   const [selected, setSelected] = useState([]); // bulk selection IDs
   const [showForm, setShowForm] = useState(false);
@@ -793,10 +810,38 @@ const Students = () => {
         const matchYearGroup =
           filterYearGroup === "All" || levelOf(s) === filterYearGroup;
         const matchStatus = filterStatus === "All" || s.status === filterStatus;
-        return matchSearch && matchCourse && matchYearGroup && matchStatus;
+        const matchClass = filterClass === "All" || s.formClass === filterClass;
+        const matchTransition =
+          filterTransition === "All" ||
+          transitionLabel(s.track) === filterTransition;
+        return (
+          matchSearch &&
+          matchCourse &&
+          matchYearGroup &&
+          matchStatus &&
+          matchClass &&
+          matchTransition
+        );
       }),
-    [students, search, filterCourse, filterYearGroup, filterStatus],
+    [
+      students,
+      search,
+      filterCourse,
+      filterYearGroup,
+      filterStatus,
+      filterClass,
+      filterTransition,
+    ],
   );
+
+  // Classes on the Structure page plus any spelling still on a student.
+  const classFilterOptions = useMemo(() => {
+    const all = new Set(classNames);
+    students.forEach((st) => st.formClass && all.add(st.formClass));
+    return [...all].sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true }),
+    );
+  }, [classNames, students]);
 
   // CRUD
   const handleSave = async (form) => {
@@ -1017,7 +1062,7 @@ const Students = () => {
       "year",
       "formClass",
       "course",
-      "track",
+      "transition",
       "status",
       "parentId",
     ];
@@ -1035,7 +1080,7 @@ const Students = () => {
         "2025",
         exampleClasses[0],
         "General Science",
-        "A",
+        "Transition One",
         "Active",
         "",
       ],
@@ -1048,7 +1093,7 @@ const Students = () => {
         "2025",
         exampleClasses[1] || exampleClasses[0],
         "General Arts",
-        "B",
+        "Transition Two",
         "Active",
         "",
       ],
@@ -1062,8 +1107,9 @@ const Students = () => {
       [
         "A formClass that does not exist yet is created automatically on import.",
       ],
-      ["course: General Science, General Arts, Business or Technical."],
-      ["track: A or B.   status: Active, Inactive or Suspended."],
+      ["course: the student's programme, as named under Structure."],
+      ["transition: Transition One or Transition Two."],
+      ["status: Active, Inactive or Suspended."],
       ["Rows whose studentId already exists are skipped."],
       ["parentId is ignored - link parents afterwards from the Parents page."],
       [
@@ -1157,7 +1203,7 @@ const Students = () => {
         "Year",
         "Form Class",
         "Year Group",
-        "Track",
+        "Transition",
         "Status",
         "Email",
         "Parent",
@@ -1179,14 +1225,23 @@ const Students = () => {
         s.year,
         s.formClass,
         levelOf(s) || s.yearGroup,
-        s.track,
+        transitionLabel(s.track),
         s.status,
         s.email,
         parentName === "-" ? "" : parentName,
       ]);
     });
-    downloadCsv("AFTS_Students.csv", rows);
-    showToast(`${source.length} student(s) exported as CSV`);
+    const wb = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet(rows);
+    sheet["!cols"] = (rows[0] as string[]).map((h) => ({
+      wch: Math.max(12, h.length + 4),
+    }));
+    XLSX.utils.book_append_sheet(wb, sheet, "Students");
+    XLSX.writeFile(
+      wb,
+      `AFSHTS_Students_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
+    showToast(`${source.length} student(s) exported`);
   };
 
   const toggleSelect = (id) =>
@@ -1200,13 +1255,20 @@ const Students = () => {
   const allSelected =
     filtered.length > 0 && selected.length === filtered.length;
 
-  const activeFilters = [filterCourse, filterYearGroup, filterStatus].filter(
-    (f) => f !== "All",
-  ).length;
+  const activeFilters = [
+    filterClass,
+    filterCourse,
+    filterYearGroup,
+    filterTransition,
+    filterStatus,
+  ].filter((f) => f !== "All").length;
 
   // Stats
   const total = students.length;
   const active = students.filter((s) => s.status === "Active").length;
+  const noLogin = studentsWithoutLogin();
+  const noEmail = students.filter((s) => !s.email).length;
+  const canSignIn = total - noLogin.length - noEmail;
 
   return (
     <div className="space-y-5">
@@ -1245,7 +1307,6 @@ const Students = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Sample Guide */}
           <button
             onClick={handleSampleGuide}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border transition"
@@ -1255,7 +1316,7 @@ const Students = () => {
               backgroundColor: "#f0fdf4",
             }}
           >
-            <Download size={13} /> Sample Guide
+            <FileSpreadsheet size={13} /> Template
           </button>
           {/* Import */}
           <label
@@ -1267,7 +1328,7 @@ const Students = () => {
             }}
           >
             <Upload size={13} />{" "}
-            {importing ? importProgress || "Importing…" : "Import CSV/Excel"}
+            {importing ? importProgress || "Importing…" : "Import Excel"}
             <input
               type="file"
               accept=".csv,.xlsx,.xls"
@@ -1285,7 +1346,7 @@ const Students = () => {
               backgroundColor: "white",
             }}
           >
-            <Download size={13} /> Export CSV
+            <Download size={13} /> Export
           </button>
           {selected.length > 0 && (
             <button
@@ -1330,6 +1391,18 @@ const Students = () => {
             color: "var(--success-dark)",
             icon: CheckCircle2,
           },
+          {
+            label: "Can Sign In",
+            value: canSignIn,
+            color: "#7c3aed",
+            icon: KeyRound,
+          },
+          {
+            label: "No Login Yet",
+            value: noLogin.length + noEmail,
+            color: "var(--warning)",
+            icon: AlertCircle,
+          },
         ].map(({ label, value, color, icon: Icon }) => (
           <div
             key={label}
@@ -1354,6 +1427,54 @@ const Students = () => {
           </div>
         ))}
       </div>
+
+      {noLogin.length + noEmail > 0 && (
+        <div
+          className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border text-sm"
+          style={{
+            backgroundColor: "#fffbeb",
+            borderColor: "#fcd34d",
+            color: "#92400e",
+          }}
+        >
+          <AlertCircle size={16} className="flex-shrink-0" />
+          <div className="flex-1">
+            <p>
+              {noLogin.length + noEmail} of {total} students have no login, so
+              they cannot see their results yet.
+            </p>
+            {noEmail > 0 && (
+              <p className="text-xs mt-0.5">
+                {noEmail} have no email address. Add one before creating their
+                login.
+              </p>
+            )}
+          </div>
+          {noLogin.length > 0 && (
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Create ${noLogin.length} student login(s)?`,
+                  message:
+                    "A one-time password is made for each student and downloaded in an Excel file.",
+                  detail:
+                    "Keep the file private and delete it once the passwords are handed out.",
+                  confirmLabel: "Create Logins",
+                });
+                if (ok) await createLogins(noLogin.map((st) => st.id));
+              }}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg text-white flex-shrink-0 disabled:opacity-60"
+              style={{ backgroundColor: "var(--warning)" }}
+            >
+              {bulkBusy
+                ? "Creating logins…"
+                : `Create ${noLogin.length} login(s)`}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Search + Filters toolbar */}
       <div
@@ -1437,10 +1558,16 @@ const Students = () => {
         {/* Filter dropdowns */}
         {showFilters && (
           <div
-            className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 pt-3 border-t"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-3 pt-3 border-t"
             style={{ borderColor: "var(--medium-gray)" }}
           >
             {[
+              {
+                label: "Class",
+                value: filterClass,
+                set: setFC,
+                opts: ["All", ...classFilterOptions],
+              },
               {
                 label: "Course",
                 value: filterCourse,
@@ -1452,6 +1579,12 @@ const Students = () => {
                 value: filterYearGroup,
                 set: setFT,
                 opts: ["All", ...YEAR_GROUPS],
+              },
+              {
+                label: "Transition",
+                value: filterTransition,
+                set: setFTr,
+                opts: ["All", ...TRANSITIONS],
               },
               {
                 label: "Status",
@@ -1498,6 +1631,8 @@ const Students = () => {
                 setFP("All");
                 setFT("All");
                 setFS("All");
+                setFC("All");
+                setFTr("All");
               }}
               className="text-xs font-semibold"
               style={{ color: "var(--accent-red)" }}
@@ -1538,7 +1673,7 @@ const Students = () => {
                     "ID",
                     "Course",
                     "Class",
-                    "Semester",
+                    "Transition",
                     "Status",
                     "Actions",
                   ].map((h) => (
@@ -1628,7 +1763,7 @@ const Students = () => {
                               color: "var(--royal-blue)",
                             }}
                           >
-                            {s.year || s.yearGroup}
+                            {transitionLabel(s.track) || "-"}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -1920,7 +2055,9 @@ const Students = () => {
                   >
                     Export Selected
                   </p>
-                  <p className="text-xs text-gray-500">Download as CSV file</p>
+                  <p className="text-xs text-gray-500">
+                    Download as an Excel file
+                  </p>
                 </div>
               </button>
               <button
