@@ -6,23 +6,27 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronDown,
+  Settings2,
 } from "lucide-react";
 import { classesApi, subjectsApi } from "../../api/domains";
 import {
   timetableApi,
   TimetableSlot,
   TIMETABLE_DAYS,
-  TIMETABLE_PERIODS,
 } from "../../api/timetable";
 import { useConfirm } from "../../components/common/ConfirmDialog";
-
-const TEACHING_PERIODS = TIMETABLE_PERIODS.map((p, i) => ({
-  ...p,
-  index: i,
-})).filter((p) => !(p as any).isBreak);
+import { useAuth } from "../../context/AuthContext";
+import { useDayPeriods } from "../../hooks/useDayPeriods";
+import { isHod } from "../../utils/teacherRoles";
+import PeriodEditor from "./PeriodEditor";
 
 const TeacherTimetable = () => {
   const confirm = useConfirm();
+  const { user } = useAuth();
+  const { periods, setPeriods, rows } = useDayPeriods();
+  const lessons = rows.filter((r) => !r.isBreak);
+  const canEditPeriods = user?.role === "admin" || isHod(user?.teacherRole);
+  const [editingPeriods, setEditingPeriods] = useState(false);
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<any>(null);
@@ -30,7 +34,7 @@ const TeacherTimetable = () => {
   const [loading, setLoading] = useState(true);
 
   const [day, setDay] = useState("Monday");
-  const [period, setPeriod] = useState(TEACHING_PERIODS[0].index);
+  const [period, setPeriod] = useState(1);
   const [subject, setSubject] = useState("");
   const [teacher, setTeacher] = useState("");
   const [room, setRoom] = useState("");
@@ -164,33 +168,48 @@ const TeacherTimetable = () => {
             Build and maintain the weekly schedule for a class
           </p>
         </div>
-        <div className="relative">
-          <select
-            value={selectedClass?.id || ""}
-            onChange={(e) =>
-              setSelectedClass(
-                classes.find((c) => c.id === e.target.value) || null,
-              )
-            }
-            className="appearance-none pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2 outline-none cursor-pointer"
-            style={{
-              borderColor: "var(--royal-blue)",
-              color: "var(--royal-blue)",
-              backgroundColor: "#eef2ff",
-            }}
-          >
-            {classes.length === 0 && <option value="">No classes</option>}
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            size={14}
-            className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "var(--royal-blue)" }}
-          />
+        <div className="flex items-center gap-2">
+          {canEditPeriods && (
+            <button
+              type="button"
+              onClick={() => setEditingPeriods(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border"
+              style={{
+                borderColor: "var(--medium-gray)",
+                color: "var(--dark-gray)",
+              }}
+            >
+              <Settings2 size={13} /> Periods and breaks
+            </button>
+          )}
+          <div className="relative">
+            <select
+              value={selectedClass?.id || ""}
+              onChange={(e) =>
+                setSelectedClass(
+                  classes.find((c) => c.id === e.target.value) || null,
+                )
+              }
+              className="appearance-none pl-3 pr-8 py-2 text-sm font-semibold rounded-xl border-2 outline-none cursor-pointer"
+              style={{
+                borderColor: "var(--royal-blue)",
+                color: "var(--royal-blue)",
+                backgroundColor: "#eef2ff",
+              }}
+            >
+              {classes.length === 0 && <option value="">No classes</option>}
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: "var(--royal-blue)" }}
+            />
+          </div>
         </div>
       </div>
 
@@ -222,9 +241,9 @@ const TeacherTimetable = () => {
             className="px-2 py-2 text-sm rounded-lg border-2 outline-none bg-white"
             style={{ borderColor: "var(--medium-gray)" }}
           >
-            {TEACHING_PERIODS.map((p) => (
-              <option key={p.index} value={p.index}>
-                {p.label}
+            {lessons.map((p) => (
+              <option key={p.lesson} value={p.lesson}>
+                {p.label} ({p.time})
               </option>
             ))}
           </select>
@@ -288,8 +307,8 @@ const TeacherTimetable = () => {
             </tr>
           </thead>
           <tbody>
-            {TIMETABLE_PERIODS.map((p, i) => {
-              if ((p as any).isBreak)
+            {rows.map((p, i) => {
+              if (p.isBreak)
                 return (
                   <tr key={i}>
                     <td
@@ -317,7 +336,7 @@ const TeacherTimetable = () => {
                     <p className="text-xs text-gray-400">{p.time}</p>
                   </td>
                   {TIMETABLE_DAYS.map((d) => {
-                    const slot = byKey[`${d}-${i}`];
+                    const slot = byKey[`${d}-${p.lesson}`];
                     return (
                       <td key={d} className="px-2 py-2 text-center align-top">
                         {slot ? (
@@ -366,6 +385,18 @@ const TeacherTimetable = () => {
         <Clock size={11} /> Students in the selected class see this schedule in
         their portal.
       </p>
+
+      {editingPeriods && (
+        <PeriodEditor
+          periods={periods}
+          onClose={() => setEditingPeriods(false)}
+          onSaved={(p) => {
+            setPeriods(p);
+            setEditingPeriods(false);
+            showToast("Periods saved");
+          }}
+        />
+      )}
     </div>
   );
 };

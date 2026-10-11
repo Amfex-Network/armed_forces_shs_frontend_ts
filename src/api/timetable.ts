@@ -67,15 +67,65 @@ export const TIMETABLE_DAYS = [
   "Friday",
 ];
 
-export const TIMETABLE_PERIODS = [
-  { label: "Period 1", time: "07:30–08:20" },
-  { label: "Period 2", time: "08:20–09:10" },
-  { label: "Period 3", time: "09:10–10:00" },
-  { label: "Break", time: "10:00–10:20", isBreak: true },
-  { label: "Period 4", time: "10:20–11:10" },
-  { label: "Period 5", time: "11:10–12:00" },
-  { label: "Period 6", time: "12:00–12:50" },
-  { label: "Lunch", time: "12:50–13:30", isBreak: true },
-  { label: "Period 7", time: "13:30–14:20" },
-  { label: "Period 8", time: "14:20–15:10" },
+export type PeriodKind = "lesson" | "break" | "lunch";
+
+export interface DayPeriod {
+  kind: PeriodKind;
+  label: string;
+  start: string;
+  end: string;
+}
+
+// One row of the school day as shown on a timetable. Lessons are numbered
+// in order; a timetable slot's period is that number.
+export interface PeriodRow {
+  label: string;
+  time: string;
+  isBreak: boolean;
+  lesson?: number;
+}
+
+export const DEFAULT_DAY_PERIODS: DayPeriod[] = [
+  { kind: "lesson", label: "", start: "07:30", end: "08:20" },
+  { kind: "lesson", label: "", start: "08:20", end: "09:10" },
+  { kind: "lesson", label: "", start: "09:10", end: "10:00" },
+  { kind: "break", label: "Break", start: "10:00", end: "10:20" },
+  { kind: "lesson", label: "", start: "10:20", end: "11:10" },
+  { kind: "lesson", label: "", start: "11:10", end: "12:00" },
+  { kind: "lesson", label: "", start: "12:00", end: "12:50" },
+  { kind: "lunch", label: "Lunch", start: "12:50", end: "13:30" },
+  { kind: "lesson", label: "", start: "13:30", end: "14:20" },
+  { kind: "lesson", label: "", start: "14:20", end: "15:10" },
 ];
+
+export const toPeriodRows = (periods: DayPeriod[]): PeriodRow[] => {
+  let lesson = 0;
+  return periods.map((p) => {
+    const time = `${p.start}-${p.end}`;
+    if (p.kind !== "lesson") {
+      return {
+        label: p.label || (p.kind === "lunch" ? "Lunch" : "Break"),
+        time,
+        isBreak: true,
+      };
+    }
+    lesson += 1;
+    return { label: `Period ${lesson}`, time, isBreak: false, lesson };
+  });
+};
+
+export const periodsApi = {
+  async get(): Promise<DayPeriod[]> {
+    const res = await api.get<{ success: boolean; periods: DayPeriod[] }>(
+      "/api/timetable/periods",
+    );
+    return res.periods;
+  },
+  async save(periods: DayPeriod[]): Promise<DayPeriod[]> {
+    const res = await api.put<{ success: boolean; periods: DayPeriod[] }>(
+      "/api/timetable/periods",
+      { periods },
+    );
+    return res.periods;
+  },
+};

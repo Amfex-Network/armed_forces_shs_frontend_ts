@@ -5,14 +5,15 @@ import {
   timetableApi,
   TimetableSlot,
   TIMETABLE_DAYS,
-  TIMETABLE_PERIODS,
 } from "../../api/timetable";
+import { useDayPeriods } from "../../hooks/useDayPeriods";
 
 const StudentTimetable = () => {
   const { user } = useAuth();
   const [slots, setSlots] = useState<TimetableSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState("Monday");
+  const { rows } = useDayPeriods();
 
   useEffect(() => {
     timetableApi
@@ -30,8 +31,7 @@ const StudentTimetable = () => {
     return map;
   }, [slots]);
 
-  const today =
-    TIMETABLE_DAYS[new Date().getDay() - 1] || "Monday";
+  const today = TIMETABLE_DAYS[new Date().getDay() - 1] || "Monday";
 
   if (loading)
     return (
@@ -46,7 +46,10 @@ const StudentTimetable = () => {
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
+          <h1
+            className="text-xl font-black"
+            style={{ color: "var(--dark-gray)" }}
+          >
             My Timetable
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -88,9 +91,9 @@ const StudentTimetable = () => {
 
           {/* Mobile: single-day list */}
           <div className="lg:hidden space-y-2">
-            {TIMETABLE_PERIODS.map((p, i) => {
-              const slot = byKey[`${selectedDay}-${i}`];
-              if ((p as any).isBreak)
+            {rows.map((p, i) => {
+              const slot = byKey[`${selectedDay}-${p.lesson}`];
+              if (p.isBreak)
                 return (
                   <div
                     key={i}
@@ -156,14 +159,17 @@ const StudentTimetable = () => {
                 </tr>
               </thead>
               <tbody>
-                {TIMETABLE_PERIODS.map((p, i) => {
-                  if ((p as any).isBreak)
+                {rows.map((p, i) => {
+                  if (p.isBreak)
                     return (
                       <tr key={i}>
                         <td
                           colSpan={TIMETABLE_DAYS.length + 1}
                           className="px-3 py-1.5 text-center text-xs font-semibold"
-                          style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
+                          style={{
+                            backgroundColor: "#f3f4f6",
+                            color: "#6b7280",
+                          }}
                         >
                           {p.label} · {p.time}
                         </td>
@@ -185,7 +191,7 @@ const StudentTimetable = () => {
                         <p className="text-xs text-gray-400">{p.time}</p>
                       </td>
                       {TIMETABLE_DAYS.map((d) => {
-                        const slot = byKey[`${d}-${i}`];
+                        const slot = byKey[`${d}-${p.lesson}`];
                         return (
                           <td key={d} className="px-2 py-2 text-center">
                             {slot ? (
