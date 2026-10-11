@@ -37,6 +37,9 @@ const DEFAULTS: AppSettings = {
   academicYears: ["2024/2025"],
   terms: ["Term 1", "Term 2", "Term 3"],
   gradingScale: DEFAULT_GRADING_SCALE,
+  positionBasis: "total",
+  portalAccess: { teacher: true, student: true, parent: true },
+  selfUpdate: { student: true, parent: true },
 };
 
 interface SettingsContextValue {

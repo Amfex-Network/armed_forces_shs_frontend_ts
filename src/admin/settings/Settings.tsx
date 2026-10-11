@@ -1,8 +1,19 @@
 // src/admin/settings/Settings.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSettings } from "../../context/SettingsContext";
+import type { AppSettings } from "../../api/settings";
+import { studentsApi } from "../../api/students";
+import { usersApi } from "../../api/users";
+import { scoresApi } from "../../api/scores";
+import { downloadCsv } from "../../utils/csv";
+import {
+  downloadPeopleExport,
+  TEACHER_COLUMNS,
+  PARENT_COLUMNS,
+} from "../../utils/peopleSheets";
 import {
   Save,
-  RotateCcw,
   CheckCircle2,
   AlertCircle,
   School,
@@ -13,9 +24,6 @@ import {
   Database,
   Upload,
   Info,
-  Eye,
-  EyeOff,
-  ChevronDown,
 } from "lucide-react";
 
 // Toggle Switch
@@ -94,7 +102,15 @@ const SectionCard = ({
 );
 
 // Field
-const Field = ({ label, description, children }) => (
+const Field = ({
+  label,
+  description = "",
+  children,
+}: {
+  label: string;
+  description?: string;
+  children: React.ReactNode;
+}) => (
   <div
     className="py-3 border-b last:border-0"
     style={{ borderColor: "var(--medium-gray)" }}
@@ -118,10 +134,15 @@ const Field = ({ label, description, children }) => (
   </div>
 );
 
-const InputField = ({ value, onChange, placeholder, type = "text" }) => (
+const InputField = ({
+  value,
+  onChange,
+  placeholder = "",
+  type = "text",
+}: any) => (
   <input
     type={type}
-    value={value}
+    value={value ?? ""}
     onChange={(e) => onChange(e.target.value)}
     placeholder={placeholder}
     className="w-full px-3 py-2 text-sm rounded-lg border-2 outline-none"
@@ -149,136 +170,264 @@ const SelectField = ({ value, onChange, options }) => (
 );
 
 // Settings
+const REGIONS = [
+  "",
+  "Greater Accra",
+  "Ashanti",
+  "Western",
+  "Eastern",
+  "Central",
+  "Volta",
+  "Northern",
+  "Upper East",
+  "Upper West",
+  "Bono",
+  "Ahafo",
+  "Bono East",
+  "Oti",
+  "North East",
+  "Savannah",
+  "Western North",
+];
+
+const SCHOOL_FIELDS: {
+  key: keyof AppSettings;
+  label: string;
+  placeholder?: string;
+}[] = [
+  { key: "schoolName", label: "School Name" },
+  { key: "shortName", label: "Short Name", placeholder: "e.g. AFSHTS" },
+  { key: "motto", label: "Motto" },
+  {
+    key: "schoolType",
+    label: "School Type",
+    placeholder: "e.g. Senior High Technical School",
+  },
+  { key: "waecCode", label: "WAEC Centre Code" },
+  { key: "district", label: "District" },
+  { key: "address", label: "Address" },
+  { key: "phone", label: "Phone" },
+  { key: "email", label: "Email" },
+  { key: "website", label: "Website" },
+];
+
+type Access = {
+  portalAccess: { teacher: boolean; student: boolean; parent: boolean };
+  selfUpdate: { student: boolean; parent: boolean };
+};
+
+const stamp = () => new Date().toISOString().slice(0, 10);
+
 const Settings = () => {
-  // School Info
-  const [school, setSchool] = useState({
-    name: "Armed Forces Senior High Technical School",
-    shortName: "AFSHTS",
-    motto: "Service With Humanity",
-    address: "Uaddara Barracks, Kumasi, Ghana",
-    phone: "+233 32 200 0001",
-    email: "info@afts.edu.gh",
-    website: "www.afts.edu.gh",
-    region: "Ashanti Region",
-    type: "Senior High Technical School",
-    waecCode: "GH0042",
+  const navigate = useNavigate();
+  const { settings, save } = useSettings();
+
+  const schoolFrom = (st: AppSettings) =>
+    Object.fromEntries(
+      [...SCHOOL_FIELDS.map((f) => f.key), "region"].map((k) => [
+        k,
+        (st[k as keyof AppSettings] as string) || "",
+      ]),
+    ) as Record<string, string>;
+  const accessFrom = (st: AppSettings): Access => ({
+    portalAccess: {
+      teacher: st.portalAccess?.teacher !== false,
+      student: st.portalAccess?.student !== false,
+      parent: st.portalAccess?.parent !== false,
+    },
+    selfUpdate: {
+      student: st.selfUpdate?.student !== false,
+      parent: st.selfUpdate?.parent !== false,
+    },
   });
-  const setS = (k, v) => setSchool((s) => ({ ...s, [k]: v }));
 
-  // System Preferences
-  const [prefs, setPrefs] = useState({
-    dateFormat: "DD/MM/YYYY",
-    timeFormat: "24hr",
-    timezone: "Africa/Accra",
-    language: "English",
-    currency: "GHS (₵)",
-    theme: "light",
-  });
-  const setP = (k, v) => setPrefs((p) => ({ ...p, [k]: v }));
+  const [school, setSchool] = useState<Record<string, string>>(() =>
+    schoolFrom(settings),
+  );
+  const [access, setAccess] = useState<Access>(() => accessFrom(settings));
+  const [busy, setBusy] = useState("");
+  const [toast, setToast] = useState<{ msg: string; type: string } | null>(
+    null,
+  );
 
-  // Security
-  const [security, setSecurity] = useState({
-    sessionTimeout: 30,
-    maxLoginAttempts: 3,
-    passwordMinLength: 8,
-    requireUppercase: true,
-    requireNumbers: true,
-    requireSpecialChar: false,
-    twoFactor: false,
-    lockAfterFail: true,
-  });
-  const setSec = (k, v) => setSecurity((s) => ({ ...s, [k]: v }));
+  // Pick up the saved values once settings arrive from the server.
+  useEffect(() => {
+    setSchool(schoolFrom(settings));
+    setAccess(accessFrom(settings));
+  }, [settings]);
 
-  // Notifications
-  const [notif, setNotif] = useState({
-    emailAlerts: true,
-    smsAlerts: true,
-    lowAttendanceAlert: true,
-    attendanceThreshold: 95,
-    scoreSubmissionAlert: true,
-    parentLoginAlert: false,
-    systemErrorAlert: true,
-    weeklyReportEmail: true,
-  });
-  const setN = (k, v) => setNotif((n) => ({ ...n, [k]: v }));
-
-  // Portal Access
-  const [portals, setPortals] = useState({
-    adminPortal: true,
-    teacherPortal: true,
-    studentPortal: true,
-    parentPortal: true,
-    studentSelfUpdate: true,
-    parentSelfUpdate: true,
-    resultVisibility: true,
-    reportCardDownload: true,
-  });
-  const setPo = (k, v) => setPortals((p) => ({ ...p, [k]: v }));
-
-  // Toast / Save
-  const [toast, setToast] = useState(null);
-  const [savedSections, setSavedSec] = useState({});
-
-  const showToast = (msg, type = "success") => {
+  const showToast = (msg: string, type = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3500);
   };
 
-  const handleSave = (section) => {
-    setSavedSec((s) => ({ ...s, [section]: true }));
-    showToast(`${section} settings saved successfully`);
-    setTimeout(() => setSavedSec((s) => ({ ...s, [section]: false })), 2000);
+  const run = async (key: string, task: () => Promise<void>, ok: string) => {
+    try {
+      setBusy(key);
+      await task();
+      showToast(ok);
+    } catch (err: any) {
+      showToast(err?.message || "Something went wrong", "error");
+    } finally {
+      setBusy("");
+    }
   };
 
-  const SaveButton = ({ section }) => (
-    <div className="flex justify-end pt-2">
-      <button
-        type="button"
-        onClick={() => handleSave(section)}
-        className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-xl transition"
-        style={{
-          backgroundColor: savedSections[section]
-            ? "var(--success-dark)"
-            : "var(--royal-blue)",
-        }}
-        onMouseEnter={(e) => {
-          if (!savedSections[section])
-            e.currentTarget.style.backgroundColor = "var(--royal-blue-dark)";
-        }}
-        onMouseLeave={(e) => {
-          if (!savedSections[section])
-            e.currentTarget.style.backgroundColor = "var(--royal-blue)";
-        }}
-      >
-        {savedSections[section] ? (
-          <>
-            <CheckCircle2 size={14} /> Saved!
-          </>
-        ) : (
-          <>
-            <Save size={14} /> Save {section}
-          </>
-        )}
-      </button>
-    </div>
+  const saveSchool = () => {
+    if (!school.schoolName?.trim()) {
+      showToast("School name cannot be empty", "error");
+      return;
+    }
+    const payload = Object.fromEntries(
+      Object.entries(school).map(([k, v]) => [k, v.trim()]),
+    );
+    run(
+      "school",
+      async () => void (await save(payload)),
+      "School information saved",
+    );
+  };
+
+  const saveAccess = () =>
+    run("access", async () => void (await save(access)), "Portal access saved");
+
+  const exportStudents = () =>
+    run(
+      "students",
+      async () => {
+        const list = await studentsApi.list();
+        downloadCsv(`AFSHTS_Students_${stamp()}.csv`, [
+          [
+            "Student ID",
+            "First Name",
+            "Last Name",
+            "Gender",
+            "Course",
+            "Form Class",
+            "Year Group",
+            "Track",
+            "Status",
+            "Email",
+          ],
+          ...list.map((x) => [
+            x.studentId,
+            x.firstName,
+            x.lastName,
+            x.gender,
+            x.course,
+            x.formClass,
+            x.yearGroup,
+            x.track,
+            x.status,
+            x.email,
+          ]),
+        ]);
+      },
+      "Students exported",
+    );
+
+  const exportStaff = (role: "teacher" | "parent") =>
+    run(
+      role,
+      async () => {
+        const all = await usersApi.list();
+        const people = all.filter((u) => u.role === role);
+        if (role === "teacher") {
+          downloadPeopleExport(
+            `AFSHTS_Teachers_${stamp()}.xlsx`,
+            TEACHER_COLUMNS,
+            people,
+          );
+        } else {
+          const students = await studentsApi.list();
+          downloadPeopleExport(
+            `AFSHTS_Parents_${stamp()}.xlsx`,
+            PARENT_COLUMNS,
+            people.map((p) => ({
+              ...p,
+              children: students
+                .filter((x) => x.parentId === p.id)
+                .map((x) => x.studentId),
+            })),
+          );
+        }
+      },
+      role === "teacher" ? "Teachers exported" : "Parents exported",
+    );
+
+  const exportResults = () =>
+    run(
+      "results",
+      async () => {
+        const scores = await scoresApi.list();
+        const rows = scores.map((sc) => {
+          const st = typeof sc.student === "object" ? sc.student : null;
+          return [
+            st?.studentId || "",
+            st ? `${st.lastName || ""} ${st.firstName || ""}`.trim() : "",
+            st?.formClass || sc.formClass || "",
+            sc.subject,
+            sc.academicYear,
+            sc.term,
+            sc.classScore,
+            sc.examScore,
+            sc.total,
+            sc.grade,
+          ];
+        });
+        downloadCsv(`AFSHTS_Results_${stamp()}.csv`, [
+          [
+            "Index No.",
+            "Student",
+            "Class",
+            "Subject",
+            "Academic Year",
+            "Term",
+            "CA (30)",
+            "Exam (70)",
+            "Total",
+            "Grade",
+          ],
+          ...rows,
+        ]);
+      },
+      "Results exported",
+    );
+
+  const btn = (key: string, label: string, onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!!busy}
+      className="flex items-center gap-2 px-5 py-2 text-sm font-bold text-white rounded-xl disabled:opacity-60"
+      style={{ backgroundColor: "var(--royal-blue)" }}
+    >
+      <Save size={14} /> {busy === key ? "Working…" : label}
+    </button>
   );
 
   return (
     <div className="space-y-6">
-      {/* Toast */}
       {toast && (
         <div
           className="fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl shadow-xl text-white text-sm font-semibold flex items-center gap-2"
           style={{
-            backgroundColor: "var(--success-dark)",
-            animation: "fadeIn .2s ease",
+            backgroundColor:
+              toast.type === "error"
+                ? "var(--accent-red)"
+                : "var(--success-dark)",
           }}
+          role="status"
         >
-          <CheckCircle2 size={14} /> {toast.msg}
+          {toast.type === "error" ? (
+            <AlertCircle size={14} />
+          ) : (
+            <CheckCircle2 size={14} />
+          )}
+          {toast.msg}
         </div>
       )}
 
-      {/* Header */}
       <div>
         <h1
           className="text-xl font-black"
@@ -287,7 +436,8 @@ const Settings = () => {
           Settings
         </h1>
         <p className="text-xs text-gray-400 mt-0.5">
-          System-wide configuration for Armed Forces SHTS
+          System-wide configuration for{" "}
+          {settings.shortName || settings.schoolName}
         </p>
       </div>
 
@@ -295,142 +445,112 @@ const Settings = () => {
       <SectionCard
         icon={School}
         title="School Information"
-        description="Basic school details used across all portals and reports"
-        color="var(--royal-blue)"
+        description="Shown on report cards and across the portals"
       >
         <div className="space-y-1">
-          <Field
-            label="Full School Name"
-            description="Appears on report cards and official documents"
-          >
-            <InputField
-              value={school.name}
-              onChange={(v) => setS("name", v)}
-              placeholder="School name"
-            />
-          </Field>
-          <Field label="Short Name / Acronym">
-            <InputField
-              value={school.shortName}
-              onChange={(v) => setS("shortName", v)}
-              placeholder="e.g. AFSHTS"
-            />
-          </Field>
-          <Field label="School Motto">
-            <InputField
-              value={school.motto}
-              onChange={(v) => setS("motto", v)}
-              placeholder="School motto"
-            />
-          </Field>
-          <Field label="Physical Address">
-            <InputField
-              value={school.address}
-              onChange={(v) => setS("address", v)}
-              placeholder="Address"
-            />
-          </Field>
-          <Field label="Phone Number">
-            <InputField
-              value={school.phone}
-              onChange={(v) => setS("phone", v)}
-              placeholder="+233 ..."
-            />
-          </Field>
-          <Field label="Official Email">
-            <InputField
-              value={school.email}
-              onChange={(v) => setS("email", v)}
-              placeholder="info@school.edu.gh"
-              type="email"
-            />
-          </Field>
-          <Field label="Website">
-            <InputField
-              value={school.website}
-              onChange={(v) => setS("website", v)}
-              placeholder="www.school.edu.gh"
-            />
-          </Field>
+          {SCHOOL_FIELDS.map((f) => (
+            <Field key={f.key} label={f.label}>
+              <InputField
+                value={school[f.key]}
+                onChange={(v: string) =>
+                  setSchool((x) => ({ ...x, [f.key]: v }))
+                }
+                placeholder={f.placeholder}
+              />
+            </Field>
+          ))}
           <Field label="Region">
             <SelectField
               value={school.region}
-              onChange={(v) => setS("region", v)}
-              options={[
-                "Ashanti Region",
-                "Greater Accra Region",
-                "Central Region",
-                "Western Region",
-                "Eastern Region",
-                "Northern Region",
-                "Volta Region",
-                "Brong-Ahafo Region",
-                "Upper East Region",
-                "Upper West Region",
-              ]}
-            />
-          </Field>
-          <Field label="WAEC Centre Code">
-            <InputField
-              value={school.waecCode}
-              onChange={(v) => setS("waecCode", v)}
-              placeholder="e.g. GH0042"
+              onChange={(v: string) => setSchool((x) => ({ ...x, region: v }))}
+              options={REGIONS.map((r) => ({
+                value: r,
+                label: r || "- Select -",
+              }))}
             />
           </Field>
         </div>
-        <SaveButton section="School Info" />
+        <div className="flex justify-end pt-3">
+          {btn("school", "Save School Information", saveSchool)}
+        </div>
       </SectionCard>
 
-      {/* System Preferences */}
+      {/* Portal Access */}
       <SectionCard
-        icon={Globe}
-        title="System Preferences"
-        description="Display and localisation settings"
+        icon={Users}
+        title="Portal Access"
+        description="Open or close portals, enforced on every sign-in and request"
         color="#7c3aed"
       >
-        <div className="space-y-1">
-          <Field label="Date Format">
-            <SelectField
-              value={prefs.dateFormat}
-              onChange={(v) => setP("dateFormat", v)}
-              options={["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"]}
-            />
-          </Field>
-          <Field label="Time Format">
-            <SelectField
-              value={prefs.timeFormat}
-              onChange={(v) => setP("timeFormat", v)}
-              options={["24hr", "12hr (AM/PM)"]}
-            />
-          </Field>
-          <Field label="Timezone">
-            <SelectField
-              value={prefs.timezone}
-              onChange={(v) => setP("timezone", v)}
-              options={[
-                "Africa/Accra",
-                "Africa/Lagos",
-                "Europe/London",
-                "America/New_York",
-              ]}
-            />
-          </Field>
-          <Field label="Language">
-            <SelectField
-              value={prefs.language}
-              onChange={(v) => setP("language", v)}
-              options={["English", "French"]}
-            />
-          </Field>
-          <Field label="Currency">
-            <SelectField
-              value={prefs.currency}
-              onChange={(v) => setP("currency", v)}
-              options={["GHS (₵)", "USD ($)", "GBP (£)"]}
-            />
-          </Field>
+        <ToggleSwitch
+          label="Teacher Portal"
+          description="Teachers can sign in to enter scores, attendance and remarks"
+          checked={access.portalAccess.teacher}
+          onChange={(v: boolean) =>
+            setAccess((a) => ({
+              ...a,
+              portalAccess: { ...a.portalAccess, teacher: v },
+            }))
+          }
+          color="#7c3aed"
+        />
+        <ToggleSwitch
+          label="Student Portal"
+          description="Students can sign in to see published results"
+          checked={access.portalAccess.student}
+          onChange={(v: boolean) =>
+            setAccess((a) => ({
+              ...a,
+              portalAccess: { ...a.portalAccess, student: v },
+            }))
+          }
+          color="#7c3aed"
+        />
+        <ToggleSwitch
+          label="Parent Portal"
+          description="Parents can sign in to see their children's published results"
+          checked={access.portalAccess.parent}
+          onChange={(v: boolean) =>
+            setAccess((a) => ({
+              ...a,
+              portalAccess: { ...a.portalAccess, parent: v },
+            }))
+          }
+          color="#7c3aed"
+        />
+        <ToggleSwitch
+          label="Students May Edit Their Contact Details"
+          description="Phone and address on the student's own profile"
+          checked={access.selfUpdate.student}
+          onChange={(v: boolean) =>
+            setAccess((a) => ({
+              ...a,
+              selfUpdate: { ...a.selfUpdate, student: v },
+            }))
+          }
+          color="#7c3aed"
+        />
+        <ToggleSwitch
+          label="Parents May Edit Their Contact Details"
+          description="Phone and address on the parent's own profile"
+          checked={access.selfUpdate.parent}
+          onChange={(v: boolean) =>
+            setAccess((a) => ({
+              ...a,
+              selfUpdate: { ...a.selfUpdate, parent: v },
+            }))
+          }
+          color="#7c3aed"
+        />
+        <p className="text-xs text-gray-400 mt-3">
+          The admin portal is always open so the school can never lock itself
+          out. Closing a portal signs its users out at once. Results also need
+          to be published (Publish Reports) before students and parents see
+          them.
+        </p>
+        <div className="flex justify-end pt-3">
+          {btn("access", "Save Portal Access", saveAccess)}
         </div>
-        <SaveButton section="Preferences" />
       </SectionCard>
 
       {/* Security */}
@@ -544,315 +664,110 @@ const Settings = () => {
         </ul>
       </SectionCard>
 
+      {/* Regional */}
+      <SectionCard
+        icon={Globe}
+        title="Regional Format"
+        description="Fixed for Ghana"
+        color="var(--success-dark)"
+      >
+        <ul
+          className="text-sm divide-y"
+          style={{ borderColor: "var(--medium-gray)" }}
+        >
+          {[
+            ["Dates", "Day/Month/Year (e.g. 8 October 2026)"],
+            ["Time zone", "Africa/Accra (GMT)"],
+            ["Currency", "Ghana Cedi (GHS)"],
+            ["Language", "English"],
+          ].map(([k, v]) => (
+            <li key={k} className="py-2.5 flex justify-between gap-3">
+              <span className="text-gray-500">{k}</span>
+              <span
+                className="font-semibold"
+                style={{ color: "var(--dark-gray)" }}
+              >
+                {v}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </SectionCard>
+
       {/* Notifications */}
       <SectionCard
         icon={Bell}
-        title="Notification Settings"
-        description="Configure automated alerts and notification triggers"
-        color="var(--success-dark)"
+        title="Notifications"
+        description="SMS and email alerts"
+        color="var(--warning)"
       >
-        <div className="space-y-0">
-          <ToggleSwitch
-            label="Email Alerts"
-            description="Receive important system alerts via email"
-            checked={notif.emailAlerts}
-            onChange={(v) => setN("emailAlerts", v)}
-          />
-          <ToggleSwitch
-            label="SMS Alerts"
-            description="Receive critical alerts via SMS"
-            checked={notif.smsAlerts}
-            onChange={(v) => setN("smsAlerts", v)}
-          />
-          <ToggleSwitch
-            label="Low Attendance Alert"
-            description="Alert when student attendance drops below threshold"
-            checked={notif.lowAttendanceAlert}
-            onChange={(v) => setN("lowAttendanceAlert", v)}
-          />
+        <div
+          className="flex items-start gap-3 p-3 rounded-xl text-sm"
+          style={{ backgroundColor: "#fffbeb", color: "#92400e" }}
+        >
+          <Info size={16} className="flex-shrink-0 mt-0.5" />
+          <p>
+            No SMS or email service is connected yet, so the system does not
+            send messages. Students and parents can already choose which alerts
+            they want on their Settings page; those choices are kept for when a
+            provider (for example Hubtel, Arkesel or mNotify) is connected.
+          </p>
         </div>
-        {notif.lowAttendanceAlert && (
-          <div
-            className="py-3 border-b"
-            style={{ borderColor: "var(--medium-gray)" }}
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <p
-                  className="text-sm font-semibold"
-                  style={{ color: "var(--dark-gray)" }}
-                >
-                  Attendance Alert Threshold
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Alert when attendance falls below this percentage
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="50"
-                  max="99"
-                  value={notif.attendanceThreshold}
-                  onChange={(e) =>
-                    setN("attendanceThreshold", parseInt(e.target.value) || 95)
-                  }
-                  className="w-20 px-3 py-2 text-sm rounded-lg border-2 outline-none text-center font-bold"
-                  style={{
-                    borderColor: "var(--medium-gray)",
-                    color: "var(--dark-gray)",
-                  }}
-                  onFocus={(e) =>
-                    (e.target.style.borderColor = "var(--royal-blue)")
-                  }
-                  onBlur={(e) =>
-                    (e.target.style.borderColor = "var(--medium-gray)")
-                  }
-                />
-                <span className="text-sm font-bold text-gray-400">%</span>
-              </div>
-            </div>
-          </div>
-        )}
-        <div className="space-y-0">
-          <ToggleSwitch
-            label="Score Submission Alert"
-            description="Notify admin when teachers submit scores"
-            checked={notif.scoreSubmissionAlert}
-            onChange={(v) => setN("scoreSubmissionAlert", v)}
-          />
-          <ToggleSwitch
-            label="Parent Login Notification"
-            description="Alert when parent logs into portal"
-            checked={notif.parentLoginAlert}
-            onChange={(v) => setN("parentLoginAlert", v)}
-          />
-          <ToggleSwitch
-            label="System Error Alerts"
-            description="Get notified of system errors and failures"
-            checked={notif.systemErrorAlert}
-            onChange={(v) => setN("systemErrorAlert", v)}
-          />
-          <ToggleSwitch
-            label="Weekly Summary Email"
-            description="Receive weekly activity digest every Monday"
-            checked={notif.weeklyReportEmail}
-            onChange={(v) => setN("weeklyReportEmail", v)}
-          />
-        </div>
-        <SaveButton section="Notifications" />
       </SectionCard>
 
-      {/* Portal Access */}
-      <SectionCard
-        icon={Users}
-        title="Portal Access Control"
-        description="Enable or disable portals and user permissions"
-        color="#0369a1"
-      >
-        <div className="space-y-0">
-          <ToggleSwitch
-            label="Admin Portal"
-            description="System administrator access"
-            checked={portals.adminPortal}
-            onChange={(v) => setPo("adminPortal", v)}
-            color="#0369a1"
-          />
-          <ToggleSwitch
-            label="Teacher Portal"
-            description="Allow teachers to log in and enter scores"
-            checked={portals.teacherPortal}
-            onChange={(v) => setPo("teacherPortal", v)}
-            color="#0369a1"
-          />
-          <ToggleSwitch
-            label="Student Portal"
-            description="Allow students to view results and report cards"
-            checked={portals.studentPortal}
-            onChange={(v) => setPo("studentPortal", v)}
-            color="#0369a1"
-          />
-          <ToggleSwitch
-            label="Parent Portal"
-            description="Allow parents to view children's academic records"
-            checked={portals.parentPortal}
-            onChange={(v) => setPo("parentPortal", v)}
-            color="#0369a1"
-          />
-          <ToggleSwitch
-            label="Students Can Update Profile"
-            description="Allow students to edit their contact information"
-            checked={portals.studentSelfUpdate}
-            onChange={(v) => setPo("studentSelfUpdate", v)}
-            color="#0369a1"
-          />
-          <ToggleSwitch
-            label="Parents Can Update Profile"
-            description="Allow parents to edit their contact information"
-            checked={portals.parentSelfUpdate}
-            onChange={(v) => setPo("parentSelfUpdate", v)}
-            color="#0369a1"
-          />
-          <ToggleSwitch
-            label="Results Visible to Students"
-            description="Show term results in the student portal"
-            checked={portals.resultVisibility}
-            onChange={(v) => setPo("resultVisibility", v)}
-            color="#0369a1"
-          />
-          <ToggleSwitch
-            label="Report Card Download"
-            description="Allow students and parents to print/save report cards"
-            checked={portals.reportCardDownload}
-            onChange={(v) => setPo("reportCardDownload", v)}
-            color="#0369a1"
-          />
-        </div>
-        <SaveButton section="Portal Access" />
-      </SectionCard>
-
-      {/* Data & Backup */}
+      {/* Data export */}
       <SectionCard
         icon={Database}
-        title="Data & Backup"
-        description="Export data and manage system records"
-        color="var(--dark-gray)"
+        title="Data Export"
+        description="Download school records for safekeeping or reporting"
+        color="var(--info)"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             {
-              label: "Export All Students",
-              desc: "Download full student database as CSV",
-              color: "var(--royal-blue)",
+              key: "students",
+              label: "All Students (CSV)",
+              go: exportStudents,
             },
             {
-              label: "Export All Parents",
-              desc: "Download parent records as CSV",
-              color: "#7c3aed",
+              key: "teacher",
+              label: "All Teachers (Excel)",
+              go: () => exportStaff("teacher"),
             },
             {
-              label: "Export All Teachers",
-              desc: "Download teacher records as CSV",
-              color: "var(--success-dark)",
+              key: "parent",
+              label: "All Parents (Excel)",
+              go: () => exportStaff("parent"),
             },
+            { key: "results", label: "All Results (CSV)", go: exportResults },
             {
-              label: "Export All Results",
-              desc: "Download term results as CSV",
-              color: "var(--warning)",
+              key: "audit",
+              label: "Audit Logs",
+              go: () => navigate("/dashboard/auditLogs"),
             },
-            {
-              label: "Backup Full Database",
-              desc: "Generate full system backup file",
-              color: "var(--info)",
-            },
-            {
-              label: "Export Audit Logs",
-              desc: "Download all activity logs as CSV",
-              color: "var(--dark-gray)",
-            },
-          ].map(({ label, desc, color }) => (
+          ].map((x) => (
             <button
-              key={label}
+              key={x.key}
               type="button"
-              className="flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all hover:shadow-sm"
+              disabled={!!busy}
+              onClick={x.go}
+              className="flex items-center gap-2 p-3 rounded-xl border-2 text-left text-sm font-semibold disabled:opacity-60"
               style={{
-                borderColor: color + "30",
-                backgroundColor: color + "06",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = color)}
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.borderColor = color + "30")
-              }
-              onClick={() => {
-                const a = document.createElement("a");
-                a.href = "#";
-                a.download = `${label.replace(/\s+/g, "_")}.csv`;
-                alert(`${label} - export would start here in the live system`);
+                borderColor: "var(--medium-gray)",
+                color: "var(--dark-gray)",
               }}
             >
-              <Database
-                size={16}
-                style={{ color, flexShrink: 0, marginTop: 2 }}
-              />
-              <div>
-                <p
-                  className="text-sm font-bold"
-                  style={{ color: "var(--dark-gray)" }}
-                >
-                  {label}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
-              </div>
+              <Upload size={14} style={{ transform: "rotate(180deg)" }} />
+              {busy === x.key ? "Preparing…" : x.label}
             </button>
           ))}
         </div>
-
-        {/* Danger zone */}
-        <div
-          className="mt-5 p-4 rounded-xl border-2"
-          style={{ borderColor: "#fecaca", backgroundColor: "#fff1f2" }}
-        >
-          <p
-            className="text-sm font-black mb-1"
-            style={{ color: "var(--accent-red)" }}
-          >
-            Danger Zone
-          </p>
-          <p className="text-xs text-gray-500 mb-3">
-            These actions are irreversible. Proceed only when necessary.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                confirm("Clear all term data? This cannot be undone.") &&
-                alert("Data cleared (demo only)")
-              }
-              className="px-4 py-2 text-xs font-bold rounded-xl border-2 transition"
-              style={{
-                borderColor: "var(--accent-red)",
-                color: "var(--accent-red)",
-                backgroundColor: "white",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--accent-red)";
-                e.currentTarget.style.color = "white";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "white";
-                e.currentTarget.style.color = "var(--accent-red)";
-              }}
-            >
-              Clear Current Term Data
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                confirm("Reset entire system? All data will be lost.") &&
-                alert("System reset (demo only)")
-              }
-              className="px-4 py-2 text-xs font-bold rounded-xl border-2 transition"
-              style={{
-                borderColor: "var(--accent-red)",
-                color: "var(--accent-red)",
-                backgroundColor: "white",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--accent-red)";
-                e.currentTarget.style.color = "white";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "white";
-                e.currentTarget.style.color = "var(--accent-red)";
-              }}
-            >
-              Factory Reset System
-            </button>
-          </div>
-        </div>
+        <p className="text-xs text-gray-400 mt-3">
+          Full database backups are made on the database host (enable daily
+          backups there), not from this page. Exports contain personal data:
+          store them securely.
+        </p>
       </SectionCard>
-
-      <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 };

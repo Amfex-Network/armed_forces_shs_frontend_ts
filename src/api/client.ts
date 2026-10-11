@@ -80,7 +80,11 @@ async function request<T>(
         : null) || `Request failed (${res.status})`;
     const error = new ApiError(message, res.status, data);
     const isSessionCheck = path.startsWith("/api/auth/");
-    if (error.code === "NOT_AUTHENTICATED" && !isSessionCheck) {
+    // A closed portal ends the session the same way an expired one does;
+    // the sign-in page then explains that the portal is closed.
+    const endsSession =
+      error.code === "NOT_AUTHENTICATED" || error.code === "PORTAL_CLOSED";
+    if (endsSession && !isSessionCheck) {
       window.dispatchEvent(
         new CustomEvent(AUTH_EVENTS.expired, { detail: { epoch } }),
       );

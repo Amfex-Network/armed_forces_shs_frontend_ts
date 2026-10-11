@@ -24,7 +24,12 @@ export interface AppSettings {
   academicYears: string[];
   terms: string[];
   gradingScale: GradeBand[];
+  positionBasis?: PositionBasis;
+  portalAccess?: { teacher: boolean; student: boolean; parent: boolean };
+  selfUpdate?: { student: boolean; parent: boolean };
 }
+
+export type PositionBasis = "total" | "average" | "aggregate";
 
 export const settingsApi = {
   async get(): Promise<AppSettings> {
