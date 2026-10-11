@@ -24,8 +24,6 @@ import {
 } from "lucide-react";
 import { downloadCsv } from "../../utils/csv";
 
-// Mock audit log data
-
 // Config
 const ACTION_CONFIG = {
   LOGIN: {
@@ -165,20 +163,6 @@ const ROLE_STYLE = {
   unknown: { bg: "#f3f4f6", color: "#6b7280" },
 };
 
-const MODULES = [
-  "All",
-  "Auth",
-  "Students",
-  "Teachers",
-  "Parents",
-  "Scores",
-  "Attendance",
-  "Reports",
-  "Communication",
-  "Calendar",
-  "Settings",
-  "Profile",
-];
 const ROLES = ["All", "admin", "teacher", "student", "parent"];
 
 // AuditLogs
@@ -186,51 +170,92 @@ const AuditLogs = () => {
   const [search, setSearch] = useState("");
   const [filterModule, setFModule] = useState("All");
   const [filterRole, setFRole] = useState("All");
-  const [filterDate, setFDate] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [viewLog, setViewLog] = useState(null);
   const [page, setPage] = useState(1);
   const [logs, setLogs] = useState<AuditEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [allTotal, setAllTotal] = useState(0);
+  const [modules, setModules] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [query, setQuery] = useState("");
   const PER_PAGE = 15;
 
+  // Search is sent to the server once typing pauses.
   useEffect(() => {
-    auditApi
-      .list({ limit: 500 })
-      .then((res) => setLogs(res.items))
-      .catch(() => setLogs([]))
-      .finally(() => setLoading(false));
-  }, []);
+    const t = setTimeout(() => setQuery(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const filtered = useMemo(
-    () =>
-      logs
-        .filter((log) => {
-          const q = search.toLowerCase();
-          const matchSearch =
-            !q ||
-            log.user.toLowerCase().includes(q) ||
-            log.action.toLowerCase().includes(q) ||
-            log.details.toLowerCase().includes(q) ||
-            log.module.toLowerCase().includes(q);
-          const matchModule =
-            filterModule === "All" || log.module === filterModule;
-          const matchRole = filterRole === "All" || log.role === filterRole;
-          const matchDate = !filterDate || log.timestamp.startsWith(filterDate);
-          return matchSearch && matchModule && matchRole && matchDate;
-        })
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
-    [logs, search, filterModule, filterRole, filterDate],
+  const filters = useMemo(
+    () => ({
+      q: query,
+      module: filterModule,
+      role: filterRole,
+      from: dateFrom,
+      to: dateTo,
+    }),
+    [query, filterModule, filterRole, dateFrom, dateTo],
   );
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
-  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError("");
+    auditApi
+      .list({ ...filters, limit: PER_PAGE, skip: (page - 1) * PER_PAGE })
+      .then((res) => {
+        if (!alive) return;
+        setLogs(res.items);
+        setTotal(res.total);
+        setModules(res.modules);
+        const unfiltered =
+          !filters.q &&
+          filters.module === "All" &&
+          filters.role === "All" &&
+          !filters.from &&
+          !filters.to;
+        if (unfiltered) setAllTotal(res.total);
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setLogs([]);
+        setTotal(0);
+        setError(err?.message || "Could not load the audit logs.");
+      })
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [filters, page]);
+
+  const totalPages = Math.ceil(total / PER_PAGE);
+  const paginated = logs;
 
   const activeFilters =
     [filterModule, filterRole].filter((f) => f !== "All").length +
-    (filterDate ? 1 : 0);
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0);
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    setExporting(true);
+    setError("");
+    let all: AuditEntry[];
+    try {
+      all = (await auditApi.listAll(filters)).items;
+    } catch (err) {
+      setError(err?.message || "Could not export the audit logs.");
+      setExporting(false);
+      return;
+    }
     const rows: unknown[][] = [
       [
         "Timestamp",
@@ -243,7 +268,7 @@ const AuditLogs = () => {
         "Details",
       ],
     ];
-    filtered.forEach((l) =>
+    all.forEach((l) =>
       rows.push([
         l.timestamp,
         l.user,
@@ -255,14 +280,16 @@ const AuditLogs = () => {
         l.details,
       ]),
     );
-    downloadCsv(
-      `AFTS_AuditLogs_${new Date().toISOString().split("T")[0]}.csv`,
-      rows,
-    );
+    const range =
+      dateFrom || dateTo
+        ? `_${dateFrom || "start"}_to_${dateTo || "today"}`
+        : `_${new Date().toISOString().slice(0, 10)}`;
+    downloadCsv(`AFSHTS_AuditLogs${range}.csv`, rows);
+    setExporting(false);
   };
 
   const stats = {
-    total: logs.length,
+    total: allTotal,
   };
 
   return (
@@ -277,13 +304,14 @@ const AuditLogs = () => {
             Audit Logs
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            System activity log · {logs.length} total entries
+            System activity log · {allTotal} total entries
           </p>
         </div>
         <button
           type="button"
           onClick={handleExport}
-          className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white shadow-sm"
+          disabled={exporting || total === 0}
+          className="flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl text-white shadow-sm disabled:opacity-60"
           style={{ backgroundColor: "var(--royal-blue)" }}
           onMouseEnter={(e) =>
             (e.currentTarget.style.backgroundColor = "var(--royal-blue-dark)")
@@ -292,7 +320,12 @@ const AuditLogs = () => {
             (e.currentTarget.style.backgroundColor = "var(--royal-blue)")
           }
         >
-          <Download size={14} /> Export CSV
+          <Download size={14} />{" "}
+          {exporting
+            ? "Preparing…"
+            : activeFilters > 0 || query
+              ? `Export ${total} filtered`
+              : "Export"}
         </button>
       </div>
 
@@ -344,10 +377,7 @@ const AuditLogs = () => {
             />
             <input
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search user, action, details or IP…"
               className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl border-2 outline-none"
               style={{
@@ -361,6 +391,33 @@ const AuditLogs = () => {
                 (e.target.style.borderColor = "var(--medium-gray)")
               }
             />
+          </div>
+          <div className="flex items-center gap-2">
+            {[
+              { label: "From", value: dateFrom, set: setDateFrom, max: dateTo },
+              { label: "To", value: dateTo, set: setDateTo, min: dateFrom },
+            ].map(({ label, value, set, min, max }) => (
+              <label
+                key={label}
+                className="flex items-center gap-1.5 text-xs text-gray-500"
+              >
+                {label}
+                <input
+                  type="date"
+                  value={value}
+                  min={min || undefined}
+                  max={max || undefined}
+                  onChange={(e) => set(e.target.value)}
+                  className="px-2 py-2 text-sm rounded-xl border-2 outline-none"
+                  style={{
+                    borderColor: value
+                      ? "var(--royal-blue)"
+                      : "var(--medium-gray)",
+                    color: "var(--dark-gray)",
+                  }}
+                />
+              </label>
+            ))}
           </div>
           {/* Filter toggle */}
           <button
@@ -391,74 +448,40 @@ const AuditLogs = () => {
         {/* Filter dropdowns */}
         {showFilters && (
           <div
-            className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3 pt-3 border-t"
+            className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t"
             style={{ borderColor: "var(--medium-gray)" }}
           >
             {[
               {
                 label: "Module",
                 value: filterModule,
-                set: (v) => {
-                  setFModule(v);
-                  setPage(1);
-                },
-                opts: MODULES,
+                set: setFModule,
+                opts: ["All", ...modules],
               },
               {
                 label: "Role",
                 value: filterRole,
-                set: (v) => {
-                  setFRole(v);
-                  setPage(1);
-                },
+                set: setFRole,
                 opts: ROLES,
               },
-              {
-                label: "Date",
-                value: filterDate,
-                set: (v) => {
-                  setFDate(v);
-                  setPage(1);
-                },
-                type: "date",
-              },
-            ].map(({ label, value, set, opts, type }) => (
+            ].map(({ label, value, set, opts }) => (
               <div key={label}>
                 <p className="text-xs text-gray-400 mb-1">{label}</p>
-                {type === "date" ? (
-                  <input
-                    type="date"
-                    value={value}
-                    onChange={(e) => set(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border-2 outline-none"
-                    style={{
-                      borderColor: "var(--medium-gray)",
-                      color: "var(--dark-gray)",
-                    }}
-                    onFocus={(e) =>
-                      (e.target.style.borderColor = "var(--royal-blue)")
-                    }
-                    onBlur={(e) =>
-                      (e.target.style.borderColor = "var(--medium-gray)")
-                    }
-                  />
-                ) : (
-                  <select
-                    value={value}
-                    onChange={(e) => set(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border-2 outline-none bg-white capitalize"
-                    style={{
-                      borderColor: "var(--medium-gray)",
-                      color: "var(--dark-gray)",
-                    }}
-                  >
-                    {opts.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <select
+                  value={value}
+                  onChange={(e) => set(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border-2 outline-none bg-white capitalize"
+                  style={{
+                    borderColor: "var(--medium-gray)",
+                    color: "var(--dark-gray)",
+                  }}
+                >
+                  {opts.map((o) => (
+                    <option key={o} value={o}>
+                      {o}
+                    </option>
+                  ))}
+                </select>
               </div>
             ))}
           </div>
@@ -468,10 +491,10 @@ const AuditLogs = () => {
           <p className="text-xs text-gray-400">
             Showing{" "}
             <strong>
-              {Math.min((page - 1) * PER_PAGE + 1, filtered.length)}–
-              {Math.min(page * PER_PAGE, filtered.length)}
+              {Math.min((page - 1) * PER_PAGE + 1, total)}-
+              {Math.min(page * PER_PAGE, total)}
             </strong>{" "}
-            of <strong>{filtered.length}</strong> entries
+            of <strong>{total}</strong> entries
           </p>
           {(search || activeFilters > 0) && (
             <button
@@ -480,8 +503,8 @@ const AuditLogs = () => {
                 setSearch("");
                 setFModule("All");
                 setFRole("All");
-                setFDate("");
-                setPage(1);
+                setDateFrom("");
+                setDateTo("");
               }}
               className="text-xs font-semibold"
               style={{ color: "var(--accent-red)" }}
@@ -529,7 +552,9 @@ const AuditLogs = () => {
                     colSpan={5}
                     className="px-4 py-12 text-center text-gray-400"
                   >
-                    No logs match your search or filter
+                    {loading
+                      ? "Loading…"
+                      : error || "No logs match your search or filter"}
                   </td>
                 </tr>
               ) : (

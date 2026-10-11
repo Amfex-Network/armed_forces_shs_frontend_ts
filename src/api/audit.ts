@@ -27,7 +27,11 @@ interface ApiAuditLog {
 export interface AuditQuery {
   module?: string;
   status?: string;
+  role?: string;
   actor?: string;
+  q?: string;
+  from?: string;
+  to?: string;
   limit?: number;
   skip?: number;
 }
@@ -66,12 +70,37 @@ function toQuery(q?: AuditQuery): string {
 export const auditApi = {
   async list(
     query?: AuditQuery,
-  ): Promise<{ items: AuditEntry[]; total: number }> {
+  ): Promise<{ items: AuditEntry[]; total: number; modules: string[] }> {
     const res = await api.get<{
       success: boolean;
       items: ApiAuditLog[];
       total: number;
+      modules?: string[];
     }>(`/api/audit-logs${toQuery(query)}`);
-    return { items: res.items.map(toUi), total: res.total };
+    return {
+      items: res.items.map(toUi),
+      total: res.total,
+      modules: res.modules || [],
+    };
+  },
+
+  // Every entry matching the filters, fetched page by page (for export).
+  async listAll(
+    query: AuditQuery,
+    max = 20000,
+  ): Promise<{ items: AuditEntry[]; total: number }> {
+    const items: AuditEntry[] = [];
+    let total = 0;
+    do {
+      const page = await this.list({
+        ...query,
+        limit: 500,
+        skip: items.length,
+      });
+      total = page.total;
+      items.push(...page.items);
+      if (page.items.length === 0) break;
+    } while (items.length < Math.min(total, max));
+    return { items, total };
   },
 };
