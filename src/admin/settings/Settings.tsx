@@ -1,6 +1,7 @@
 // src/admin/settings/Settings.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { transitionLabel } from "../../utils/transition";
 import { useSettings } from "../../context/SettingsContext";
 import type { AppSettings } from "../../api/settings";
 import { studentsApi } from "../../api/students";
@@ -245,16 +246,26 @@ const Settings = () => {
     schoolFrom(settings),
   );
   const [access, setAccess] = useState<Access>(() => accessFrom(settings));
+  // A section follows the saved settings until it is edited, so saving one
+  // section never wipes unsaved changes in another.
+  const [edited, setEdited] = useState({ school: false, access: false });
+  const editSchool: typeof setSchool = (v) => {
+    setEdited((e) => ({ ...e, school: true }));
+    setSchool(v);
+  };
+  const editAccess: typeof setAccess = (v) => {
+    setEdited((e) => ({ ...e, access: true }));
+    setAccess(v);
+  };
   const [busy, setBusy] = useState("");
   const [toast, setToast] = useState<{ msg: string; type: string } | null>(
     null,
   );
 
-  // Pick up the saved values once settings arrive from the server.
   useEffect(() => {
-    setSchool(schoolFrom(settings));
-    setAccess(accessFrom(settings));
-  }, [settings]);
+    if (!edited.school) setSchool(schoolFrom(settings));
+    if (!edited.access) setAccess(accessFrom(settings));
+  }, [settings, edited]);
 
   const showToast = (msg: string, type = "success") => {
     setToast({ msg, type });
@@ -283,13 +294,23 @@ const Settings = () => {
     );
     run(
       "school",
-      async () => void (await save(payload)),
+      async () => {
+        await save(payload);
+        setEdited((e) => ({ ...e, school: false }));
+      },
       "School information saved",
     );
   };
 
   const saveAccess = () =>
-    run("access", async () => void (await save(access)), "Portal access saved");
+    run(
+      "access",
+      async () => {
+        await save(access);
+        setEdited((e) => ({ ...e, access: false }));
+      },
+      "Portal access saved",
+    );
 
   const exportStudents = () =>
     run(
@@ -305,7 +326,7 @@ const Settings = () => {
             "Course",
             "Form Class",
             "Year Group",
-            "Track",
+            "Transition",
             "Status",
             "Email",
           ],
@@ -317,7 +338,7 @@ const Settings = () => {
             x.course,
             x.formClass,
             x.yearGroup,
-            x.track,
+            transitionLabel(x.track),
             x.status,
             x.email,
           ]),
@@ -453,7 +474,7 @@ const Settings = () => {
               <InputField
                 value={school[f.key]}
                 onChange={(v: string) =>
-                  setSchool((x) => ({ ...x, [f.key]: v }))
+                  editSchool((x) => ({ ...x, [f.key]: v }))
                 }
                 placeholder={f.placeholder}
               />
@@ -462,7 +483,7 @@ const Settings = () => {
           <Field label="Region">
             <SelectField
               value={school.region}
-              onChange={(v: string) => setSchool((x) => ({ ...x, region: v }))}
+              onChange={(v: string) => editSchool((x) => ({ ...x, region: v }))}
               options={REGIONS.map((r) => ({
                 value: r,
                 label: r || "- Select -",
@@ -487,7 +508,7 @@ const Settings = () => {
           description="Teachers can sign in to enter scores, attendance and remarks"
           checked={access.portalAccess.teacher}
           onChange={(v: boolean) =>
-            setAccess((a) => ({
+            editAccess((a) => ({
               ...a,
               portalAccess: { ...a.portalAccess, teacher: v },
             }))
@@ -499,7 +520,7 @@ const Settings = () => {
           description="Students can sign in to see published results"
           checked={access.portalAccess.student}
           onChange={(v: boolean) =>
-            setAccess((a) => ({
+            editAccess((a) => ({
               ...a,
               portalAccess: { ...a.portalAccess, student: v },
             }))
@@ -511,7 +532,7 @@ const Settings = () => {
           description="Parents can sign in to see their children's published results"
           checked={access.portalAccess.parent}
           onChange={(v: boolean) =>
-            setAccess((a) => ({
+            editAccess((a) => ({
               ...a,
               portalAccess: { ...a.portalAccess, parent: v },
             }))
@@ -523,7 +544,7 @@ const Settings = () => {
           description="Phone and address on the student's own profile"
           checked={access.selfUpdate.student}
           onChange={(v: boolean) =>
-            setAccess((a) => ({
+            editAccess((a) => ({
               ...a,
               selfUpdate: { ...a.selfUpdate, student: v },
             }))
@@ -535,7 +556,7 @@ const Settings = () => {
           description="Phone and address on the parent's own profile"
           checked={access.selfUpdate.parent}
           onChange={(v: boolean) =>
-            setAccess((a) => ({
+            editAccess((a) => ({
               ...a,
               selfUpdate: { ...a.selfUpdate, parent: v },
             }))
