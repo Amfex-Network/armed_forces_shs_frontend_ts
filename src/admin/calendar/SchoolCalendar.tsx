@@ -1,5 +1,8 @@
 // src/admin/calendar/SchoolCalendar.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { calendarApi } from "../../api/calendar";
+import { useConfirm } from "../../components/common/ConfirmDialog";
+import { useSettings } from "../../context/SettingsContext";
 import {
   Calendar,
   Plus,
@@ -14,206 +17,86 @@ import {
 } from "lucide-react";
 
 const EVENT_TYPES = {
-  term: { color: "var(--warning)", bg: "#fffbeb", label: "Semester Date" },
+  term: { color: "var(--warning)", bg: "#fffbeb", label: "Term Date" },
   exam: { color: "var(--accent-red)", bg: "#fff1f2", label: "Examination" },
   holiday: { color: "var(--success-dark)", bg: "#f0fdf4", label: "Holiday" },
   event: { color: "var(--royal-blue)", bg: "#eef2ff", label: "School Event" },
   meeting: { color: "#7c3aed", bg: "#f5f3ff", label: "Meeting" },
 };
 
-const INITIAL_EVENTS = [
-  {
-    id: 1,
-    date: "2025-01-06",
-    title: "Semester 1 Begins",
-    type: "term",
-    time: "07:00",
-    venue: "School Grounds",
-  },
-  {
-    id: 2,
-    date: "2025-01-20",
-    title: "Parent-Teacher Conference",
-    type: "meeting",
-    time: "09:00–15:00",
-    venue: "Main Hall",
-  },
-  {
-    id: 3,
-    date: "2025-02-14",
-    title: "Founders' Day (Public Holiday)",
-    type: "holiday",
-    time: "All Day",
-    venue: "",
-  },
-  {
-    id: 4,
-    date: "2025-02-21",
-    title: "Inter-House Sports Day",
-    type: "event",
-    time: "07:30",
-    venue: "School Field",
-  },
-  {
-    id: 5,
-    date: "2025-03-06",
-    title: "Independence Day (Holiday)",
-    type: "holiday",
-    time: "All Day",
-    venue: "",
-  },
-  {
-    id: 6,
-    date: "2025-03-17",
-    title: "HOD Meeting - Semester 1 Review",
-    type: "meeting",
-    time: "10:00",
-    venue: "Conference Room",
-  },
-  {
-    id: 7,
-    date: "2025-03-24",
-    title: "Semester 1 Exams Begin",
-    type: "exam",
-    time: "08:00",
-    venue: "Exam Halls A, B, C",
-  },
-  {
-    id: 8,
-    date: "2025-04-04",
-    title: "Semester 1 Exams End",
-    type: "exam",
-    time: "16:00",
-    venue: "Exam Halls A, B, C",
-  },
-  {
-    id: 9,
-    date: "2025-04-11",
-    title: "Semester 1 Ends",
-    type: "term",
-    time: "12:00",
-    venue: "School Grounds",
-  },
-  {
-    id: 10,
-    date: "2025-04-14",
-    title: "Semester 2 Begins",
-    type: "term",
-    time: "07:00",
-    venue: "School Grounds",
-  },
-  {
-    id: 11,
-    date: "2025-04-18",
-    title: "Good Friday (Holiday)",
-    type: "holiday",
-    time: "All Day",
-    venue: "",
-  },
-  {
-    id: 12,
-    date: "2025-04-21",
-    title: "Easter Monday (Holiday)",
-    type: "holiday",
-    time: "All Day",
-    venue: "",
-  },
-  {
-    id: 13,
-    date: "2025-05-01",
-    title: "Workers' Day (Holiday)",
-    type: "holiday",
-    time: "All Day",
-    venue: "",
-  },
-  {
-    id: 14,
-    date: "2025-05-12",
-    title: "WASSCE Begins",
-    type: "exam",
-    time: "08:30",
-    venue: "AFSHTS Centre GH0042",
-  },
-  {
-    id: 15,
-    date: "2025-06-13",
-    title: "Semester 2 Exams Begin",
-    type: "exam",
-    time: "08:00",
-    venue: "Exam Halls A, B, C",
-  },
-  {
-    id: 16,
-    date: "2025-07-04",
-    title: "Graduation Ceremony - Form 3",
-    type: "event",
-    time: "10:00",
-    venue: "Main Hall",
-  },
-  {
-    id: 17,
-    date: "2025-07-25",
-    title: "Semester 2 Ends",
-    type: "term",
-    time: "12:00",
-    venue: "School Grounds",
-  },
-];
+// "YYYY-MM-DD" as a local calendar date (new Date("YYYY-MM-DD") is UTC
+// midnight, which is the previous day west of Greenwich).
+const localDate = (ymd: string) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
 
 const EMPTY_EVENT = { title: "", date: "", time: "", venue: "", type: "event" };
+
+// Declared outside the modal: a component created inside it would be
+// re-created on every keystroke and the input would lose focus.
+const IField = ({
+  label,
+  value,
+  onChange,
+  error,
+  type = "text",
+  placeholder = "",
+  required = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  error?: string;
+  type?: string;
+  placeholder?: string;
+  required?: boolean;
+}) => (
+  <div>
+    <label
+      className="text-xs font-bold uppercase tracking-wider block mb-1"
+      style={{ color: "var(--dark-gray)" }}
+    >
+      {label}
+      {required && <span style={{ color: "var(--accent-red)" }}> *</span>}
+    </label>
+    <input
+      type={type}
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none"
+      style={{
+        borderColor: error ? "var(--accent-red)" : "var(--medium-gray)",
+        color: "var(--dark-gray)",
+      }}
+    />
+    {error && (
+      <p className="text-xs mt-1" style={{ color: "var(--accent-red)" }}>
+        {error}
+      </p>
+    )}
+  </div>
+);
 
 // Modal
 const EventModal = ({ event, onSave, onClose }) => {
   const isEdit = !!event?.id;
   const [form, setForm] = useState(event || EMPTY_EVENT);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const validate = () => {
-    const e = {};
-    if (!form.title.trim()) e.title = "Required";
+    const e: Record<string, string> = {};
+    if (!(form.title || "").trim()) e.title = "Required";
+    else if (form.title.trim().length > 150)
+      e.title = "Keep it under 150 characters";
     if (!form.date) e.date = "Required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const ts = EVENT_TYPES[form.type];
-
-  const IField = ({ label, field, type = "text", placeholder, required }) => (
-    <div>
-      <label
-        className="text-xs font-bold uppercase tracking-wider block mb-1.5"
-        style={{ color: "var(--dark-gray)" }}
-      >
-        {label}
-        {required && <span style={{ color: "var(--accent-red)" }}> *</span>}
-      </label>
-      <input
-        type={type}
-        value={form[field] || ""}
-        onChange={(e) => set(field, e.target.value)}
-        placeholder={placeholder}
-        className="w-full px-3 py-2.5 text-sm rounded-xl border-2 outline-none"
-        style={{
-          borderColor: errors[field]
-            ? "var(--accent-red)"
-            : "var(--medium-gray)",
-          color: "var(--dark-gray)",
-        }}
-        onFocus={(e) => (e.target.style.borderColor = "var(--royal-blue)")}
-        onBlur={(e) =>
-          (e.target.style.borderColor = errors[field]
-            ? "var(--accent-red)"
-            : "var(--medium-gray)")
-        }
-      />
-      {errors[field] && (
-        <p className="text-xs mt-1" style={{ color: "var(--accent-red)" }}>
-          {errors[field]}
-        </p>
-      )}
-    </div>
-  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -257,19 +140,30 @@ const EventModal = ({ event, onSave, onClose }) => {
         <div className="p-6 space-y-4 overflow-y-auto">
           <IField
             label="Event Title"
-            field="title"
-            placeholder="e.g. End of Semester Exams"
+            value={form.title}
+            onChange={(v) => set("title", v)}
+            error={errors.title}
+            placeholder="e.g. End of Term Exams"
             required
           />
-          <IField label="Date" field="date" type="date" required />
+          <IField
+            label="Date"
+            value={form.date}
+            onChange={(v) => set("date", v)}
+            error={errors.date}
+            type="date"
+            required
+          />
           <IField
             label="Time"
-            field="time"
-            placeholder="e.g. 08:00 or 09:00–12:00 or All Day"
+            value={form.time}
+            onChange={(v) => set("time", v)}
+            placeholder="e.g. 08:00, 09:00 to 12:00, or All Day"
           />
           <IField
             label="Venue / Location"
-            field="venue"
+            value={form.venue}
+            onChange={(v) => set("venue", v)}
             placeholder="e.g. Main Hall, School Field"
           />
 
@@ -326,7 +220,7 @@ const EventModal = ({ event, onSave, onClose }) => {
               <div className="flex flex-wrap gap-3 mt-1">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <Calendar size={10} />
-                  {new Date(form.date).toLocaleDateString("en-GB", {
+                  {localDate(form.date).toLocaleDateString("en-GB", {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
@@ -401,8 +295,14 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const AdminCalendar = () => {
   const today = new Date();
-  const [events, setEvents] = useState(INITIAL_EVENTS);
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 0, 1));
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const { settings } = useSettings();
+  const confirm = useConfirm();
+  const [events, setEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(
+    new Date(today.getFullYear(), today.getMonth(), 1),
+  );
   const [selectedDate, setSelectedDate] = useState(null);
   const [filterType, setFilterType] = useState("all");
   const [showModal, setShowModal] = useState(false);
@@ -429,21 +329,60 @@ const AdminCalendar = () => {
     );
   };
 
-  const handleSave = (form) => {
-    if (form.id) {
-      setEvents((evs) => evs.map((e) => (e.id === form.id ? form : e)));
-      showToast("Event updated");
-    } else {
-      setEvents((evs) => [...evs, { ...form, id: Date.now() }]);
-      showToast("Event added");
+  useEffect(() => {
+    calendarApi
+      .list()
+      .then(setEvents)
+      .catch((err) =>
+        showToast(err?.message || "Failed to load the calendar", "error"),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  const byDate = (a, b) =>
+    a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || "");
+
+  const handleSave = async (form) => {
+    const payload = {
+      title: form.title.trim(),
+      date: form.date,
+      type: form.type,
+      time: (form.time || "").trim(),
+      venue: (form.venue || "").trim(),
+    };
+    try {
+      if (form.id) {
+        const saved = await calendarApi.update(form.id, payload);
+        setEvents((evs) =>
+          evs.map((e) => (e.id === saved.id ? saved : e)).sort(byDate),
+        );
+        showToast("Event updated");
+      } else {
+        const saved = await calendarApi.create(payload);
+        setEvents((evs) => [...evs, saved].sort(byDate));
+        showToast("Event added");
+      }
+      setShowModal(false);
+      setEditEvent(null);
+    } catch (err) {
+      showToast(err?.message || "Failed to save the event", "error");
     }
-    setShowModal(false);
-    setEditEvent(null);
   };
 
-  const handleDelete = (id) => {
-    setEvents((evs) => evs.filter((e) => e.id !== id));
-    showToast("Event removed", "error");
+  const handleDelete = async (id) => {
+    const target = events.find((e) => e.id === id);
+    const ok = await confirm({
+      title: "Delete this event?",
+      message: target ? `${target.title} (${target.date})` : undefined,
+    });
+    if (!ok) return;
+    try {
+      await calendarApi.remove(id);
+      setEvents((evs) => evs.filter((e) => e.id !== id));
+      showToast("Event removed");
+    } catch (err) {
+      showToast(err?.message || "Failed to delete the event", "error");
+    }
   };
 
   const openForDate = (day) => {
@@ -454,13 +393,14 @@ const AdminCalendar = () => {
 
   const selectedEvents = selectedDate ? getEventsForDate(selectedDate) : [];
 
+  // Dates are compared as YYYY-MM-DD text, so today's events count as
+  // upcoming in every timezone.
   const upcomingEvents = events
     .filter(
       (e) =>
-        new Date(e.date) >= today &&
-        (filterType === "all" || e.type === filterType),
+        e.date >= todayStr && (filterType === "all" || e.type === filterType),
     )
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .sort(byDate)
     .slice(0, 6);
 
   return (
@@ -489,7 +429,8 @@ const AdminCalendar = () => {
             School Calendar
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            2024/2025 Academic Year · {events.length} events
+            {settings.currentAcademicYear} Academic Year ·{" "}
+            {loading ? "loading…" : `${events.length} events`}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -793,7 +734,7 @@ const AdminCalendar = () => {
               ) : (
                 upcomingEvents.map((e) => {
                   const t = EVENT_TYPES[e.type];
-                  const d = new Date(e.date);
+                  const d = localDate(e.date);
                   return (
                     <div key={e.id} className="flex items-start gap-3 p-3">
                       <div
