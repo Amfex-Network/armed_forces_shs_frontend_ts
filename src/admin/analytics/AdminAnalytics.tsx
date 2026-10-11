@@ -1,97 +1,151 @@
 import React, { useEffect, useState } from "react";
-import {
-  Users,
-  GraduationCap,
-  UserCheck,
-  Shield,
-  Info,
-} from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-  Legend,
-} from "recharts";
+import { GraduationCap, Shield, UserCheck, Users } from "lucide-react";
 import { statsApi, type Overview } from "../../api/stats";
+import { classesApi } from "../../api/domains";
+import { analyticsApi, type AnalyticsReport } from "../../api/analytics";
 import { useSettings } from "../../context/SettingsContext";
-
-const COLORS = [
-  "var(--royal-blue)",
-  "var(--success-dark)",
-  "var(--warning)",
-  "#7c3aed",
-  "var(--accent-red)",
-  "#0891b2",
-];
+import { useAuth } from "../../context/AuthContext";
+import {
+  AnalyticsPdfPanel,
+  AnalyticsReportView,
+} from "../../components/analytics/AnalyticsReportView";
+import { PeriodPicker } from "../../components/analytics/PeriodPicker";
 
 const AdminAnalytics = () => {
   const { settings } = useSettings();
+  const { user } = useAuth();
   const [stats, setStats] = useState<Overview | null>(null);
+  const [classes, setClasses] = useState<string[]>([]);
+  const [term, setTerm] = useState(settings.currentTerm);
+  const [academicYear, setAcademicYear] = useState(
+    settings.currentAcademicYear,
+  );
+  const [className, setClassName] = useState("");
+  const [report, setReport] = useState<AnalyticsReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTerm(settings.currentTerm);
+    setAcademicYear(settings.currentAcademicYear);
+  }, [settings.currentTerm, settings.currentAcademicYear]);
 
   useEffect(() => {
     statsApi
       .overview()
       .then(setStats)
-      .catch(() => setStats(null))
-      .finally(() => setLoading(false));
+      .catch(() => setStats(null));
+    classesApi
+      .list()
+      .then((cls) =>
+        setClasses(
+          cls
+            .map((c) => c.name)
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+        ),
+      )
+      .catch(() => setClasses([]));
   }, []);
 
-  if (loading)
-    return <div className="py-20 text-center text-sm text-gray-400">Loading analytics…</div>;
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError("");
+    analyticsApi
+      .get({ term, academicYear, className })
+      .then((res) => alive && setReport(res.report))
+      .catch((err) => {
+        if (!alive) return;
+        setReport(null);
+        setError(err?.message || "Could not load analytics.");
+      })
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [term, academicYear, className]);
 
-  const s = stats || {
-    students: 0,
-    teachers: 0,
-    parents: 0,
-    admins: 0,
-    reports: 0,
-    byCourse: [],
-  };
-
-  const cards = [
-    { label: "Students", value: s.students, color: "var(--royal-blue)", icon: GraduationCap },
-    { label: "Teachers", value: s.teachers, color: "var(--success-dark)", icon: UserCheck },
-    { label: "Parents", value: s.parents, color: "#7c3aed", icon: Users },
-    { label: "Admins", value: s.admins, color: "var(--accent-red)", icon: Shield },
+  const people = [
+    {
+      label: "Students",
+      value: stats?.students,
+      color: "var(--royal-blue)",
+      icon: GraduationCap,
+    },
+    {
+      label: "Teachers",
+      value: stats?.teachers,
+      color: "var(--success-dark)",
+      icon: UserCheck,
+    },
+    { label: "Parents", value: stats?.parents, color: "#7c3aed", icon: Users },
+    {
+      label: "Admins",
+      value: stats?.admins,
+      color: "var(--accent-red)",
+      icon: Shield,
+    },
   ];
-
-  const courseData = (s.byCourse || []).map((c) => ({
-    name: c.course.replace("General ", ""),
-    count: c.count,
-  }));
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-black" style={{ color: "var(--dark-gray)" }}>
-          Analytics
-        </h1>
-        <p className="text-xs text-gray-400 mt-0.5">
-          Live figures · {settings.currentAcademicYear} · {settings.currentTerm}
-        </p>
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
+        <div>
+          <h1
+            className="text-xl font-black"
+            style={{ color: "var(--dark-gray)" }}
+          >
+            Analytics
+          </h1>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Live figures from score entry and attendance
+          </p>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <PeriodPicker
+            term={term}
+            academicYear={academicYear}
+            onTerm={setTerm}
+            onYear={setAcademicYear}
+          />
+          <label className="text-xs text-gray-500">
+            <span className="block mb-1">Class</span>
+            <select
+              value={className}
+              onChange={(e) => setClassName(e.target.value)}
+              className="px-3 py-2 text-sm rounded-xl border-2 bg-white"
+              style={{ borderColor: "var(--medium-gray)" }}
+            >
+              <option value="">Whole school</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map(({ label, value, color, icon: Icon }) => (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {people.map(({ label, value, color, icon: Icon }) => (
           <div
             key={label}
             className="bg-white rounded-xl border p-4 flex items-center gap-3 shadow-sm"
             style={{ borderColor: "var(--medium-gray)" }}
           >
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color + "18" }}>
-              <Icon size={20} style={{ color }} />
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: color + "18" }}
+            >
+              <Icon size={18} style={{ color }} />
             </div>
             <div>
-              <p className="text-2xl font-black" style={{ color: "var(--dark-gray)" }}>
-                {value}
+              <p
+                className="text-xl font-black"
+                style={{ color: "var(--dark-gray)" }}
+              >
+                {value ?? "-"}
               </p>
               <p className="text-xs text-gray-500">{label}</p>
             </div>
@@ -99,68 +153,28 @@ const AdminAnalytics = () => {
         ))}
       </div>
 
-      {courseData.length === 0 ? (
-        <div
-          className="bg-white rounded-xl border shadow-sm py-16 text-center"
-          style={{ borderColor: "var(--medium-gray)" }}
-        >
-          <Info size={36} className="mx-auto mb-3 text-gray-300" />
-          <p className="text-sm text-gray-400">
-            No enrolment data yet. Charts appear once students are registered
-            with courses.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="bg-white rounded-xl border shadow-sm p-5" style={{ borderColor: "var(--medium-gray)" }}>
-            <h3 className="font-semibold text-sm mb-4" style={{ color: "var(--dark-gray)" }}>
-              Students by Course
-            </h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={courseData} margin={{ top: 5, right: 10, left: -20, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#6b7280" }} angle={-25} textAnchor="end" interval={0} />
-                <YAxis tick={{ fontSize: 10, fill: "#6b7280" }} allowDecimals={false} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                  {courseData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="bg-white rounded-xl border shadow-sm p-5" style={{ borderColor: "var(--medium-gray)" }}>
-            <h3 className="font-semibold text-sm mb-4" style={{ color: "var(--dark-gray)" }}>
-              Course Distribution
-            </h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={courseData} cx="50%" cy="50%" outerRadius={90} dataKey="count" nameKey="name" label>
-                  {courseData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      <div
-        className="flex items-start gap-3 p-4 rounded-xl border text-xs"
-        style={{ backgroundColor: "#eff6ff", borderColor: "#bfdbfe" }}
-      >
-        <Info size={15} style={{ color: "var(--royal-blue)" }} className="flex-shrink-0 mt-0.5" />
-        <p style={{ color: "#1e40af" }}>
-          These figures are pulled live from the database. Term-over-term
-          performance trends will populate as more results are entered and
-          published across terms.
+      {loading && !report ? (
+        <p className="py-16 text-center text-sm text-gray-400">
+          Loading analytics…
         </p>
-      </div>
+      ) : error ? (
+        <p
+          className="py-16 text-center text-sm"
+          style={{ color: "var(--accent-red)" }}
+        >
+          {error}
+        </p>
+      ) : report ? (
+        <>
+          <AnalyticsPdfPanel
+            report={report}
+            schoolName={settings.schoolName}
+            scope={className || "Whole School"}
+            preparedBy={user?.name || user?.email || "Administrator"}
+          />
+          <AnalyticsReportView report={report} />
+        </>
+      ) : null}
     </div>
   );
 };
