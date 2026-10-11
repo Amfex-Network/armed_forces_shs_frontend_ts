@@ -29,7 +29,7 @@ const ALIASES: Record<string, string[]> = {
   yearGroup: ["yeargroup", "form", "level"],
   formClass: ["formclass", "class", "classname", "stream"],
   course: ["course", "program", "programme"],
-  track: ["track"],
+  track: ["transition", "track"],
   status: ["status"],
   house: ["house"],
   dob: ["dob", "dateofbirth", "birthdate"],

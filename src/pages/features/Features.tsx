@@ -94,7 +94,7 @@ const PORTALS = [
       "Manage all users - teachers, students, parents",
       "Configure programmes, classes and subjects",
       "Set up grading scale and CA/exam weightings",
-      "Manage academic years, terms and double-track dates",
+      "Manage academic years, terms and the school calendar",
       "View school-wide analytics and performance charts",
       "Send bulk messages to parents and staff",
       "Manage school calendar and key events",
@@ -216,10 +216,10 @@ const STEPS = [
     n: "01",
     c: "#E63946",
     t: "Admin Configures the School",
-    d: "Admin sets up the school profile, academic year, double-track dates, programmes, classes, subjects and the WASSCE A1–F9 grading scale.",
+    d: "Admin sets up the school profile, academic year, school calendar, programmes, classes, subjects and the WASSCE A1–F9 grading scale.",
     ticks: [
       "Create academic year and 3 term dates",
-      "Set Track A and Track B calendars",
+      "Tag students Transition One or Transition Two",
       "Configure programmes, classes and subjects",
       "Set CA/exam weighting and grading scale",
     ],
@@ -228,10 +228,10 @@ const STEPS = [
     n: "02",
     c: "#0e07dd",
     t: "Users Are Added and Enrolled",
-    d: "Teachers are added with their specific roles. Students are enrolled into form classes, programmes and tracks. Parents are linked to their children.",
+    d: "Teachers are added with their specific roles. Students are enrolled into form classes, programmes and transitions. Parents are linked to their children.",
     ticks: [
       "Add teachers and assign their roles",
-      "Enrol students into classes and tracks",
+      "Enrol students into classes and transitions",
       "Link parents to student accounts",
       "Assign form teachers to classes",
     ],
@@ -272,8 +272,8 @@ const FAQS = [
     a: "Admin assigns each teacher one of 6 roles when creating their account. The teacher's sidebar, dashboard and available tools automatically match their role - no further setup needed.",
   },
   {
-    q: "How does the double track system work?",
-    a: "Track A and Track B students attend school at different times. Admin sets separate term calendars for each track. Students are assigned a track at enrolment and all their records reflect it.",
+    q: "How does the transitional system work?",
+    a: "The school runs a transitional calendar with two groups, Transition One and Transition Two. Each student is tagged with their transition when enrolled or imported, and the admin can filter and export students by transition. Term dates, exams and holidays go on the shared school calendar.",
   },
   {
     q: "Can a parent have more than one child in the system?",
@@ -385,7 +385,7 @@ export default function Features() {
   const MARQUEE_ITEMS = Array(2)
     .fill([
       "Report Cards",
-      "Double Track",
+      "Transitional System",
       "WASSCE Grading",
       "Score Entry",
       "Attendance Tracking",
@@ -481,8 +481,8 @@ export default function Features() {
                   Management System.{" "}
                 </b>{" "}
                 <br />A digitalises academic records, report cards, attendance
-                and school communications purposely for Ghana's double-track
-                Senior High Schools.
+                and school communications purposely for Ghana's Senior High
+                Schools.
               </p>
             </Rev>
             <Rev delay={220}>
@@ -568,13 +568,13 @@ export default function Features() {
                     className="text-2xl text-white"
                     style={{ fontWeight: "800" }}
                   >
-                    Track A/B
+                    T1 / T2
                   </p>
                   <p
                     className="text-xs mt-0.5"
                     style={{ color: "rgba(255,255,255,.45)" }}
                   >
-                    Double Track
+                    Transitional System
                   </p>
                 </div>
               </div>
@@ -904,7 +904,7 @@ export default function Features() {
           </div>
         </section>
 
-        {/* DOUBLE TRACK */}
+        {/* TRANSITIONAL SYSTEM */}
         <section
           className="py-20 px-4 sm:px-6 border-b"
           style={{ borderColor: "var(--medium-gray)" }}
@@ -915,7 +915,7 @@ export default function Features() {
                 className="fp-tag mb-4"
                 style={{ backgroundColor: "#fef3c7", color: "#92400e" }}
               >
-                Double Track System
+                Transitional System
               </span>
               <h2
                 className="text-3xl sm:text-4xl mt-3 mb-2"
@@ -926,43 +926,42 @@ export default function Features() {
                   fontWeight: "800",
                 }}
               >
-                Built for Ghana's Double Track SHS
+                Built for the Transitional Calendar
               </h2>
               <p
                 className="text-sm mb-12 max-w-lg"
                 style={{ color: "#6b7280" }}
               >
-                Track A and Track B students coexist in one system with fully
-                separate calendars, term dates and results - aligned with GES
-                policy.
+                Transition One and Transition Two students work in one system,
+                with the same grading, report cards and school calendar.
               </p>
             </Rev>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {[
                 {
-                  id: "A",
+                  id: "One",
                   hex: "#854d0e",
                   bg: "#fefce8",
                   border: "#fcd34d",
-                  status: "In Session",
+                  status: "Students",
                   pts: [
-                    "Separate term start and end dates from Track B",
-                    "Own resumption and vacation calendar",
-                    "Students see only their track's schedule",
-                    "Results and reports filtered by track",
+                    "Each student is tagged with a transition at enrolment",
+                    "Transition is a column in the student import sheet",
+                    "Filter and export students by transition",
+                    "Students see their transition on their dashboard",
                   ],
                 },
                 {
-                  id: "B",
+                  id: "Two",
                   hex: "#166534",
                   bg: "#f0fdf4",
                   border: "#86efac",
-                  status: "On Vacation",
+                  status: "School",
                   pts: [
-                    "Both tracks complete 3 full terms per year",
-                    "Admin can switch active track with one click",
-                    "Classes clearly labelled Track A or Track B",
-                    "Report cards generated per track independently",
+                    "One school calendar for term dates, exams and holidays",
+                    "The same WASSCE grading for every student",
+                    "Results, positions and report cards per class and term",
+                    "Class timetables use the school's own periods and breaks",
                   ],
                 },
               ].map((t, i) => (
@@ -979,10 +978,10 @@ export default function Features() {
                     >
                       <div className="flex items-center justify-between mb-6">
                         <h3
-                          className="text-5xl"
+                          className="text-3xl sm:text-4xl"
                           style={{ color: t.hex, fontWeight: "800" }}
                         >
-                          Track {t.id}
+                          Transition {t.id}
                         </h3>
                         <span
                           className="fp-tag"

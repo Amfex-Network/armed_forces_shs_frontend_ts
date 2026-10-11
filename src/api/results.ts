@@ -17,6 +17,7 @@ export interface ReportResult {
     lastName?: string;
     formClass?: string;
     course?: string;
+    track?: string;
   };
   term: string;
   academicYear: string;
