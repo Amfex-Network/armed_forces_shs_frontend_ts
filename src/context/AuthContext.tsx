@@ -48,6 +48,7 @@ function normalize(u: ApiUser, studentId = ""): AppUser {
     firstName,
     lastName,
     email: u.email,
+    username: u.username || "",
     phone: u.phone,
     picture: u.picture || "",
     address: u.address || "",
@@ -180,7 +181,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setError("");
 
     if (!email.trim() || !password.trim()) {
-      setError("Please enter your email and password.");
+      setError("Please enter your email or username and password.");
       setLoading(false);
       return { success: false };
     }

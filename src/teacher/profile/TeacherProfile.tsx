@@ -113,7 +113,12 @@ const TeacherProfile = () => {
             My Profile
           </h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {user?.staffId} · {user?.department} Department
+            {[
+              user?.staffId,
+              user?.department && `${user.department} Department`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
         {!editMode ? (
@@ -350,8 +355,14 @@ const TeacherProfile = () => {
             </h3>
             <InfoRow
               icon={BookOpen}
+              label="Username"
+              value={user?.username || "Not set"}
+              color="var(--royal-blue)"
+            />
+            <InfoRow
+              icon={BookOpen}
               label="Staff ID"
-              value={user?.staffId}
+              value={user?.staffId || "Not set"}
               color="var(--royal-blue)"
             />
             <InfoRow

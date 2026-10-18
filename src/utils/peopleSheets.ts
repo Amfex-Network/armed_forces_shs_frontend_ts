@@ -38,6 +38,11 @@ export const TEACHER_COLUMNS: ColumnSpec[] = [
     aliases: ["phone", "phonenumber", "mobile", "contact"],
   },
   {
+    field: "username",
+    header: "Username",
+    aliases: ["username", "loginname", "user"],
+  },
+  {
     field: "staffId",
     header: "Staff ID",
     aliases: ["staffid", "staffno", "staffnumber", "id"],

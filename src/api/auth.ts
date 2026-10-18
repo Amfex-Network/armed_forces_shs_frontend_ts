@@ -9,6 +9,7 @@ export interface ApiUser {
   lastname: string;
   othernames?: string;
   email: string;
+  username?: string;
   phone?: string;
   role: Role;
   picture?: string;

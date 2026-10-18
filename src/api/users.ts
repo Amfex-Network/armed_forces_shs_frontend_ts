@@ -9,6 +9,7 @@ export interface ManagedUser {
   lastName: string;
   othernames?: string;
   email: string;
+  username?: string;
   phone?: string;
   status?: string;
   joinDate?: string;
@@ -32,6 +33,7 @@ interface ApiUser {
   lastname: string;
   othernames?: string;
   email: string;
+  username?: string;
   phone?: string;
   active?: boolean;
   date?: string;
@@ -67,6 +69,7 @@ function toUi(u: ApiUser): ManagedUser {
     lastName: u.lastname,
     othernames: u.othernames || "",
     email: u.email,
+    username: u.username || "",
     phone: u.phone || "",
     status: u.active === false ? "Inactive" : "Active",
     joinDate: u.date ? u.date.split("T")[0] : "",
@@ -95,6 +98,7 @@ function toApi(u: Partial<ManagedUser>): Record<string, unknown> {
     lastName: "lastname",
     othernames: "othernames",
     email: "email",
+    username: "username",
     phone: "phone",
     role: "role",
     title: "title",
@@ -161,6 +165,7 @@ export const usersApi = {
         email: string;
         role: string;
         staffId: string;
+        username: string;
         children: string;
         tempPassword: string;
         warnings: string[];

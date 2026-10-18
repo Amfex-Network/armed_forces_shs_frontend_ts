@@ -279,7 +279,8 @@ const EditUserModal = ({ user, onSave, onClose }) => {
             label: "Department",
             options: withCurrent(lists.departments, user.department),
           },
-          { key: "staffId", label: "Staff ID" },
+          { key: "username", label: "Username (optional)" },
+          { key: "staffId", label: "Staff ID (optional)" },
           {
             key: "teacherRole",
             label: "Role",
@@ -459,6 +460,14 @@ const EditUserModal = ({ user, onSave, onClose }) => {
   );
 };
 
+// Matches the server rule; usernames are a second way to sign in.
+const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,29}$/i;
+
+const suggestUsername = (f: { firstName?: string; lastName?: string }) =>
+  `${(f.firstName || "").trim().charAt(0)}${(f.lastName || "").trim()}`
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "");
+
 // Defined at module level: a component declared inside the modal would be
 // re-created on every keystroke, unmounting the input and dropping focus.
 const AddUserFormContext = React.createContext<any>(null);
@@ -582,8 +591,9 @@ const AddUserModal = ({ onSave, onClose }) => {
     if (!form.firstName?.trim()) e.firstName = "Required";
     if (!form.lastName?.trim()) e.lastName = "Required";
     if (!form.email?.trim()) e.email = "Required";
-    if (role === "teacher" && !form.staffId?.trim()) e.staffId = "Required";
     if (role === "student" && !form.studentId?.trim()) e.studentId = "Required";
+    if (form.username?.trim() && !USERNAME_RE.test(form.username.trim()))
+      e.username = "3-30 letters, numbers, dot, dash or underscore";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -604,6 +614,7 @@ const AddUserModal = ({ onSave, onClose }) => {
       ...(role === "teacher"
         ? {
             staffId: form.staffId,
+            username: form.username?.trim().toLowerCase() || "",
             department: form.department || "",
             teacherRole: form.teacherRole || "Subject Teacher",
             formClasses: isFormTeacher(form.teacherRole)
@@ -863,10 +874,14 @@ const AddUserModal = ({ onSave, onClose }) => {
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <FInput
-                        label="Staff ID"
+                        label="Username (optional)"
+                        field="username"
+                        placeholder={suggestUsername(form) || "e.g. kasante"}
+                      />
+                      <FInput
+                        label="Staff ID (optional)"
                         field="staffId"
                         placeholder="e.g. AFSHTS/TCH/016"
-                        required
                       />
                       <FInput
                         label="Department"
@@ -1126,7 +1141,8 @@ const ProfileDrawer = ({ user, onClose, onReset, onToggleStatus }) => {
     { icon: User, label: "Last Login", value: user.lastLogin || "-" },
     ...(user.role === "teacher"
       ? [
-          { icon: User, label: "Staff ID", value: user.staffId },
+          { icon: User, label: "Username", value: user.username || "Not set" },
+          { icon: User, label: "Staff ID", value: user.staffId || "Not set" },
           { icon: User, label: "Department", value: user.department },
           {
             icon: Shield,
@@ -1460,6 +1476,7 @@ const UserManagement = () => {
           name.includes(q) ||
           u.email.toLowerCase().includes(q) ||
           (u.staffId || "").toLowerCase().includes(q) ||
+          (u.username || "").toLowerCase().includes(q) ||
           (u.studentId || "").toLowerCase().includes(q);
         const matchRole = activeRole === "all" || u.role === activeRole;
         const matchStatus = filterStatus === "All" || u.status === filterStatus;

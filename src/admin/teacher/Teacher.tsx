@@ -239,7 +239,7 @@ const TeacherFormModal = ({ teacher, onSave, onClose, departments }: any) => {
               onChange={(v: string) => set("phone", v)}
             />
             <FInput
-              label="Staff ID"
+              label="Staff ID (optional)"
               value={form.staffId}
               onChange={(v: string) => set("staffId", v)}
             />

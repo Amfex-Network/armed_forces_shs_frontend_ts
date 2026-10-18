@@ -51,14 +51,13 @@ const PeopleImportExport = ({
     downloadCredentialSheet(
       `AFSHTS_${label}_Logins_${stamp()}.xlsx`,
       role === "teacher"
-        ? ["Name", "Email", "Staff ID", "One-time password"]
+        ? ["Name", "Email", "Username", "Staff ID", "One-time password"]
         : ["Name", "Email", "Linked children", "One-time password"],
-      created.map((c) => [
-        c.name,
-        c.email,
-        role === "teacher" ? c.staffId : c.children,
-        c.tempPassword,
-      ]),
+      created.map((c) =>
+        role === "teacher"
+          ? [c.name, c.email, c.username, c.staffId, c.tempPassword]
+          : [c.name, c.email, c.children, c.tempPassword],
+      ),
     );
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {

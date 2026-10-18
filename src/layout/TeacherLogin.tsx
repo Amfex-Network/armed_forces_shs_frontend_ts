@@ -82,7 +82,7 @@ export default function TeacherLogin() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">
-                  Email Address
+                  Email or Username
                 </label>
                 <div className="relative">
                   <svg
@@ -98,11 +98,12 @@ export default function TeacherLogin() {
                     <polyline points="22,6 12,13 2,6" />
                   </svg>
                   <input
-                    type="email"
+                    type="text"
+                    autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    placeholder="yourname@afshts.edu.gh"
+                    placeholder="yourname@afshts.edu.gh or username"
                     className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-700"
                   />
                 </div>
