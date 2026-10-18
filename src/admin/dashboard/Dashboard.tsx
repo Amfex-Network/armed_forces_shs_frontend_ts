@@ -37,6 +37,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
 import { statsApi } from "../../api/stats";
+import { UpcomingEvents } from "../../components/common/UpcomingEvents";
 
 const PROGRAM_COLORS = [
   "var(--royal-blue)",
@@ -427,6 +428,8 @@ const Dashboard = () => {
           onClick={() => navigate("/dashboard/publishReports")}
         />
       </div>
+
+      <UpcomingEvents manageTo="/dashboard/calendar" />
 
       {/* Charts row 1 - Grade distribution + Term trend */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
