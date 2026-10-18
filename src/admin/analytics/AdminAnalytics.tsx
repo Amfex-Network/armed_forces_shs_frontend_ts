@@ -10,6 +10,7 @@ import {
   AnalyticsReportView,
 } from "../../components/analytics/AnalyticsReportView";
 import { PeriodPicker } from "../../components/analytics/PeriodPicker";
+import { PendingResults } from "../../components/analytics/PendingResults";
 
 const AdminAnalytics = () => {
   const { settings } = useSettings();
@@ -152,6 +153,8 @@ const AdminAnalytics = () => {
           </div>
         ))}
       </div>
+
+      <PendingResults term={term} academicYear={academicYear} />
 
       {loading && !report ? (
         <p className="py-16 text-center text-sm text-gray-400">

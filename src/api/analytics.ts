@@ -76,3 +76,29 @@ export const analyticsApi = {
     }>(`/api/analytics${qs ? `?${qs}` : ""}`);
   },
 };
+
+export interface PendingTeacher {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  department: string;
+  missing: number;
+  items: {
+    className: string;
+    subject: string;
+    entered: number;
+    expected: number;
+  }[];
+}
+
+export const pendingResultsApi = {
+  async get(query: { term?: string; academicYear?: string }) {
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([k, v]) => v && params.append(k, v));
+    const qs = params.toString();
+    return api.get<{ success: boolean; teachers: PendingTeacher[] }>(
+      `/api/analytics/pending-results${qs ? `?${qs}` : ""}`,
+    );
+  },
+};
