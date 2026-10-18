@@ -69,7 +69,9 @@ const ScoreReview = ({ mode = "own" }: { mode?: "own" | "department" }) => {
           .trim()
           .toLowerCase();
         const visibleClasses =
-          mode === "department" ? cls : cls.filter((c) => c.teaching || c.form);
+          mode === "department" || user?.role === "admin"
+            ? cls
+            : cls.filter((c) => c.teaching || c.form);
         const visibleSubjects =
           mode === "department"
             ? subs.filter(

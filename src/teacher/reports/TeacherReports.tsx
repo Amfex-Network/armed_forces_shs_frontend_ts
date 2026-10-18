@@ -4,6 +4,7 @@ import { classesApi } from "../../api/domains";
 import { studentsApi, type Student } from "../../api/students";
 import { resultsApi, type ReportResult } from "../../api/results";
 import { useSettings } from "../../context/SettingsContext";
+import { useAuth } from "../../context/AuthContext";
 import type { AppSettings } from "../../api/settings";
 import { sameClass } from "../../utils/classNames";
 import {
@@ -64,6 +65,8 @@ const ReportView = ({
 
 const TeacherReports = () => {
   const { settings } = useSettings();
+  // Admins (headmaster) see every class.
+  const isAdmin = useAuth().user?.role === "admin";
   const TERMS = settings.terms;
   const ACADEMIC_YEAR = settings.currentAcademicYear;
 
@@ -89,7 +92,7 @@ const TeacherReports = () => {
           classesApi.list(),
           studentsApi.list(),
         ]);
-        const mine = cls.filter((c) => c.teaching || c.form);
+        const mine = cls.filter((c) => isAdmin || c.teaching || c.form);
         setClasses(mine);
         setStudents(studs);
         if (mine.length) setSelectedClass(mine[0]);

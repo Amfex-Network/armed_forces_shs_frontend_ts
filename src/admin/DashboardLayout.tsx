@@ -90,6 +90,36 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    section: "Academic Records",
+    items: [
+      {
+        icon: FaClipboardList,
+        label: "Attendance",
+        path: "/dashboard/attendance",
+      },
+      {
+        icon: FaCommentDots,
+        label: "Remarks & Conduct",
+        path: "/dashboard/remarks",
+      },
+      {
+        icon: FaFileAlt,
+        label: "Report Cards",
+        path: "/dashboard/reportCards",
+      },
+      {
+        icon: FaBook,
+        label: "Score Review",
+        path: "/dashboard/scoreReview",
+      },
+      {
+        icon: FaCalendarAlt,
+        label: "Timetable",
+        path: "/dashboard/timetable",
+      },
+    ],
+  },
+  {
     section: "Reports",
     items: [
       {

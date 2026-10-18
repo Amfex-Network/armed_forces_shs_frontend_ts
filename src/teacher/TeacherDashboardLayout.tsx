@@ -27,7 +27,6 @@ import {
 } from "react-icons/fa";
 import { useSettings } from "../context/SettingsContext";
 import logo from "../assets/logo.png";
-import { isFormTeacher, isHod } from "../utils/teacherRoles";
 
 interface NavItem {
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -89,27 +88,12 @@ const N: Record<string, NavItem> = {
   },
 };
 
-// Every teacher teaches; HOD and Form Teacher duties add their own section,
-// so a teacher with several duties sees all of their tools together.
-const buildNav = (role: string) => {
-  const sections = [
-    {
-      section: "Main",
-      items: [N.dashboard, N.classes, N.scores, N.attendance],
-    },
-    {
-      section: "Academic",
-      items: [N.comments, N.reports, N.scoreReview, N.timetable, N.analytics],
-    },
-  ];
-  if (isFormTeacher(role)) {
-    sections.push({ section: "Form Teacher", items: [N.formclass] });
-  }
-  if (isHod(role)) {
-    sections.push({ section: "Head of Department", items: [N.department] });
-  }
-  return sections;
-};
+// Teachers only capture assessments. Attendance, remarks, report cards,
+// timetable and analytics are done by the headmaster/admin in the admin
+// portal, whatever the teacher's role (Form Teacher and HOD included).
+const buildNav = (_role: string) => [
+  { section: "Main", items: [N.dashboard, N.scores] },
+];
 
 const TeacherDashboardLayout = () => {
   const { settings } = useSettings();
@@ -474,7 +458,7 @@ const TeacherDashboardLayout = () => {
                     {user?.title} {user?.firstName} {user?.lastName}
                   </p>
                   <p className="text-xs text-gray-400 truncate">
-                    {user?.staffId} · {activeRole}
+                    {[user?.staffId, activeRole].filter(Boolean).join(" · ")}
                   </p>
                 </div>
               </div>

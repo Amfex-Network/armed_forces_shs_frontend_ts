@@ -12,6 +12,7 @@ import { classesApi } from "../../api/domains";
 import { studentsApi } from "../../api/students";
 import { commentsApi } from "../../api/comments";
 import { useSettings } from "../../context/SettingsContext";
+import { useAuth } from "../../context/AuthContext";
 import { Avatar, PageHeader } from "../components/TeacherUI";
 import { classResultsApi, type ClassStanding } from "../../api/results";
 import { commentBankApi } from "../../api/commentBank";
@@ -49,6 +50,8 @@ interface Row {
 
 const TeacherComments = () => {
   const { settings } = useSettings();
+  // Admins (headmaster) write remarks for every class.
+  const isAdmin = useAuth().user?.role === "admin";
   const ACADEMIC_YEAR = settings.currentAcademicYear;
   const TERMS = settings.terms;
   const [classes, setClasses] = useState<any[]>([]);
@@ -79,7 +82,7 @@ const TeacherComments = () => {
     (async () => {
       try {
         // Remarks on the report card are written by the form teacher.
-        const cls = (await classesApi.list()).filter((c) => c.form);
+        const cls = (await classesApi.list()).filter((c) => isAdmin || c.form);
         setClasses(cls);
         if (cls.length) setSelectedClass(cls[0]);
         const bank = await commentBankApi.list().catch(() => []);

@@ -38,12 +38,9 @@ import AdditionalInfo from "./admin/additional-info/AdditionalInfo";
 import AuditLogs from "./admin/audit-logs/AuditLogs";
 import TeacherDashboardLayout from "./teacher/TeacherDashboardLayout";
 import TeacherHome from "./teacher/dashboard/TeacherHome";
-import TeacherClasses from "./teacher/classes/TeacherClasses";
 import TeacherScores from "./teacher/scores/TeacherScores";
 import TeacherAttendance from "./teacher/attendance/TeacherAttendance";
 import TeacherComments from "./teacher/comments/TeacherComments";
-import TeacherAnalytics from "./teacher/analytics/TeacherAnalytics";
-import TeacherFormClass from "./teacher/formclass/TeacherFormClass";
 import TeacherReports from "./teacher/reports/TeacherReports";
 import ScoreReview from "./teacher/score-review/ScoreReview";
 import TeacherTimetable from "./teacher/timetable/TeacherTimetable";
@@ -137,6 +134,11 @@ const App = () => (
             <Route path="auditLogs" element={<AuditLogs />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="calendar" element={<SchoolCalendar />} />
+            <Route path="attendance" element={<TeacherAttendance />} />
+            <Route path="remarks" element={<TeacherComments />} />
+            <Route path="reportCards" element={<TeacherReports />} />
+            <Route path="timetable" element={<TeacherTimetable />} />
+            <Route path="scoreReview" element={<ScoreReview />} />
           </Route>
 
           {/* Teacher portal */}
@@ -148,25 +150,16 @@ const App = () => (
               </ProtectedRoute>
             }
           >
+            {/* Teachers only capture assessments; everything else is in
+                the admin portal. */}
             <Route index element={<TeacherHome />} />
-            <Route path="classes" element={<TeacherClasses />} />
             <Route path="scores" element={<TeacherScores />} />
-            <Route path="attendance" element={<TeacherAttendance />} />
-            <Route path="comments" element={<TeacherComments />} />
-            <Route path="reports" element={<TeacherReports />} />
-            <Route path="timetable" element={<TeacherTimetable />} />
-            <Route path="analytics" element={<TeacherAnalytics />} />
             <Route path="profile" element={<TeacherProfile />} />
             <Route
               path="settings"
               element={<Navigate to="/teacher/profile" replace />}
             />
-            <Route path="formclass" element={<TeacherFormClass />} />
-            <Route path="scoreReview" element={<ScoreReview />} />
-            <Route
-              path="department"
-              element={<ScoreReview mode="department" />}
-            />
+            <Route path="*" element={<Navigate to="/teacher" replace />} />
           </Route>
 
           {/* Student portal */}

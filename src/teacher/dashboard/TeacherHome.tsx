@@ -14,6 +14,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useSettings } from "../../context/SettingsContext";
 import { classesApi } from "../../api/domains";
 import { studentsApi } from "../../api/students";
+import { UpcomingEvents } from "../../components/common/UpcomingEvents";
 
 const TOOLS = [
   {
@@ -21,36 +22,6 @@ const TOOLS = [
     label: "Score Entry",
     desc: "Enter CA & exam marks",
     icon: ClipboardList,
-  },
-  {
-    to: "/teacher/attendance",
-    label: "Attendance",
-    desc: "Mark daily attendance",
-    icon: CalendarCheck,
-  },
-  {
-    to: "/teacher/comments",
-    label: "Comments",
-    desc: "Write student remarks",
-    icon: MessageSquare,
-  },
-  {
-    to: "/teacher/reports",
-    label: "Report Cards",
-    desc: "Preview & print reports",
-    icon: FileText,
-  },
-  {
-    to: "/teacher/timetable",
-    label: "Timetable",
-    desc: "Manage class schedule",
-    icon: CalendarDays,
-  },
-  {
-    to: "/teacher/scoreReview",
-    label: "Score Review",
-    desc: "Check entry progress",
-    icon: BookOpen,
   },
 ];
 
@@ -65,7 +36,7 @@ const TeacherHome = () => {
       classesApi.list().catch(() => []),
       studentsApi.list().catch(() => []),
     ]).then(([cls, studs]) => {
-      setClassCount(cls.filter((c) => c.teaching || c.form).length);
+      setClassCount(cls.filter((c) => c.teaching).length);
       setStudentCount(studs.length);
     });
   }, []);
@@ -141,6 +112,8 @@ const TeacherHome = () => {
           </div>
         ))}
       </div>
+
+      <UpcomingEvents />
 
       {/* Tools */}
       <div>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Save } from "lucide-react";
 import { classesApi } from "../../api/domains";
+import { useAuth } from "../../context/AuthContext";
 import { studentsApi } from "../../api/students";
 import { attendanceApi } from "../../api/attendance";
 import { Avatar, PageHeader } from "../components/TeacherUI";
@@ -31,6 +32,8 @@ const STATUS_STYLES = {
 };
 
 const TeacherAttendance = () => {
+  // Admins (headmaster) work on every class.
+  const isAdmin = useAuth().user?.role === "admin";
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -46,7 +49,7 @@ const TeacherAttendance = () => {
     (async () => {
       try {
         const cls = (await classesApi.list()).filter(
-          (c) => c.teaching || c.form,
+          (c) => isAdmin || c.teaching || c.form,
         );
         setClasses(cls);
         if (cls.length) setSelectedClass(cls[0]);
