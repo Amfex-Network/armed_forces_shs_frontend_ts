@@ -41,8 +41,8 @@ const FLAGS: { key: keyof Template; label: string; hint: string }[] = [
   { key: "showHeadRemarks", label: "Head's remarks", hint: "" },
   {
     key: "showSignatures",
-    label: "Signature lines",
-    hint: "Form teacher, head and parent",
+    label: "Certified by the head",
+    hint: "Head's title and name at the foot",
   },
 ];
 
@@ -345,6 +345,23 @@ const ReportTemplate = () => {
                   <option key={t} value={t} />
                 ))}
               </datalist>
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="rt-head-name">
+                Head's name
+              </label>
+              <input
+                id="rt-head-name"
+                value={draft.headName}
+                maxLength={80}
+                placeholder="e.g. Col. Kwame Mensah"
+                onChange={(e) => set("headName", e.target.value)}
+                className={inputClass}
+                style={{ borderColor: "var(--medium-gray)" }}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Printed under "Certified by" on every report.
+              </p>
             </div>
             <div>
               <label className={labelClass} htmlFor="rt-next">

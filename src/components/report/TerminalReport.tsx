@@ -345,23 +345,27 @@ export const TerminalReport = ({
         </div>
       ))}
 
-      {/* Signatures */}
+      {/* Certification */}
       {opt.showSignatures && (
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 18,
-            marginTop: 26,
+            display: "flex",
+            justifyContent: "flex-end",
+            marginTop: 30,
           }}
         >
-          {["Form Teacher", opt.headTitle, "Parent / Guardian"].map((who) => (
-            <div key={who} style={{ textAlign: "center", fontSize: 11 }}>
-              <div style={{ borderTop: "1px solid #334155", paddingTop: 4 }}>
-                {who}'s Signature & Date
-              </div>
+          <div style={{ width: "45%", textAlign: "center", fontSize: 11 }}>
+            <div style={{ borderTop: "1px solid #334155", paddingTop: 4 }}>
+              <b style={{ textTransform: "uppercase" }}>
+                Certified by the {opt.headTitle}
+              </b>
+              {opt.headName && (
+                <span style={{ display: "block", marginTop: 2 }}>
+                  {opt.headName}
+                </span>
+              )}
             </div>
-          ))}
+          </div>
         </div>
       )}
 

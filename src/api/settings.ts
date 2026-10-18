@@ -35,6 +35,7 @@ export type PositionBasis = "total" | "average" | "aggregate";
 export interface ReportTemplate {
   title: string;
   headTitle: string;
+  headName: string;
   showPosition: boolean;
   showAggregate: boolean;
   showAverage: boolean;
@@ -49,7 +50,8 @@ export interface ReportTemplate {
 
 export const REPORT_TEMPLATE_DEFAULTS: ReportTemplate = {
   title: "Terminal Report",
-  headTitle: "Head of School",
+  headTitle: "Headmaster",
+  headName: "",
   showPosition: true,
   showAggregate: true,
   showAverage: true,
